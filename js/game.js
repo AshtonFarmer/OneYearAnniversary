@@ -35,13 +35,13 @@ const players = {
   her:{img:herImg, cols:4, x:840, y:1080, dir:0, frame:0, speed:3.2, name:'Her'},
   him:{img:himImg, cols:3, x:955, y:1080, dir:0, frame:0, speed:3.2, name:'Me'}
 };
-// atlas rows: 0 front, 1 right, 2 back, 3 left
+// atlas rows: 0 front, 1 left, 2 back, 3 right
 function movePlayer(p, input){
   let dx=0,dy=0;
   if(input.up) dy-=1; if(input.down) dy+=1; if(input.left) dx-=1; if(input.right) dx+=1;
   if(dx||dy){
     const len=Math.hypot(dx,dy); dx/=len; dy/=len;
-    if(Math.abs(dx)>Math.abs(dy)) p.dir = dx>0 ? 1 : 3;
+    if(Math.abs(dx)>Math.abs(dy)) p.dir = dx>0 ? 3 : 1;
     else p.dir = dy>0 ? 0 : 2;
     let nx=p.x+dx*p.speed, ny=p.y+dy*p.speed;
     if(!rectHit(nx,p.y)) p.x=nx; if(!rectHit(p.x,ny)) p.y=ny;
