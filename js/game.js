@@ -45,10 +45,10 @@ function rectHit(x,y){ return solid.some(s=>x>s.x&&x<s.x+s.w&&y>s.y&&y<s.y+s.h);
 
 // Sprite sheet rows:
 // 0 = facing front/down, 2 = facing back/up.
-// The side rows are different for each sheet, so they are mapped separately here.
+// Rows: 0=down/front, 1=right, 2=up/back, 3=left.
 const players = {
   her:{img:herImg, cols:4, x:720, y:650, dir:'down', frame:0, speed:3.0, name:'Her', scale:.58,
-       rows:{down:0, up:2, left:1, right:3}, frames:{down:[0,1,2,3], up:[0,1,2,3], left:[0,1,2,3], right:[0,1,2,3]}},
+       rows:{down:0, up:2, left:3, right:1}, frames:{down:[0,1,2,3], up:[0,1,2,3], left:[0,1,2,3], right:[0,1,2,3]}},
   him:{img:himImg, cols:3, x:800, y:650, dir:'down', frame:0, speed:3.0, name:'Me', scale:.58,
        // The guy sheet had left/right backwards in the walking animation.
        rows:{down:0, up:2, left:3, right:1}, frames:{down:[0,1,2], up:[0,1,2], left:[0,1,2], right:[0,1,2]}}
