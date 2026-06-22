@@ -1,3 +1,4 @@
+// Debug mode: press G to show/hide zones. Red=blocked, green=interaction/walkable, blue=players, purple=spawn.
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
@@ -19,9 +20,18 @@ const himImg = new Image();
 himImg.src = 'assets/sprites/him_atlas.png';
 
 const keys = {};
+let debugMode = false;
+
 addEventListener('keydown', e => {
-  keys[e.key.toLowerCase()] = true;
-  if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key.toLowerCase())) e.preventDefault();
+  const key = e.key.toLowerCase();
+  if(key === 'g'){
+    debugMode = !debugMode;
+    e.preventDefault();
+    return;
+  }
+
+  keys[key] = true;
+  if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(key)) e.preventDefault();
 });
 addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
@@ -31,6 +41,11 @@ let camera = {x:0,y:0};
 let heartTimer = 0;
 let lastE = false;
 let activeShop = null;
+
+const spawnPoints = [
+  {name:'Her Spawn', x:710, y:930},
+  {name:'Me Spawn', x:825, y:930}
+];
 
 const players = {
   her:{img:herImg, x:710, y:930, dir:'up', frame:0, speed:3.0, scale:.58,
@@ -51,7 +66,6 @@ const shops = [
   {name:'⭐ Anniversary Shop', x:768, y:115, r:105, text:'The big final anniversary memory shop.', cards:['One year message','Timeline','Favorite photos','Future plans','Final surprise']}
 ];
 
-// Simple mall collision: blocks the storefront areas but leaves the middle and side gaps walkable.
 const solid = [
   {x:-60,y:-60,w:60,h:WORLD_H+120}, {x:WORLD_W,y:-60,w:60,h:WORLD_H+120},
   {x:-60,y:-60,w:WORLD_W+120,h:60}, {x:-60,y:WORLD_H,w:WORLD_W+120,h:60},
@@ -216,12 +230,63 @@ function drawCoupleHeart(){
   ctx.restore();
 }
 
+function drawDebugRect(rect, color){
+  ctx.fillStyle = color;
+  ctx.fillRect(rect.x - camera.x, rect.y - camera.y, rect.w, rect.h);
+}
+
+function drawDebugCircle(x, y, r, color){
+  ctx.beginPath();
+  ctx.arc(x - camera.x, y - camera.y, r, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function drawDebugText(text, x, y){
+  ctx.font = '14px monospace';
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = '#000000';
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeText(text, x - camera.x + 8, y - camera.y - 8);
+  ctx.fillText(text, x - camera.x + 8, y - camera.y - 8);
+}
+
+function drawDebugZones(){
+  if(!debugMode) return;
+
+  ctx.save();
+  solid.forEach(rect => drawDebugRect(rect, 'rgba(255,0,0,0.35)'));
+  shops.forEach(shop => {
+    drawDebugCircle(shop.x, shop.y, shop.r, 'rgba(0,255,90,0.28)');
+    drawDebugText(shop.name, shop.x, shop.y);
+  });
+  spawnPoints.forEach(spawn => {
+    drawDebugCircle(spawn.x, spawn.y, 20, 'rgba(170,80,255,0.75)');
+    drawDebugText(spawn.name, spawn.x, spawn.y);
+  });
+  drawDebugCircle(players.her.x, players.her.y, 10, 'rgba(0,130,255,0.85)');
+  drawDebugCircle(players.him.x, players.him.y, 10, 'rgba(0,130,255,0.85)');
+
+  ctx.fillStyle = 'rgba(0,0,0,0.65)';
+  ctx.fillRect(18, 18, 360, 78);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '15px monospace';
+  ctx.fillText('DEBUG ON — press G to hide', 32, 42);
+  ctx.fillText('Red=blocked Green=shops Blue=players', 32, 66);
+  ctx.fillText(`Her: ${Math.round(players.her.x)}, ${Math.round(players.her.y)}  Me: ${Math.round(players.him.x)}, ${Math.round(players.him.y)}`, 32, 90);
+  ctx.restore();
+}
+
 function draw(){
   camera = getCamera();
   ctx.clearRect(0,0,canvas.width,canvas.height);
   ctx.fillStyle = '#061018';
   ctx.fillRect(0,0,canvas.width,canvas.height);
   ctx.drawImage(map, -camera.x, -camera.y);
+  drawDebugZones();
 
   const arr = [players.her, players.him].sort((a,b) => a.y - b.y);
   arr.forEach(drawSprite);
