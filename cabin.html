@@ -1,1 +1,33 @@
-<!doctype html><html><head><meta charset="utf-8"><title>Main Cabin</title><link rel="stylesheet" href="css/style.css"></head><body class="area"><div class="box"><h1>🏡 Main Cabin</h1><p>This is the cozy room page. Later we can make this a full walkable cabin interior with bed, fireplace, photo wall, and letters.</p><div class="memory-grid"><div class="card">Photo wall placeholder</div><div class="card">Letter placeholder</div><div class="card">First memories placeholder</div></div><p><a href="index.html">← Back to the world</a></p></div><script src="js/music.js"></script></body></html>
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Main Cabin</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    #memoryModal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(4,10,18,.78);z-index:20;font-family:monospace}
+    #memoryModal .box{width:min(850px,90vw);max-height:82vh;overflow:auto;background:rgba(25,12,18,.95);border:3px solid #b17142;border-radius:16px;padding:24px;color:white;box-shadow:0 12px 40px #000}
+    #memoryModal h1{margin-top:0;color:#ff97cf}
+    #memoryModal button{background:#ff97cf;border:0;border-radius:10px;padding:10px 16px;font-weight:bold;cursor:pointer;margin-bottom:16px}
+    .memory-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
+    .photo-card{min-height:130px;border:2px dashed #ff9dcc;border-radius:12px;background:#241820;color:#ffd983;padding:14px}
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="prompt" class="prompt"></div>
+
+  <div id="memoryModal">
+    <div class="box">
+      <button onclick="document.getElementById('memoryModal').style.display='none'">Close</button>
+      <h1 id="memoryTitle">Memory</h1>
+      <p id="memoryText">Add your photos/messages here later.</p>
+      <div class="memory-grid" id="memoryCards"></div>
+      <p><a href="index.html">← Back to the world</a></p>
+    </div>
+  </div>
+
+  <script src="js/cabin.js"></script>
+</body>
+</html>
