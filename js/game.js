@@ -38,6 +38,11 @@ let WORLD_H = 1024;
 let camera = {x:0,y:0};
 let heartTimer = 0;
 
+let kissCount = Number(localStorage.getItem('kissCount') || 0);
+let lastKissAt = 0;
+let achievementShown = localStorage.getItem('achievement100Kisses') === 'true';
+let achievementTimer = 0;
+
 const locs = [
   {name:'Helipad', x:120, y:420, r:90, page:'helipad.html', text:'Press E to board the helicopter 🚁'},
   {name:'Main Cabin', x:455, y:485, r:105, page:'cabin.html', text:'Press E to enter the main cabin 🏡'},
@@ -157,6 +162,7 @@ function update(){
   });
 
   heartTimer++;
+  updateKissAchievement();
 
   const near = locs.find(l => 
     distPlayerLoc(players.her,l) < l.r || 
@@ -177,6 +183,34 @@ function update(){
   }
 
   lastE = !!keys.e;
+
+  if(achievementTimer > 0){
+    achievementTimer--;
+  }
+}
+
+function updateKissAchievement(){
+  const distance = Math.hypot(
+    players.her.x - players.him.x,
+    players.her.y - players.him.y
+  );
+
+  if(distance > 48) return;
+
+  const now = performance.now();
+
+  // Counts one kiss every 1.5 seconds while close, not every single frame.
+  if(now - lastKissAt < 1500) return;
+
+  lastKissAt = now;
+  kissCount++;
+  localStorage.setItem('kissCount', kissCount);
+
+  if(kissCount >= 100 && !achievementShown){
+    achievementShown = true;
+    achievementTimer = 420;
+    localStorage.setItem('achievement100Kisses', 'true');
+  }
 }
 
 function getCamera(){
@@ -288,6 +322,71 @@ function drawCoupleHeart(){
   ctx.restore();
 }
 
+function drawAchievement(){
+  if(achievementTimer <= 0) return;
+
+  const alpha = Math.min(1, achievementTimer / 60);
+  const boxW = 390;
+  const boxH = 105;
+  const x = canvas.width - boxW - 26;
+  const y = 26;
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  ctx.fillStyle = 'rgba(25, 12, 18, 0.95)';
+  ctx.strokeStyle = '#ff9dcc';
+  ctx.lineWidth = 4;
+
+  roundRect(x, y, boxW, boxH, 14, true, true);
+
+  ctx.fillStyle = '#ff9dcc';
+  ctx.font = 'bold 22px monospace';
+  ctx.fillText('Achievement Unlocked!', x + 22, y + 34);
+
+  ctx.fillStyle = '#ffe18b';
+  ctx.font = 'bold 20px monospace';
+  ctx.fillText('💖 100 Kisses', x + 22, y + 64);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '14px monospace';
+  ctx.fillText('Y’all really cannot stay apart.', x + 22, y + 88);
+
+  ctx.restore();
+}
+
+function drawKissCounter(){
+  const text = `Kisses: ${Math.min(kissCount, 100)}/100 💖`;
+  const x = 22;
+  const y = canvas.height - 26;
+
+  ctx.save();
+  ctx.font = 'bold 18px monospace';
+  ctx.fillStyle = 'rgba(25, 12, 18, 0.86)';
+  ctx.strokeStyle = '#ff9dcc';
+  ctx.lineWidth = 3;
+  roundRect(x - 12, y - 30, 205, 42, 10, true, true);
+  ctx.fillStyle = '#ffe18b';
+  ctx.fillText(text, x, y - 4);
+  ctx.restore();
+}
+
+function roundRect(x, y, w, h, r, fill, stroke){
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+  if(fill) ctx.fill();
+  if(stroke) ctx.stroke();
+}
+
 function draw(){
   camera = getCamera();
 
@@ -303,6 +402,8 @@ function draw(){
   arr.forEach(drawSprite);
 
   drawCoupleHeart();
+  drawKissCounter();
+  drawAchievement();
 }
 
 function loop(){
