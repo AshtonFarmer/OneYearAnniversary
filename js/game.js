@@ -40,8 +40,15 @@ let heartTimer = 0;
 
 let kissCount = Number(localStorage.getItem('kissCount') || 0);
 let lastKissAt = 0;
-let achievementShown = localStorage.getItem('achievement100Kisses') === 'true';
+
+let achievementMessage = null;
 let achievementTimer = 0;
+
+let achievement100Shown =
+  localStorage.getItem('achievement100Kisses') === 'true';
+
+let achievement1000Shown =
+  localStorage.getItem('achievement1000Kisses') === 'true';
 
 const locs = [
   {name:'Helipad', x:120, y:420, r:90, page:'helipad.html', text:'Press E to board the helicopter 🚁'},
@@ -199,17 +206,35 @@ function updateKissAchievement(){
 
   const now = performance.now();
 
-  // Counts one kiss every 1.5 seconds while close, not every single frame.
-  if(now - lastKissAt < 1500) return;
+  // Faster: counts one kiss every 0.35 seconds while close.
+  if(now - lastKissAt < 350) return;
 
   lastKissAt = now;
   kissCount++;
   localStorage.setItem('kissCount', kissCount);
 
-  if(kissCount >= 100 && !achievementShown){
-    achievementShown = true;
+  if(kissCount >= 100 && !achievement100Shown){
+    achievement100Shown = true;
+
+    achievementMessage = {
+      title: '💖 100 Kisses',
+      text: 'Y’all really cannot stay apart.'
+    };
+
     achievementTimer = 420;
     localStorage.setItem('achievement100Kisses', 'true');
+  }
+
+  if(kissCount >= 1000 && !achievement1000Shown){
+    achievement1000Shown = true;
+
+    achievementMessage = {
+      title: '😂 1000 Kisses',
+      text: 'Wow y’all are REALLY in love. Calm down you two.'
+    };
+
+    achievementTimer = 520;
+    localStorage.setItem('achievement1000Kisses', 'true');
   }
 }
 
@@ -323,11 +348,11 @@ function drawCoupleHeart(){
 }
 
 function drawAchievement(){
-  if(achievementTimer <= 0) return;
+  if(achievementTimer <= 0 || !achievementMessage) return;
 
   const alpha = Math.min(1, achievementTimer / 60);
-  const boxW = 390;
-  const boxH = 105;
+  const boxW = 520;
+  const boxH = 120;
   const x = canvas.width - boxW - 26;
   const y = 26;
 
@@ -341,33 +366,17 @@ function drawAchievement(){
   roundRect(x, y, boxW, boxH, 14, true, true);
 
   ctx.fillStyle = '#ff9dcc';
-  ctx.font = 'bold 22px monospace';
-  ctx.fillText('Achievement Unlocked!', x + 22, y + 34);
+  ctx.font = 'bold 24px monospace';
+  ctx.fillText('Achievement Unlocked!', x + 22, y + 36);
 
   ctx.fillStyle = '#ffe18b';
-  ctx.font = 'bold 20px monospace';
-  ctx.fillText('💖 100 Kisses', x + 22, y + 64);
+  ctx.font = 'bold 22px monospace';
+  ctx.fillText(achievementMessage.title, x + 22, y + 70);
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = '14px monospace';
-  ctx.fillText('Y’all really cannot stay apart.', x + 22, y + 88);
+  ctx.font = '15px monospace';
+  ctx.fillText(achievementMessage.text, x + 22, y + 98);
 
-  ctx.restore();
-}
-
-function drawKissCounter(){
-  const text = `Kisses: ${Math.min(kissCount, 100)}/100 💖`;
-  const x = 22;
-  const y = canvas.height - 26;
-
-  ctx.save();
-  ctx.font = 'bold 18px monospace';
-  ctx.fillStyle = 'rgba(25, 12, 18, 0.86)';
-  ctx.strokeStyle = '#ff9dcc';
-  ctx.lineWidth = 3;
-  roundRect(x - 12, y - 30, 205, 42, 10, true, true);
-  ctx.fillStyle = '#ffe18b';
-  ctx.fillText(text, x, y - 4);
   ctx.restore();
 }
 
@@ -402,7 +411,6 @@ function draw(){
   arr.forEach(drawSprite);
 
   drawCoupleHeart();
-  drawKissCounter();
   drawAchievement();
 }
 
