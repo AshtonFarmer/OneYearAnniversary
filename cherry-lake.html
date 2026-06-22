@@ -1,1 +1,51 @@
-<!doctype html><html><head><meta charset="utf-8"><title>Cherry Blossom Lake</title><link rel="stylesheet" href="css/style.css"></head><body class="area"><div class="box"><h1>🌸 Cherry Blossom Lake</h1><p>This page can become a walkable lake map with a bridge. At the end of the bridge: open pictures.</p><div class="memory-grid"><div class="card">Bridge photo spot</div><div class="card">Cherry blossom messages</div><div class="card">Favorite pictures</div></div><p><a href="index.html">← Back to the world</a></p></div></body></html>
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Cherry Blossom Lake</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    #photoModal{
+      position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+      background:rgba(4,10,18,.78); z-index:20; font-family:monospace;
+    }
+    #photoModal .box{
+      width:min(900px,90vw); max-height:82vh; overflow:auto;
+      background:rgba(25,12,18,.95); border:3px solid #b17142;
+      border-radius:16px; padding:24px; color:white; box-shadow:0 12px 40px #000;
+    }
+    #photoModal h1{margin-top:0;color:#ff97cf}
+    #photoModal button{
+      background:#ff97cf; border:0; border-radius:10px; padding:10px 16px;
+      font-weight:bold; cursor:pointer; margin-bottom:16px;
+    }
+    .photo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
+    .photo-card{
+      min-height:130px; border:2px dashed #ff9dcc; border-radius:12px;
+      background:#241820; color:#ffd983; padding:14px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="prompt" class="prompt"></div>
+
+  <div id="photoModal">
+    <div class="box">
+      <button onclick="document.getElementById('photoModal').style.display='none'">Close</button>
+      <h1>🌸 Cherry Blossom Lake Photos</h1>
+      <p>Add your pictures here later. For now these are cute placeholders.</p>
+      <div class="photo-grid">
+        <div class="photo-card">Bridge photo spot</div>
+        <div class="photo-card">Favorite pictures</div>
+        <div class="photo-card">Cherry blossom messages</div>
+        <div class="photo-card">One year memories</div>
+      </div>
+      <p><a href="index.html">← Back to the world</a></p>
+    </div>
+  </div>
+
+  <script src="js/cherry-lake.js"></script>
+</body>
+</html>
