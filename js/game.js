@@ -193,20 +193,29 @@ function drawSprite(p){
   const sw = 96;
   const sh = 128;
   const row = p.rows[p.dir];
+
   const dw = Math.round(sw * p.scale);
   const dh = Math.round(sh * p.scale);
-  const dx = Math.round(p.x - camera.x - dw / 2);
-  const dy = Math.round(p.y - camera.y - dh + 10);
+
+  let drawX = Math.round(p.x - camera.x - dw / 2);
+  let drawY = Math.round(p.y - camera.y - dh + 10);
+
+  let drawW = dw;
+
+  if (p === players.him && p.dir === 'right') {
+    drawX -= 4;
+    drawW += 8;
+  }
 
   ctx.drawImage(
-    p.img, 
-    p.frame * sw, 
-    row * sh, 
-    sw, 
-    sh, 
-    dx, 
-    dy, 
-    dw, 
+    p.img,
+    p.frame * sw,
+    row * sh,
+    sw,
+    sh,
+    drawX,
+    drawY,
+    drawW,
     dh
   );
 }
