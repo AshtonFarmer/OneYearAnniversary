@@ -32,9 +32,9 @@ let heartTimer = 0;
 let lastE = false;
 
 const players = {
-  her:{img:herImg, x:720, y:835, dir:'up', frame:0, speed:3.0, scale:.58,
+  her:{img:herImg, x:710, y:835, dir:'up', frame:0, speed:3.0, scale:.82,
        rows:{down:0, up:2, left:3, right:1}, frames:{down:[0,1,2,3], up:[0,1,2,3], left:[0,1,2,3], right:[0,1,2,3]}},
-  him:{img:himImg, x:815, y:835, dir:'up', frame:0, speed:3.0, scale:.58,
+  him:{img:himImg, x:805, y:835, dir:'up', frame:0, speed:3.0, scale:.82,
        rows:{down:0, up:2, left:3, right:1}, frames:{down:[0,1,2], up:[0,1,2], left:[0,1,2], right:[0,1,2]}}
 };
 
@@ -174,9 +174,9 @@ function drawPixelHeart(x,y,size){
 
 function drawCoupleHeart(){
   const distance = Math.hypot(players.her.x-players.him.x, players.her.y-players.him.y);
-  if(distance > 48) return;
+  if(distance > 60) return;
   const midX=(players.her.x+players.him.x)/2-camera.x;
-  const midY=Math.min(players.her.y,players.him.y)-camera.y-55;
+  const midY=Math.min(players.her.y,players.him.y)-camera.y-78;
   const float=Math.sin(heartTimer/12)*5;
   const pulse=Math.sin(heartTimer/10)>0?4:3;
   ctx.save();
