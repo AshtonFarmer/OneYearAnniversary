@@ -206,8 +206,8 @@ function updateKissAchievement(){
 
   const now = performance.now();
 
-  // Faster: counts one kiss every 0.35 seconds while close.
-  if(now - lastKissAt < 350) return;
+  // Faster: counts one kiss every seconds while close.
+  if(now - lastKissAt < 200) return;
 
   lastKissAt = now;
   kissCount++;
