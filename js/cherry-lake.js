@@ -1,4 +1,4 @@
-// Debug mode: press G to show/hide zones. Green=walkable/spots, blue=players, purple=spawn.
+// Debug mode: press G to show/hide zones. Red=blocked, green=spots, blue=players, purple=spawn.
 // Box mode: press B, drag a box, then copy coordinates from Console.
 
 const canvas = document.getElementById('game');
@@ -113,12 +113,21 @@ const spawnPoints = [
   {name:'Me Spawn', x:760, y:1010}
 ];
 
-const walkZones = [
-  {name:'Bottom Entrance', x:650, y:900, w:150, h:186},
-  {name:'Main Bridge', x:625, y:295, w:180, h:730},
-  {name:'Top Path', x:0, y:115, w:1448, h:195},
-  {name:'Bridge Landing', x:590, y:260, w:255, h:95}
+const solid = [
+  {name:'Left Water', x:0, y:0, w:620, h:1086},
+  {name:'Right Water', x:805, y:0, w:643, h:1086},
+  {name:'Top Trees', x:0, y:0, w:1448, h:110},
+  {name:'Bottom Fence', x:0, y:1025, w:1448, h:61}
 ];
+
+function rectHit(x,y){
+  return solid.some(s =>
+    x > s.x &&
+    x < s.x + s.w &&
+    y > s.y &&
+    y < s.y + s.h
+  );
+}
 
 const players = {
   her:{
@@ -148,15 +157,6 @@ const players = {
   }
 };
 
-function isWalkable(x, y){
-  return walkZones.some(z =>
-    x > z.x &&
-    x < z.x + z.w &&
-    y > z.y &&
-    y < z.y + z.h
-  );
-}
-
 function movePlayer(p, input){
   let dx = 0;
   let dy = 0;
@@ -180,8 +180,8 @@ function movePlayer(p, input){
     const nx = p.x + dx * p.speed;
     const ny = p.y + dy * p.speed;
 
-    if(isWalkable(nx, p.y)) p.x = nx;
-    if(isWalkable(p.x, ny)) p.y = ny;
+    if(!rectHit(nx, p.y)) p.x = nx;
+    if(!rectHit(p.x, ny)) p.y = ny;
 
     p.frameTimer = (p.frameTimer || 0) + 1;
 
@@ -335,8 +335,8 @@ function drawDebugZones(){
 
   ctx.save();
 
-  walkZones.forEach(z => {
-    drawDebugRect(z, 'rgba(0,255,90,0.22)');
+  solid.forEach(z => {
+    drawDebugRect(z, 'rgba(255,0,0,0.35)');
     drawDebugText(z.name, z.x, z.y);
   });
 
@@ -358,7 +358,7 @@ function drawDebugZones(){
   ctx.font = '15px monospace';
   ctx.fillText('DEBUG ON — press G to hide',32,42);
   ctx.fillText('Press B, drag a box, check Console',32,66);
-  ctx.fillText('Green=walkable/spots Blue=players',32,90);
+  ctx.fillText('Red=blocked Green=spots Blue=players',32,90);
   ctx.fillText(`Her: ${Math.round(players.her.x)}, ${Math.round(players.her.y)}  Me: ${Math.round(players.him.x)}, ${Math.round(players.him.y)}`,32,114);
 
   if(boxMode && dragStart && dragEnd){
