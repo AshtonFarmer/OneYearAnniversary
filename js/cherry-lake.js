@@ -121,7 +121,8 @@ const solid = [
   {name:'Left Lake', x:10, y:476, w:432, h:437},
   {name:'Left Lakey', x:11, y:918, w:584, h:64},
   {name:'Right Lake', x:1079, y:418, w:360, h:487},
-  {name:'Right Lakey', x:865, y:941, w:212, h:39}
+  {name:'Right Lakey', x:865, y:941, w:212, h:39},
+  {name:'Left Miss Lake', x:213, y:376, w:232, h:110}
 ];
 
 function rectHit(x,y){
