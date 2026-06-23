@@ -114,7 +114,7 @@ let achievement1000Shown = localStorage.getItem('achievement1000Kisses') === 'tr
 const locs = [
   {name:'Helipad', x:120, y:420, r:90, page:'helipad.html', text:'Press E to board the helicopter 🚁'},
   {name:'Main Cabin', x:455, y:485, r:105, page:'cabin.html', text:'Press E to enter the main cabin 🏡'},
-  {name:'Cherry Blossom Lake', x:770, y:765, r:115, page:'cherry-lake.html', text:'Press E to visit Cherry Blossom Lake 🌸'},
+  {name:'Cherry Blossom Lake', x:743, y:898, r:55, page:'cherry-lake.html', text:'Press E to visit Cherry Blossom Lake 🌸'},
   {name:'Shopping Center', x:1270, y:585, r:120, page:'shopping.html', text:'Press E to enter the shopping center 🛍️'},
   {name:'Future Spot', x:1410, y:310, r:85, page:null, text:'Locked for later 💕'}
 ];
