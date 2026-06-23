@@ -114,10 +114,10 @@ const spawnPoints = [
 ];
 
 const solid = [
-  {name:'Left Water', x:0, y:0, w:620, h:1086},
-  {name:'Right Water', x:805, y:0, w:643, h:1086},
-  {name:'Top Trees', x:0, y:0, w:1448, h:110},
-  {name:'Bottom Fence', x:0, y:1025, w:1448, h:61}
+  {name:'Left Water', x:440, y:354, w:216, h:563},
+  {name:'Right Water', x:789, y:349, w:295, h:595},
+  {name:'Top Right Trees', x:1447, y:47, w:0, h:0},
+  {name:'Top Left Trees', x:4, y:48, w:0, h:0},
 ];
 
 function rectHit(x,y){
