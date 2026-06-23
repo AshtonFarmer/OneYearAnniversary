@@ -139,15 +139,44 @@ const players = {
 };
 
 const boundaryBlocks = [
+  // World edges
   {x:0, y:0, w:40, h:WORLD_H},
   {x:0, y:0, w:WORLD_W, h:210},
   {x:WORLD_W - 40, y:0, w:40, h:WORLD_H},
-  {x:0, y:WORLD_H - 20, w:WORLD_W, h:20}
+  {x:0, y:WORLD_H - 20, w:WORLD_W, h:20},
+
+  // Bottom Left Trees
+  {x:35, y:932, w:585, h:84},
+
+  // Right Edge Trees
+  {x:1383, y:203, w:116, h:341},
+
+  // Center Pond
+  {x:472, y:594, w:186, h:216},
+
+  // Left Pond Area
+  {x:223, y:496, w:237, h:192},
+
+  // Left Trees
+  {x:32, y:201, w:158, h:542},
+
+  // Bottom Right Trees
+  {x:1059, y:714, w:238, h:182},
+
+  // Bottom Right Fence/Trees
+  {x:830, y:921, w:675, h:96},
+
+  // Helicopter Pad
+  {x:643, y:191, w:120, h:211}
 ];
 
 function rectHit(x,y){
-  if(x < 40 || y < 210 || x > WORLD_W - 40 || y > WORLD_H - 20) return true;
-  return false;
+  return boundaryBlocks.some(b =>
+    x > b.x &&
+    x < b.x + b.w &&
+    y > b.y &&
+    y < b.y + b.h
+  );
 }
 
 function movePlayer(p, input){
