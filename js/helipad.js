@@ -154,6 +154,12 @@ const boundaryBlocks = [
   // Center Pond
   {x:472, y:594, w:186, h:216},
 
+  //Fence
+  {x:1268, y:618, w:31, h:118},
+
+  //Fence2
+  {x:1193, y:647, w:99, h:114},
+
   // Left Pond Area
   {x:223, y:496, w:237, h:192},
 
