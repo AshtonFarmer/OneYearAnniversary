@@ -21,11 +21,24 @@ himImg.src = 'assets/sprites/him_atlas.png';
 
 const keys = {};
 let debugMode = false;
+let boxMode = false;
+let dragStart = null;
+let dragEnd = null;
 
 addEventListener('keydown', e => {
   const key = e.key.toLowerCase();
+
   if(key === 'g'){
     debugMode = !debugMode;
+    e.preventDefault();
+    return;
+  }
+
+  if(key === 'b'){
+    boxMode = !boxMode;
+    dragStart = null;
+    dragEnd = null;
+    console.log('Box Mode:', boxMode ? 'ON' : 'OFF');
     e.preventDefault();
     return;
   }
@@ -33,7 +46,46 @@ addEventListener('keydown', e => {
   keys[key] = true;
   if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(key)) e.preventDefault();
 });
+
 addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+canvas.addEventListener('mousedown', e => {
+  if(!boxMode) return;
+
+  const rect = canvas.getBoundingClientRect();
+
+  dragStart = {
+    x: Math.round(e.clientX - rect.left + camera.x),
+    y: Math.round(e.clientY - rect.top + camera.y)
+  };
+
+  dragEnd = {...dragStart};
+});
+
+canvas.addEventListener('mousemove', e => {
+  if(!boxMode || !dragStart) return;
+
+  const rect = canvas.getBoundingClientRect();
+
+  dragEnd = {
+    x: Math.round(e.clientX - rect.left + camera.x),
+    y: Math.round(e.clientY - rect.top + camera.y)
+  };
+});
+
+canvas.addEventListener('mouseup', e => {
+  if(!boxMode || !dragStart || !dragEnd) return;
+
+  const x = Math.min(dragStart.x, dragEnd.x);
+  const y = Math.min(dragStart.y, dragEnd.y);
+  const w = Math.abs(dragStart.x - dragEnd.x);
+  const h = Math.abs(dragStart.y - dragEnd.y);
+
+  console.log(`COPY THIS: {x:${x}, y:${y}, w:${w}, h:${h}}`);
+
+  dragStart = null;
+  dragEnd = null;
+});
 
 let WORLD_W = 1536;
 let WORLD_H = 1024;
@@ -271,12 +323,27 @@ function drawDebugZones(){
   drawDebugCircle(players.him.x, players.him.y, 10, 'rgba(0,130,255,0.85)');
 
   ctx.fillStyle = 'rgba(0,0,0,0.65)';
-  ctx.fillRect(18, 18, 360, 78);
+  ctx.fillRect(18, 18, 460, 102);
   ctx.fillStyle = '#ffffff';
   ctx.font = '15px monospace';
   ctx.fillText('DEBUG ON — press G to hide', 32, 42);
-  ctx.fillText('Red=blocked Green=shops Blue=players', 32, 66);
-  ctx.fillText(`Her: ${Math.round(players.her.x)}, ${Math.round(players.her.y)}  Me: ${Math.round(players.him.x)}, ${Math.round(players.him.y)}`, 32, 90);
+  ctx.fillText('Press B, drag a box, check Console', 32, 66);
+  ctx.fillText('Red=blocked Green=shops Blue=players', 32, 90);
+  ctx.fillText(`Her: ${Math.round(players.her.x)}, ${Math.round(players.her.y)}  Me: ${Math.round(players.him.x)}, ${Math.round(players.him.y)}`, 32, 114);
+
+  if(boxMode && dragStart && dragEnd){
+    const x = Math.min(dragStart.x, dragEnd.x) - camera.x;
+    const y = Math.min(dragStart.y, dragEnd.y) - camera.y;
+    const w = Math.abs(dragStart.x - dragEnd.x);
+    const h = Math.abs(dragStart.y - dragEnd.y);
+
+    ctx.fillStyle = 'rgba(0,180,255,0.25)';
+    ctx.strokeStyle = '#00b4ff';
+    ctx.lineWidth = 3;
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeRect(x, y, w, h);
+  }
+
   ctx.restore();
 }
 
