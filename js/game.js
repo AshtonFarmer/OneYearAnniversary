@@ -120,17 +120,76 @@ const locs = [
 ];
 
 const solid = [
-  {x:-50,y:-50,w:50,h:WORLD_H+100},
-  {x:WORLD_W,y:-50,w:50,h:WORLD_H+100},
-  {x:-50,y:-50,w:WORLD_W+100,h:50},
-  {x:-50,y:WORLD_H,w:WORLD_W+100,h:50},
-  {x:20,y:25,w:360,h:120},
-  {x:1285,y:20,w:230,h:140},
-  {x:25,y:790,w:235,h:210},
-  {x:35,y:355,w:175,h:150},
-  {x:245,y:320,w:285,h:260},
-  {x:1030,y:290,w:420,h:345},
-  {x:626,y:658,w:249,h:239}
+
+  // ===== WORLD BOUNDARIES =====
+  {x:-50,y:-50,w:50,h:WORLD_H+100},             // Left map edge
+  {x:WORLD_W,y:-50,w:50,h:WORLD_H+100},         // Right map edge
+  {x:-50,y:-50,w:WORLD_W+100,h:50},             // Top map edge
+  {x:-50,y:WORLD_H,w:WORLD_W+100,h:50},         // Bottom map edge
+
+
+  // ===== CHERRY BLOSSOM LAKE =====
+  {x:626,y:658,w:249,h:239},                    // Cherry Blossom Lake Pond
+
+
+  // ===== UI PANELS =====
+  {x:23,y:792,w:232,h:207},                     // Players Box
+  {x:1226,y:858,w:270,h:141},                   // Music Player Box
+  {x:17,y:10,w:378,h:115},                      // One Year Anniversary Banner
+  {x:1289,y:17,w:222,h:138},                    // Controls Box
+
+
+  // ===== HELIPAD AREA =====
+  {x:31,y:353,w:175,h:155},                     // Helicopter Pad
+
+
+  // ===== CENTER OF MAP =====
+  {x:244,y:322,w:285,h:204},                    // Main Cabin
+  {x:693,y:78,w:68,h:156},                      // Windmill
+  {x:109,y:184,w:66,h:101},                     // Well
+  {x:949,y:22,w:62,h:198},                      // Silo
+  {x:521,y:82,w:124,h:196},                     // Greenhouse
+  {x:1073,y:99,w:172,h:145},                    // Right Corner House
+  {x:195,y:122,w:274,h:146},                    // Left Corner Sheds
+
+
+  // ===== WATER / CLIFF EDGES =====
+  {x:389,y:982,w:304,h:42},                     // Bottom Left Water
+  {x:788,y:978,w:152,h:50},                     // Bottom Right Water
+
+
+  // ===== SHOPPING CENTER =====
+  {x:1011,y:287,w:122,h:127},                   // Shopping Barn 1
+  {x:1207,y:282,w:118,h:131},                   // Shopping Barn 2
+  {x:970,y:413,w:107,h:241},                    // Shopping Barns 3 & 4
+  {x:1145,y:423,w:113,h:231},                   // Shopping Barns 5 & 6
+  {x:1358,y:388,w:86,h:175},                    // Shopping Barn 7 + Pond
+
+
+  // ===== APPLE ORCHARD =====
+  {x:140,y:653,w:67,h:132},                     // Tree Row 1
+  {x:248,y:658,w:65,h:205},                     // Tree Row 2
+  {x:341,y:664,w:66,h:204},                     // Tree Row 3
+  {x:451,y:662,w:69,h:198},                     // Tree Row 4
+
+
+  // ===== HOT SPRINGS =====
+  {x:951,y:736,w:67,h:62},                      // Hot Spring 1
+  {x:1066,y:736,w:61,h:60},                     // Hot Spring 2
+  {x:1169,y:736,w:60,h:60},                     // Hot Spring 3
+  {x:1304,y:734,w:60,h:67},                     // Hot Spring 4
+
+
+  // ===== FENCES =====
+  {x:255,y:922,w:212,h:25},                     // Fence 1
+  {x:501,y:924,w:198,h:20},                     // Fence 2
+  {x:777,y:922,w:264,h:18},                     // Fence 3
+  {x:1094,y:915,w:127,h:17},                    // Fence 4
+  {x:824,y:280,w:90,h:40},                      // Fence 5
+  {x:93,y:304,w:80,h:18},                       // Fence 6
+  {x:154,y:588,w:205,h:32},                     // Fence 7
+  {x:406,y:587,w:165,h:29},                     // Fence 8
+  {x:566,y:537,w:21,h:71}                       // Fence 9
 ];
 
 const spawnPoints = [
