@@ -222,8 +222,8 @@ const solid = [
 ];
 
 const spawnPoints = [
-  {name:'Her Spawn', x:720, y:650},
-  {name:'Me Spawn', x:800, y:650}
+  {name:'Her Spawn', x:692, y:424},
+  {name:'Me Spawn', x:789, y:419}
 ];
 
 function rectHit(x,y){ 
