@@ -101,10 +101,47 @@ let lastE = false;
 let heartTimer = 0;
 
 const spots = [
-  {name:'Helicopter', x:980, y:360, r:115, text:'Press E to open adventure memories 🚁', action:'photos', title:'🚁 Our Adventures Together', body:'This is where trip photos, future plans, and adventure memories will go.'},
-  {name:'Adventure Sign', x:350, y:405, r:80, text:'Press E to read the adventure sign 💕', action:'photos', title:'💕 Our Adventures Together', body:'A little place for a message about everywhere you want to go together.'},
-  {name:'Picnic Overlook', x:1045, y:650, r:95, text:'Press E to open overlook memories 🌄', action:'photos', title:'🌄 Favorite Places', body:'Add screenshots, photos, or notes about beautiful places and memories here.'},
-  {name:'Back', x:760, y:975, r:70, text:'Press E to go back to the world 🌎', action:'back'}
+  {
+    name:'Helicopter',
+    x:980,
+    y:360,
+    r:115,
+    text:'Press E to open adventure memories 🚁',
+    action:'photos',
+    title:'🚁 Our Adventures Together',
+    body:'This is where trip photos, future plans, and adventure memories will go.'
+  },
+
+  {
+    name:'Adventure Sign',
+    x:516,
+    y:312,
+    r:60,
+    text:'Press E to read the adventure sign 💕',
+    action:'photos',
+    title:'💕 Our Adventures Together',
+    body:'A little place for a message about everywhere you want to go together.'
+  },
+
+  {
+    name:'Picnic Overlook',
+    x:1045,
+    y:650,
+    r:95,
+    text:'Press E to open overlook memories 🌄',
+    action:'photos',
+    title:'🌄 Favorite Places',
+    body:'Add screenshots, photos, or notes about beautiful places and memories here.'
+  },
+
+  {
+    name:'Back',
+    x:760,
+    y:975,
+    r:70,
+    text:'Press E to go back to the world 🌎',
+    action:'back'
+  }
 ];
 
 const spawnPoints = [
