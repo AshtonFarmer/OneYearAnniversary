@@ -112,11 +112,40 @@ let achievement100Shown = localStorage.getItem('achievement100Kisses') === 'true
 let achievement1000Shown = localStorage.getItem('achievement1000Kisses') === 'true';
 
 const locs = [
-  {name:'Helipad', x:120, y:420, r:90, page:'helipad.html', text:'Press E to board the helicopter 🚁'},
-  {name:'Main Cabin', x:455, y:485, r:105, page:'cabin.html', text:'Press E to enter the main cabin 🏡'},
-  {name:'Cherry Blossom Lake', x:743, y:898, r:55, page:'cherry-lake.html', text:'Press E to visit Cherry Blossom Lake 🌸'},
-  {name:'Shopping Center', x:1270, y:585, r:120, page:'shopping.html', text:'Press E to enter the shopping center 🛍️'},
-  {name:'Future Spot', x:1410, y:310, r:85, page:null, text:'Locked for later 💕'}
+  {
+    name:'Helipad',
+    x:108, y:525, r:50,
+    page:'helipad.html',
+    text:'Press E to board the helicopter 🚁'
+  },
+
+  {
+    name:'Main Cabin',
+    x:390, y:556, r:55,
+    page:'cabin.html',
+    text:'Press E to enter the main cabin 🏡'
+  },
+
+  {
+    name:'Cherry Blossom Lake',
+    x:743, y:898, r:55,
+    page:'cherry-lake.html',
+    text:'Press E to visit Cherry Blossom Lake 🌸'
+  },
+
+  {
+    name:'Shopping Center',
+    x:1116, y:534, r:90,
+    page:'shopping.html',
+    text:'Press E to enter the shopping center 🛍️'
+  },
+
+  {
+    name:'Future Spot',
+    x:1179, y:248, r:55,
+    page:null,
+    text:'Locked for later 💕'
+  }
 ];
 
 const solid = [
