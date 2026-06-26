@@ -254,8 +254,8 @@ function drawPromisePetals(){
 function drawPromiseVignette(){
   if(!promiseScene) return;
   let amount = 0;
-  if(['holdHands','line1','line2','line3','line4','hug'].includes(promiseScene.phase)) amount = .55;
-  if(promiseScene.phase === 'whiteFade') amount = Math.max(0,.55 - promiseScene.white*.55);
+  if(['holdHands','line1','line2','line3','line4','hug'].includes(promiseScene.phase)) amount = .72;
+  if(promiseScene.phase === 'whiteFade') amount = Math.max(0,.72 - promiseScene.white*.72);
   if(amount <= 0) return;
 
   ctx.save();
