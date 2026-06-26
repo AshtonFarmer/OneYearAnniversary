@@ -254,12 +254,12 @@ function drawPromisePetals(){
 function drawPromiseVignette(){
   if(!promiseScene) return;
   let amount = 0;
-  if(['holdHands','line1','line2','line3','line4','hug'].includes(promiseScene.phase)) amount = .80;
-  if(promiseScene.phase === 'whiteFade') amount = Math.max(0,.80 - promiseScene.white*.80);
+  if(['holdHands','line1','line2','line3','line4','hug'].includes(promiseScene.phase)) amount = .90;
+  if(promiseScene.phase === 'whiteFade') amount = Math.max(0,.90 - promiseScene.white*.90);
   if(amount <= 0) return;
 
   ctx.save();
-  const g = ctx.createRadialGradient(canvas.width/2,canvas.height/2,120,canvas.width/2,canvas.height/2,Math.max(canvas.width,canvas.height)*.75);
+  const g = ctx.createRadialGradient(canvas.width/2,canvas.height/2,120,canvas.width/2,canvas.height/2,Math.max(canvas.width,canvas.height)*.55);
   g.addColorStop(0,'rgba(0,0,0,0)');
   g.addColorStop(1,`rgba(5,2,10,${amount})`);
   ctx.fillStyle = g;
