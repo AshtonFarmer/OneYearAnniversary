@@ -226,23 +226,35 @@ const solid = [
   {x:-50,y:-50,w:WORLD_W+100,h:50},
   {x:-50,y:WORLD_H,w:WORLD_W+100,h:50},
 
-    {x:0,y:0,w:1536,h:80},
-    {x:0,y:0,w:35,h:1024},
-    {x:1500,y:0,w:50,h:1024},
+  {x:0,y:0,w:1536,h:80},
+  {x:0,y:0,w:35,h:1024},
+  {x:1500,y:0,w:50,h:1024},
 
-    {x:41, y:561, w:320, h:147}, //Kitchen
-    {x:638, y:573, w:185, h:87}, //Futon
-    {x:34, y:84, w:402, h:299}, //FirePlace
-    {x:375, y:70, w:769, h:196}, //Top Wall
-    {x:859, y:222, w:132, h:92}, //Drawers
-    {x:508, y:150, w:216, h:165}, //BookCase
-    {x:843, y:424, w:29, h:131}, //Couch Right Arm
-    {x:579, y:423, w:28, h:140}, //Couch Left Arm
-    {x:598, y:425, w:258, h:59}, //Couch Middle
-    {x:1061, y:434, w:406, h:176}, // Wall Above Table
-    {x:417, y:591, w:59, h:111}, //Plant 1
-    {x:1388, y:549, w:59, h:109}, //Plant 2
-    {x:1299, y:711, w:151, h:99} //Present and Bear
+  {x:41, y:561, w:320, h:147}, // Kitchen
+  {x:638, y:573, w:185, h:87}, // Futon
+  {x:34, y:84, w:402, h:299}, // Fireplace
+  {x:375, y:70, w:769, h:196}, // Top Wall
+  {x:859, y:222, w:132, h:92}, // Drawers
+  {x:508, y:150, w:216, h:165}, // Bookcase
+  {x:843, y:424, w:29, h:131}, // Couch Right Arm
+  {x:579, y:423, w:28, h:140}, // Couch Left Arm
+  {x:598, y:425, w:258, h:59}, // Couch Middle
+  {x:1061, y:434, w:406, h:176}, // Wall Above Table
+  {x:417, y:591, w:59, h:111}, // Plant 1
+  {x:1388, y:549, w:59, h:109}, // Plant 2
+  {x:1299, y:711, w:151, h:99}, // Present and Bear
+
+  // Cabin Walls
+  {x:47, y:698, w:17, h:178},   // Left Bottom Wall
+  {x:47, y:854, w:526, h:22},   // Bottom Left Wall
+  {x:554, y:856, w:26, h:67},   // Bottom Center Left Pillar
+  {x:565, y:906, w:73, h:16},   // Bottom Center Left
+  {x:621, y:909, w:18, h:56},   // Bottom Center Left End
+  {x:844, y:856, w:648, h:70},  // Bottom Right Wall
+  {x:787, y:911, w:75, h:16},   // Bottom Center Right
+  {x:782, y:908, w:62, h:63},   // Bottom Center Right Pillar
+  {x:1472, y:72, w:24, h:840},  // Right Wall
+  {x:43, y:368, w:61, h:244}    // Left Middle Wall
 ];
 
 function rectHit(x,y){
