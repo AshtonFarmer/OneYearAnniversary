@@ -312,7 +312,7 @@ const solid = [
   {x:1500,y:0,w:50,h:1024},
 
   {x:41, y:561, w:320, h:147}, // Kitchen
-  {x:638, y:573, w:185, h:87}, // Futon
+  {x:640, y:574, w:185, h:59}, // Futon
   {x:34, y:84, w:402, h:299}, // Fireplace
   {x:375, y:70, w:769, h:196}, // Top Wall
   {x:859, y:222, w:132, h:92}, // Drawers
