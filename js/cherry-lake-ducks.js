@@ -4,20 +4,40 @@
 const bridgeFeedBox = {x:671, y:580, w:115, h:126};
 const foodTossBox = {x:811, y:596, w:94, h:115};
 
+const duckWaterZones = [
+  {x:0, y:396, w:659, h:491},
+  {x:137, y:474, w:512, h:305},
+  {x:441, y:357, w:218, h:178},
+  {x:305, y:698, w:343, h:197},
+  {x:793, y:438, w:653, h:249},
+  {x:799, y:686, w:422, h:188}
+];
+
 let duckFeedAction = null;
 let duckParticles = [];
 let duckFood = [];
 let duckActionCooldown = 0;
+let duckLastE = false;
 
 const ducks = [
-  {x:300,y:315,homeX:300,homeY:315,vx:.35,vy:.12,phase:0,target:null},
-  {x:1110,y:340,homeX:1110,homeY:340,vx:-.28,vy:.10,phase:1.7,target:null},
-  {x:330,y:585,homeX:330,homeY:585,vx:.26,vy:-.12,phase:3.1,target:null},
-  {x:1080,y:620,homeX:1080,homeY:620,vx:-.22,vy:.16,phase:4.4,target:null}
+  {x:260,y:520,homeX:260,homeY:520,vx:.35,vy:.12,phase:0,target:null,zone:0},
+  {x:520,y:430,homeX:520,homeY:430,vx:-.28,vy:.10,phase:1.7,target:null,zone:2},
+  {x:360,y:760,homeX:360,homeY:760,vx:.26,vy:-.12,phase:3.1,target:null,zone:3},
+  {x:1085,y:535,homeX:1085,homeY:535,vx:-.22,vy:.16,phase:4.4,target:null,zone:4},
+  {x:930,y:760,homeX:930,homeY:760,vx:.24,vy:-.10,phase:2.4,target:null,zone:5},
+  {x:1265,y:600,homeX:1265,homeY:600,vx:-.32,vy:.08,phase:5.1,target:null,zone:4}
 ];
 
 function pointInBox(x,y,b){
   return x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
+}
+
+function clampDuckToZone(d){
+  const z = duckWaterZones[d.zone];
+  if(d.x < z.x + 18){ d.x = z.x + 18; d.vx = Math.abs(d.vx); }
+  if(d.x > z.x + z.w - 18){ d.x = z.x + z.w - 18; d.vx = -Math.abs(d.vx); }
+  if(d.y < z.y + 18){ d.y = z.y + 18; d.vy = Math.abs(d.vy); }
+  if(d.y > z.y + z.h - 18){ d.y = z.y + z.h - 18; d.vy = -Math.abs(d.vy); }
 }
 
 function nearFeedBridge(){
@@ -37,22 +57,24 @@ function startDuckFeeding(){
   const endX = foodTossBox.x + foodTossBox.w / 2;
   const endY = foodTossBox.y + foodTossBox.h / 2;
 
-  for(let i=0;i<14;i++){
+  for(let i=0;i<18;i++){
     duckFood.push({
       x:startX,
       y:startY,
+      sx:startX,
+      sy:startY,
       tx:endX + (Math.random()-.5) * 42,
       ty:endY + (Math.random()-.5) * 42,
-      life:36 + i * 2,
-      maxLife:36 + i * 2,
+      life:42 + i * 2,
+      maxLife:42 + i * 2,
       delay:i * 2
     });
   }
 
   ducks.forEach((d,i) => {
     d.target = {
-      x:endX + Math.cos(i * Math.PI * .5) * 45,
-      y:endY + Math.sin(i * Math.PI * .5) * 38
+      x:endX + Math.cos(i * Math.PI * 2 / ducks.length) * 52,
+      y:endY + Math.sin(i * Math.PI * 2 / ducks.length) * 42
     };
   });
 }
@@ -66,18 +88,16 @@ function updateDuckMovement(){
       const dy = d.target.y - d.y;
       const dist = Math.hypot(dx,dy);
       if(dist > 2){
-        d.x += dx / dist * 1.15;
-        d.y += dy / dist * 1.15;
+        d.x += dx / dist * 1.35;
+        d.y += dy / dist * 1.35;
       }
     } else {
       d.x += d.vx + Math.sin(d.phase) * .12;
       d.y += d.vy + Math.cos(d.phase * .8) * .08;
-
-      if(Math.abs(d.x - d.homeX) > 90) d.vx *= -1;
-      if(Math.abs(d.y - d.homeY) > 55) d.vy *= -1;
+      clampDuckToZone(d);
     }
 
-    if(heartTimer % 16 === i * 3){
+    if(heartTimer % 18 === i * 3){
       duckParticles.push({type:'ripple',x:d.x,y:d.y+8,life:36,size:5});
     }
   });
@@ -96,8 +116,8 @@ function updateDuckFeeding(){
     f.life--;
     const t = 1 - f.life / f.maxLife;
     const smooth = t * t * (3 - 2 * t);
-    f.x = f.x + (f.tx - f.x) * .09;
-    f.y = f.y + (f.ty - f.y) * .09 + Math.sin(smooth * Math.PI) * -.45;
+    f.x = f.sx + (f.tx - f.sx) * smooth;
+    f.y = f.sy + (f.ty - f.sy) * smooth - Math.sin(smooth * Math.PI) * 34;
     if(f.life === 6){
       duckParticles.push({type:'splash',x:f.tx,y:f.ty,life:34,size:8});
     }
@@ -118,7 +138,7 @@ function updateDuckFeeding(){
     duckParticles.push({type:'heart',x:foodTossBox.x + foodTossBox.w / 2,y:foodTossBox.y - 12,life:75,size:4});
   }
 
-  if(duckFeedAction.timer > 260){
+  if(duckFeedAction.timer > 320){
     duckFeedAction = null;
     ducks.forEach(d => d.target = null);
   }
@@ -137,9 +157,11 @@ update = function(){
     prompt.textContent = 'Press E to feed the ducks';
   }
 
-  if(keys.e && !lastE && feedNear && !duckFeedAction && duckActionCooldown <= 0){
+  if(keys.e && !duckLastE && feedNear && !duckFeedAction && duckActionCooldown <= 0){
     startDuckFeeding();
   }
+
+  duckLastE = !!keys.e;
 };
 
 function drawDuck(d){
@@ -214,6 +236,7 @@ drawDebugZones = function(){
   originalCherryDrawDebugZones();
   if(!debugMode) return;
   ctx.save();
+  duckWaterZones.forEach(z => drawDebugRect(z,'rgba(0,180,255,0.12)'));
   drawDebugRect(bridgeFeedBox,'rgba(255,220,0,0.25)');
   drawDebugText('Duck Feed Start',bridgeFeedBox.x,bridgeFeedBox.y);
   drawDebugRect(foodTossBox,'rgba(0,180,255,0.25)');
