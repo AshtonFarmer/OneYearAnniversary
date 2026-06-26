@@ -46,15 +46,46 @@ addEventListener('keydown', e => {
     return;
   }
 
+  if(key === ' '){
+    e.preventDefault();
+
+    if(!spaceHeld){
+      spaceHeld = true;
+      spaceHoldStart = performance.now();
+
+      if(bothPlayersOnBed()){
+        startBedJump();
+      }
+    }
+
+    keys[key] = true;
+    return;
+  }
+
   keys[key] = true;
 
-  if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(key)){
+  if(['arrowup','arrowdown','arrowleft','arrowright'].includes(key)){
     e.preventDefault();
   }
 });
 
 addEventListener('keyup', e => {
-  keys[e.key.toLowerCase()] = false;
+  const key = e.key.toLowerCase();
+
+  if(key === ' '){
+    spaceHeld = false;
+    keys[key] = false;
+
+    if(bedLayDown){
+      bedLayDown = false;
+      players.her.dir = 'down';
+      players.him.dir = 'down';
+    }
+
+    return;
+  }
+
+  keys[key] = false;
 });
 
 canvas.addEventListener('mousedown', e => {
@@ -100,6 +131,21 @@ let WORLD_H = 1024;
 let camera = {x:0,y:0};
 let heartTimer = 0;
 let lastE = false;
+
+// Extra cabin interactions
+const bedZone = {x:1160, y:140, w:171, h:156};
+let spaceHeld = false;
+let spaceHoldStart = 0;
+let bedJumping = false;
+let bedJumpStart = 0;
+let bedJumpDuration = 520;
+let bedLayDown = false;
+let bedLandingTimer = 0;
+let heartParticles = [];
+let warmthParticles = [];
+let steamParticles = [];
+let actionState = null;
+let actionCooldown = 0;
 
 const spawnPoints = [
   {name:'Her Spawn', x:710, y:835},
@@ -220,6 +266,41 @@ const interactZones = [
   }
 ];
 
+const cabinActionZones = [
+  {
+    name:'Sit Together',
+    x:725,
+    y:520,
+    r:120,
+    text:'Press E to Sit Together 🛋️',
+    action:'sit'
+  },
+  {
+    name:'Drink Coffee',
+    x:735,
+    y:620,
+    r:95,
+    text:'Press E to Drink Coffee ☕',
+    action:'coffee'
+  },
+  {
+    name:'Warm Up',
+    x:270,
+    y:380,
+    r:115,
+    text:'Press E to Warm Up 🔥',
+    action:'fireplace'
+  },
+  {
+    name:'Read Together',
+    x:615,
+    y:315,
+    r:105,
+    text:'Press E to Read Together 📖',
+    action:'read'
+  }
+];
+
 const solid = [
   {x:-50,y:-50,w:50,h:WORLD_H+100},
   {x:WORLD_W,y:-50,w:50,h:WORLD_H+100},
@@ -302,10 +383,253 @@ function movePlayer(p,input){
 }
 
 function getNearZone(){
-  return interactZones.find(z =>
+  return cabinActionZones.find(z =>
+    Math.hypot(players.her.x - z.x, players.her.y - z.y) < z.r ||
+    Math.hypot(players.him.x - z.x, players.him.y - z.y) < z.r
+  ) || interactZones.find(z =>
     Math.hypot(players.her.x - z.x, players.her.y - z.y) < z.r ||
     Math.hypot(players.him.x - z.x, players.him.y - z.y) < z.r
   );
+}
+
+function pointInsideRect(x,y,rect){
+  return x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
+}
+
+function bothPlayersOnBed(){
+  return pointInsideRect(players.her.x,players.her.y,bedZone) &&
+         pointInsideRect(players.him.x,players.him.y,bedZone);
+}
+
+function spawnHeart(x,y){
+  heartParticles.push({
+    x,
+    y,
+    life:70,
+    size:Math.random() > .5 ? 3 : 4,
+    drift:(Math.random() - .5) * 1.2
+  });
+}
+
+function startBedJump(){
+  if(bedJumping || bedLayDown || actionState) return;
+
+  bedJumping = true;
+  bedJumpStart = performance.now();
+  bedLandingTimer = 0;
+
+  players.her.dir = 'down';
+  players.him.dir = 'down';
+  players.her.frame = 1;
+  players.him.frame = 1;
+
+  spawnHeart((players.her.x + players.him.x) / 2, Math.min(players.her.y,players.him.y) - 82);
+}
+
+function getBedJumpOffset(){
+  if(!bedJumping) return 0;
+
+  const t = Math.min(1,(performance.now() - bedJumpStart) / bedJumpDuration);
+  return -Math.sin(t * Math.PI) * 38;
+}
+
+function updateBedAction(){
+  if(!bothPlayersOnBed()){
+    bedJumping = false;
+    bedLayDown = false;
+    return;
+  }
+
+  if(bedJumping){
+    const done = performance.now() - bedJumpStart >= bedJumpDuration;
+
+    if(done){
+      bedJumping = false;
+      bedLandingTimer = 10;
+      spawnHeart((players.her.x + players.him.x) / 2, Math.min(players.her.y,players.him.y) - 78);
+    }
+  }
+
+  if(spaceHeld && !bedJumping && !bedLayDown && !actionState){
+    const heldFor = performance.now() - spaceHoldStart;
+
+    if(heldFor > 1200){
+      bedLayDown = true;
+      players.her.dir = 'right';
+      players.him.dir = 'left';
+      players.her.frame = 0;
+      players.him.frame = 0;
+      spawnHeart((players.her.x + players.him.x) / 2, Math.min(players.her.y,players.him.y) - 70);
+    }
+  }
+
+  if(bedLandingTimer > 0){
+    bedLandingTimer--;
+  }
+}
+
+function setPlayerTarget(p,x,y,dir){
+  p.target = {x,y,dir};
+}
+
+function updatePlayerTarget(p){
+  if(!p.target) return true;
+
+  const dx = p.target.x - p.x;
+  const dy = p.target.y - p.y;
+  const dist = Math.hypot(dx,dy);
+
+  if(dist < 3){
+    p.x = p.target.x;
+    p.y = p.target.y;
+    p.dir = p.target.dir || p.dir;
+    p.frame = 0;
+    p.target = null;
+    return true;
+  }
+
+  const step = Math.min(p.speed * 1.3, dist);
+  p.x += (dx / dist) * step;
+  p.y += (dy / dist) * step;
+
+  if(Math.abs(dx) > Math.abs(dy)){
+    p.dir = dx > 0 ? 'right' : 'left';
+  } else {
+    p.dir = dy > 0 ? 'down' : 'up';
+  }
+
+  p.frameTimer = (p.frameTimer || 0) + 1;
+  if(p.frameTimer > 8){
+    const seq = p.frames[p.dir];
+    const i = seq.indexOf(p.frame);
+    p.frame = seq[(i + 1 + seq.length) % seq.length];
+    p.frameTimer = 0;
+  }
+
+  return false;
+}
+
+function startCabinAction(type){
+  bedLayDown = false;
+  bedJumping = false;
+
+  actionState = {
+    type,
+    phase:'moving',
+    timer:0,
+    start:performance.now()
+  };
+
+  if(type === 'sit'){
+    setPlayerTarget(players.her,690,520,'down');
+    setPlayerTarget(players.him,760,520,'down');
+  }
+
+  if(type === 'coffee'){
+    setPlayerTarget(players.her,690,655,'up');
+    setPlayerTarget(players.him,775,655,'up');
+  }
+
+  if(type === 'fireplace'){
+    setPlayerTarget(players.her,230,410,'up');
+    setPlayerTarget(players.him,315,410,'up');
+  }
+
+  if(type === 'read'){
+    setPlayerTarget(players.her,575,330,'up');
+    setPlayerTarget(players.him,655,330,'up');
+  }
+}
+
+function updateCabinAction(){
+  if(!actionState) return;
+
+  const herDone = updatePlayerTarget(players.her);
+  const himDone = updatePlayerTarget(players.him);
+
+  if(actionState.phase === 'moving' && herDone && himDone){
+    actionState.phase = 'active';
+    actionState.timer = 0;
+    actionState.start = performance.now();
+
+    if(actionState.type === 'sit'){
+      players.her.dir = 'down';
+      players.him.dir = 'down';
+    }
+
+    if(actionState.type === 'coffee'){
+      players.her.dir = 'up';
+      players.him.dir = 'up';
+    }
+
+    if(actionState.type === 'fireplace'){
+      players.her.dir = 'up';
+      players.him.dir = 'up';
+    }
+
+    if(actionState.type === 'read'){
+      players.her.dir = 'up';
+      players.him.dir = 'up';
+    }
+  }
+
+  if(actionState.phase === 'active'){
+    actionState.timer++;
+
+    if(actionState.timer % 55 === 0){
+      spawnHeart((players.her.x + players.him.x) / 2, Math.min(players.her.y,players.him.y) - 70);
+    }
+
+    if(actionState.type === 'coffee' && actionState.timer % 7 === 0){
+      steamParticles.push({x:718 + Math.random()*40, y:605, life:55, drift:(Math.random()-.5)*.5});
+    }
+
+    if(actionState.type === 'fireplace' && actionState.timer % 4 === 0){
+      warmthParticles.push({x:250 + Math.random()*80, y:350 + Math.random()*45, life:45, drift:(Math.random()-.5)*1.4});
+    }
+
+    if(actionState.type === 'read'){
+      if(actionState.timer % 80 < 38){
+        players.her.dir = 'right';
+        players.him.dir = 'left';
+      } else {
+        players.her.dir = 'up';
+        players.him.dir = 'up';
+      }
+    }
+  }
+
+  if(keys.e && actionCooldown <= 0 && actionState.phase === 'active' && actionState.timer > 25){
+    actionState = null;
+    actionCooldown = 20;
+    players.her.dir = 'down';
+    players.him.dir = 'down';
+  }
+}
+
+function updateParticles(){
+  heartParticles = heartParticles.filter(h => {
+    h.life--;
+    h.y -= .65;
+    h.x += h.drift;
+    return h.life > 0;
+  });
+
+  warmthParticles = warmthParticles.filter(p => {
+    p.life--;
+    p.y -= .45;
+    p.x += p.drift;
+    return p.life > 0;
+  });
+
+  steamParticles = steamParticles.filter(p => {
+    p.life--;
+    p.y -= .7;
+    p.x += p.drift;
+    return p.life > 0;
+  });
+
+  if(actionCooldown > 0) actionCooldown--;
 }
 
 function openMemory(zone){
@@ -331,34 +655,51 @@ function openMemory(zone){
 }
 
 function update(){
-  movePlayer(players.her,{
-    up:keys.arrowup,
-    down:keys.arrowdown,
-    left:keys.arrowleft,
-    right:keys.arrowright
-  });
+  if(!actionState && !bedLayDown){
+    movePlayer(players.her,{
+      up:keys.arrowup,
+      down:keys.arrowdown,
+      left:keys.arrowleft,
+      right:keys.arrowright
+    });
 
-  movePlayer(players.him,{
-    up:keys.w,
-    down:keys.s,
-    left:keys.a,
-    right:keys.d
-  });
+    movePlayer(players.him,{
+      up:keys.w,
+      down:keys.s,
+      left:keys.a,
+      right:keys.d
+    });
+  }
+
+  updateBedAction();
+  updateCabinAction();
+  updateParticles();
 
   heartTimer++;
 
   const near = getNearZone();
   const prompt = document.getElementById('prompt');
 
-  if(near){
+  if(actionState && actionState.phase === 'active'){
+    prompt.style.display = 'block';
+    prompt.textContent = 'Press E to stop';
+  } else if(bedLayDown){
+    prompt.style.display = 'block';
+    prompt.textContent = 'Press Space to stand back up 🛏️';
+  } else if(near){
     prompt.style.display = 'block';
     prompt.textContent = near.text;
   } else {
     prompt.style.display = 'none';
   }
 
-  if(keys.e && !lastE && near){
-    openMemory(near);
+  if(keys.e && !lastE && near && !actionState && actionCooldown <= 0){
+    if(near.action === 'sit' || near.action === 'coffee' || near.action === 'fireplace' || near.action === 'read'){
+      startCabinAction(near.action);
+      actionCooldown = 20;
+    } else {
+      openMemory(near);
+    }
   }
 
   lastE = !!keys.e;
@@ -385,13 +726,71 @@ function drawSprite(p){
   let drawX = Math.round(p.x - camera.x - dw / 2);
   let drawY = Math.round(p.y - camera.y - dh + 10);
   let drawW = dw;
+  let drawH = dh;
 
   if(p === players.him && p.dir === 'right'){
     drawX -= 4;
     drawW += 8;
   }
 
-  ctx.drawImage(p.img, p.frame * sw, row * sh, sw, sh, drawX, drawY, drawW, dh);
+  const jumpOffset = getBedJumpOffset();
+
+  if(bedJumping){
+    drawY += jumpOffset;
+
+    if(jumpOffset < -18){
+      drawY -= 4;
+      drawH += 8;
+    }
+  }
+
+  if(bedLandingTimer > 0){
+    drawY += 4;
+    drawH -= 5;
+    drawW += 5;
+    drawX -= 2;
+  }
+
+  if(actionState && actionState.phase === 'active'){
+    const t = actionState.timer;
+
+    if(actionState.type === 'sit'){
+      drawY += Math.sin(t / 10) * 2;
+    }
+
+    if(actionState.type === 'coffee' && t % 80 > 40){
+      drawY -= 3;
+    }
+
+    if(actionState.type === 'fireplace'){
+      drawW += Math.sin(t / 12) * 2;
+    }
+  }
+
+  if(bedLayDown){
+    const layAngle = p === players.her ? -Math.PI / 2 : Math.PI / 2;
+    const layX = p === players.her ? p.x - camera.x - 14 : p.x - camera.x + 14;
+    const layY = p.y - camera.y - 18;
+
+    ctx.save();
+    ctx.translate(Math.round(layX), Math.round(layY));
+    ctx.rotate(layAngle);
+    ctx.drawImage(
+      p.img,
+      p.frame * sw,
+      row * sh,
+      sw,
+      sh,
+      Math.round(-drawW / 2),
+      Math.round(-drawH / 2),
+      drawW,
+      drawH
+    );
+    ctx.restore();
+    return;
+  }
+
+  ctx.drawImage(p.img, p.frame * sw, row * sh, sw, sh, drawX, drawY, drawW, drawH);
 }
 
 function drawPixelHeart(x,y,size){
@@ -436,6 +835,113 @@ function drawCoupleHeart(){
   ctx.restore();
 }
 
+function drawHeartParticles(){
+  heartParticles.forEach(h => {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0,h.life / 70);
+    ctx.shadowColor = '#ff7ac8';
+    ctx.shadowBlur = 8;
+    drawPixelHeart(h.x - camera.x, h.y - camera.y, h.size);
+    ctx.restore();
+  });
+}
+
+function drawBedSquish(){
+  if(!bedJumping && bedLandingTimer <= 0 && !bedLayDown) return;
+
+  const x = 1160 - camera.x;
+  const y = 140 - camera.y;
+  const w = 171;
+  const h = 156;
+
+  ctx.save();
+
+  if(bedJumping){
+    ctx.globalAlpha = .18;
+    ctx.fillStyle = '#ff9acb';
+    ctx.fillRect(x + 18, y + h - 30, w - 36, 8);
+  }
+
+  if(bedLandingTimer > 0){
+    ctx.globalAlpha = .35;
+    ctx.strokeStyle = '#ffd1e8';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(x + w / 2, y + h - 28, 55 - bedLandingTimer * 2, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  if(bedLayDown){
+    ctx.globalAlpha = .25 + Math.sin(heartTimer / 20) * .08;
+    ctx.fillStyle = '#ff79bd';
+    ctx.fillRect(x + 42, y + 98, 88, 5);
+  }
+
+  ctx.restore();
+}
+
+function drawActionEffects(){
+  if(actionState && actionState.phase === 'active'){
+    const t = actionState.timer;
+
+    if(actionState.type === 'sit'){
+      const wiggle = Math.sin(t / 10) * 3;
+      drawPixelHeart(790 - camera.x + wiggle, 465 - camera.y, 3);
+    }
+
+    if(actionState.type === 'coffee'){
+      const cupY = t % 80 > 40 ? 590 : 610;
+
+      ctx.save();
+      ctx.fillStyle = '#f5d6b5';
+      ctx.fillRect(710 - camera.x, cupY - camera.y, 8, 8);
+      ctx.fillRect(765 - camera.x, cupY - camera.y, 8, 8);
+      ctx.restore();
+    }
+
+    if(actionState.type === 'fireplace'){
+      const glow = .14 + Math.sin(t / 8) * .05;
+
+      ctx.save();
+      ctx.globalAlpha = glow;
+      ctx.fillStyle = '#ff9b3d';
+      ctx.beginPath();
+      ctx.arc(280 - camera.x, 350 - camera.y, 150, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    if(actionState.type === 'read'){
+      ctx.save();
+      ctx.fillStyle = '#f7e7b0';
+      ctx.fillRect(590 - camera.x, 285 - camera.y, 18, 13);
+      ctx.fillRect(630 - camera.x, 285 - camera.y, 18, 13);
+      ctx.strokeStyle = '#8b5a2b';
+      ctx.strokeRect(590 - camera.x, 285 - camera.y, 18, 13);
+      ctx.strokeRect(630 - camera.x, 285 - camera.y, 18, 13);
+      ctx.restore();
+    }
+  }
+
+  warmthParticles.forEach(p => {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0,p.life / 45) * .7;
+    ctx.fillStyle = '#ffb15c';
+    ctx.fillRect(p.x - camera.x, p.y - camera.y, 4, 4);
+    ctx.restore();
+  });
+
+  steamParticles.forEach(p => {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0,p.life / 55) * .55;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(p.x - camera.x, p.y - camera.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
 function drawDebugRect(rect,color){
   ctx.fillStyle = color;
   ctx.fillRect(rect.x - camera.x, rect.y - camera.y, rect.w, rect.h);
@@ -472,6 +978,14 @@ function drawDebugZones(){
     drawDebugText(z.name,z.x,z.y);
   });
 
+  cabinActionZones.forEach(z => {
+    drawDebugCircle(z.x,z.y,z.r,'rgba(255,220,0,0.28)');
+    drawDebugText(z.name,z.x,z.y);
+  });
+
+  drawDebugRect(bedZone,'rgba(255,120,255,0.28)');
+  drawDebugText('Bed Space Zone',bedZone.x,bedZone.y);
+
   spawnPoints.forEach(spawn => {
     drawDebugCircle(spawn.x,spawn.y,20,'rgba(170,80,255,0.75)');
     drawDebugText(spawn.name,spawn.x,spawn.y);
@@ -481,7 +995,7 @@ function drawDebugZones(){
   drawDebugCircle(players.him.x,players.him.y,10,'rgba(0,130,255,0.85)');
 
   ctx.fillStyle = 'rgba(0,0,0,0.65)';
-  ctx.fillRect(18,18,460,102);
+  ctx.fillRect(18,18,535,126);
 
   ctx.fillStyle = '#fff';
   ctx.font = '15px monospace';
@@ -489,6 +1003,7 @@ function drawDebugZones(){
   ctx.fillText('Press B, drag a box, check Console',32,66);
   ctx.fillText('Red=blocked Green=spots Blue=players',32,90);
   ctx.fillText(`Her: ${Math.round(players.her.x)}, ${Math.round(players.her.y)}  Me: ${Math.round(players.him.x)}, ${Math.round(players.him.y)}`,32,114);
+  ctx.fillText('Yellow=extra actions, purple box=bed space zone',32,138);
 
   if(boxMode && dragStart && dragEnd){
     const x = Math.min(dragStart.x, dragEnd.x) - camera.x;
@@ -516,6 +1031,9 @@ function draw(){
 
   ctx.drawImage(map,-camera.x,-camera.y);
 
+  drawBedSquish();
+  drawActionEffects();
+
   drawDebugZones();
 
   [players.her,players.him]
@@ -523,6 +1041,7 @@ function draw(){
     .forEach(drawSprite);
 
   drawCoupleHeart();
+  drawHeartParticles();
 }
 
 function loop(){
