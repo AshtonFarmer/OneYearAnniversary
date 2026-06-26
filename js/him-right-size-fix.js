@@ -1,5 +1,5 @@
-// Fix: his right-facing sprite looks smaller because that row has extra empty space.
-// This only boosts HIS right-facing draw size and keeps his feet anchored.
+// Fix: his right-facing sprite looked smaller than his other directions.
+// The first fix was too strong, so this uses a tiny correction only.
 
 const originalHimRightSizeDrawSprite = drawSprite;
 
@@ -9,13 +9,13 @@ drawSprite = function(p){
     const sh = 128;
     const row = p.rows[p.dir];
 
-    // Only the right-facing him sprite gets a small boost.
-    const fixedScale = p.scale * 1.12;
+    // Tiny boost only. 1.12 was way too much.
+    const fixedScale = p.scale * 1.04;
     const dw = Math.round(sw * fixedScale);
     const dh = Math.round(sh * fixedScale);
 
-    // Keep feet planted while the sprite grows upward.
-    const drawX = Math.round(p.x - camera.x - dw / 2 - 2);
+    // Keep feet planted while the sprite grows upward a little.
+    const drawX = Math.round(p.x - camera.x - dw / 2);
     const drawY = Math.round(p.y - camera.y - dh + 10);
 
     ctx.drawImage(p.img, p.frame * sw, row * sh, sw, sh, drawX, drawY, dw, dh);
