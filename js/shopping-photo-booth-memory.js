@@ -1,6 +1,11 @@
 // Special photo booth memory scene.
 // While the normal photo booth is running, press * to trigger the special moment.
 
+const specialMemorySpot = {x:809, y:413, w:112, h:54};
+const specialMemoryLeft = {x:814, y:445};
+const specialMemoryRight = {x:875, y:445};
+const specialMemoryTogether = {x:838, y:445};
+
 let specialPhotoScene = null;
 let specialPhotoLastStar = false;
 let specialPhotoBubbles = [];
@@ -10,16 +15,45 @@ function specialStarPressed(){
   return !!keys['*'] || !!keys['8'];
 }
 
+function moveSpecialToward(p,target,speed=2.2){
+  const dx = target.x - p.x;
+  const dy = target.y - p.y;
+  const dist = Math.hypot(dx,dy) || 1;
+
+  if(dist < 3){
+    p.x = target.x;
+    p.y = target.y;
+    p.dir = target.dir || p.dir;
+    p.frame = 0;
+    return true;
+  }
+
+  p.x += dx / dist * Math.min(speed,dist);
+  p.y += dy / dist * Math.min(speed,dist);
+  p.dir = Math.abs(dx) > Math.abs(dy) ? (dx>0?'right':'left') : (dy>0?'down':'up');
+
+  p.frameTimer = (p.frameTimer || 0) + 1;
+  if(p.frameTimer > 8){
+    const seq = p.frames[p.dir];
+    const i = seq.indexOf(p.frame);
+    p.frame = seq[(i + 1 + seq.length) % seq.length];
+    p.frameTimer = 0;
+  }
+
+  return false;
+}
+
 function startSpecialPhotoScene(){
   const c = boxCenter(photoBoothBox);
-  specialPhotoScene = {timer:0,phase:'start',message:'',flash:0};
+  specialPhotoScene = {timer:0,phase:'walkOut',message:'',flash:0,walkDone:false,yesDone:false};
   shoppingAction = null;
   photoStrip = null;
   photoFlash = 0;
 
+  // Start inside/near the photo booth, then walk away to the real spot.
   players.him.x = c.x - 12;
   players.him.y = c.y + 36;
-  players.him.dir = 'right';
+  players.him.dir = 'left';
   players.him.frame = 0;
 
   players.her.x = c.x + 18;
@@ -34,49 +68,85 @@ function updateSpecialPhotoScene(){
   specialPhotoScene.timer++;
   heartTimer++;
 
-  const c = boxCenter(photoBoothBox);
-  players.him.x = c.x - 12;
-  players.her.x = c.x + 18;
-  players.him.y = c.y + 36;
-  players.her.y = c.y + 36;
+  const bubbleX = specialMemoryLeft.x - 18;
+  const bubbleY = specialMemoryLeft.y + 10;
 
-  if(specialPhotoScene.timer < 70){
-    specialPhotoScene.phase = 'start';
-    specialPhotoScene.message = 'Setting up the special moment...';
-  } else if(specialPhotoScene.timer < 155){
-    specialPhotoScene.phase = 'bubbles';
-    specialPhotoScene.message = 'The bubble machine turns on...';
-  } else if(specialPhotoScene.timer < 285){
-    specialPhotoScene.phase = 'ask';
-    specialPhotoScene.message = 'Will you be my girlfriend?';
-  } else if(specialPhotoScene.timer < 390){
-    specialPhotoScene.phase = 'yes';
-    specialPhotoScene.message = 'She said yes!';
-  } else if(specialPhotoScene.timer < 500){
-    specialPhotoScene.phase = 'together';
-    specialPhotoScene.message = 'A perfect little memory ❤️';
-    players.him.x = c.x - 4;
-    players.her.x = c.x + 7;
-  } else if(specialPhotoScene.timer < 620){
-    specialPhotoScene.phase = 'print';
-    specialPhotoScene.message = 'Printing the special photo strip...';
-    if(!photoStrip){
-      photoStrip = {poses:['bubbles','question','yes','heart'],y:-160,show:true};
-      specialPhotoScene.flash = 20;
+  if(specialPhotoScene.phase === 'walkOut'){
+    specialPhotoScene.message = 'Walking to the special spot...';
+    const himDone = moveSpecialToward(players.him,{x:specialMemoryLeft.x,y:specialMemoryLeft.y,dir:'right'},2.4);
+    const herDone = moveSpecialToward(players.her,{x:specialMemoryRight.x,y:specialMemoryRight.y,dir:'left'},2.4);
+
+    if(himDone && herDone){
+      specialPhotoScene.phase = 'bubbles';
+      specialPhotoScene.timer = 0;
+      players.him.dir = 'right';
+      players.her.dir = 'left';
     }
-    photoStrip.y = Math.min(122,photoStrip.y + 4);
-  } else {
-    specialPhotoScene = null;
-    shoppingCooldown = 35;
-    return;
+  } else if(specialPhotoScene.phase === 'bubbles'){
+    specialPhotoScene.message = 'The bubble machine starts...';
+    players.him.frame = 0;
+    players.her.frame = 0;
+    if(specialPhotoScene.timer > 85){
+      specialPhotoScene.phase = 'ask';
+      specialPhotoScene.timer = 0;
+    }
+  } else if(specialPhotoScene.phase === 'ask'){
+    specialPhotoScene.message = 'Will you be my girlfriend?';
+    players.him.frame = 0;
+    players.her.frame = 0;
+    players.him.dir = 'right';
+    players.her.dir = 'left';
+    if(specialPhotoScene.timer > 130){
+      specialPhotoScene.phase = 'yesWalk';
+      specialPhotoScene.timer = 0;
+    }
+  } else if(specialPhotoScene.phase === 'yesWalk'){
+    specialPhotoScene.message = 'She said yes!';
+    players.him.dir = 'right';
+    const herDone = moveSpecialToward(players.her,{x:specialMemoryTogether.x+14,y:specialMemoryTogether.y,dir:'left'},2.0);
+    moveSpecialToward(players.him,{x:specialMemoryTogether.x-2,y:specialMemoryTogether.y,dir:'right'},1.4);
+    if(herDone || specialPhotoScene.timer > 90){
+      specialPhotoScene.phase = 'hold';
+      specialPhotoScene.timer = 0;
+      players.him.x = specialMemoryTogether.x - 2;
+      players.her.x = specialMemoryTogether.x + 10;
+      players.him.y = specialMemoryTogether.y;
+      players.her.y = specialMemoryTogether.y;
+      players.him.dir = 'right';
+      players.her.dir = 'left';
+    }
+  } else if(specialPhotoScene.phase === 'hold'){
+    specialPhotoScene.message = 'Hug... then kiss ❤️';
+    players.him.x = specialMemoryTogether.x - 2;
+    players.her.x = specialMemoryTogether.x + 10;
+    players.him.y = specialMemoryTogether.y;
+    players.her.y = specialMemoryTogether.y;
+    players.him.dir = 'right';
+    players.her.dir = 'left';
+    players.him.frame = 0;
+    players.her.frame = 0;
+    if(specialPhotoScene.timer > 140){
+      specialPhotoScene.phase = 'print';
+      specialPhotoScene.timer = 0;
+      specialPhotoScene.flash = 20;
+      photoStrip = {poses:['bubbles','question','yes','kiss'],y:-160,show:true};
+    }
+  } else if(specialPhotoScene.phase === 'print'){
+    specialPhotoScene.message = 'Printing the special photo strip...';
+    if(photoStrip) photoStrip.y = Math.min(122,photoStrip.y + 4);
+    if(specialPhotoScene.timer > 155){
+      specialPhotoScene = null;
+      shoppingCooldown = 35;
+      return;
+    }
   }
 
-  if(['bubbles','ask','yes','together'].includes(specialPhotoScene.phase) && specialPhotoScene.timer % 4 === 0){
-    specialPhotoBubbles.push({x:c.x-23+Math.random()*18,y:c.y+42,vx:(Math.random()-.5)*.55,vy:-.75-Math.random()*.6,life:95,size:3+Math.random()*5});
+  if(['bubbles','ask','yesWalk','hold'].includes(specialPhotoScene.phase) && specialPhotoScene.timer % 4 === 0){
+    specialPhotoBubbles.push({x:bubbleX+Math.random()*18,y:bubbleY,vx:(Math.random()-.5)*.65,vy:-.75-Math.random()*.7,life:105,size:3+Math.random()*5});
   }
 
-  if(['yes','together'].includes(specialPhotoScene.phase) && specialPhotoScene.timer % 16 === 0){
-    specialPhotoHearts.push({x:c.x+4,y:c.y-10,life:72,size:4});
+  if(['yesWalk','hold'].includes(specialPhotoScene.phase) && specialPhotoScene.timer % 16 === 0){
+    specialPhotoHearts.push({x:specialMemoryTogether.x+5,y:specialMemoryTogether.y-55,life:72,size:4});
   }
 
   if(specialPhotoScene.flash > 0) specialPhotoScene.flash--;
@@ -115,9 +185,8 @@ update = function(){
 
 function drawSpecialBubbleMachine(){
   if(!specialPhotoScene) return;
-  const c = boxCenter(photoBoothBox);
-  const x = c.x - 33 - camera.x;
-  const y = c.y + 22 - camera.y;
+  const x = specialMemoryLeft.x - 22 - camera.x;
+  const y = specialMemoryLeft.y + 4 - camera.y;
   ctx.save();
   ctx.fillStyle = '#1f5c8f';
   ctx.fillRect(x,y,13,18);
@@ -131,7 +200,7 @@ function drawSpecialBubbleMachine(){
 function drawSpecialBubbles(){
   specialPhotoBubbles.forEach(b => {
     ctx.save();
-    ctx.globalAlpha = Math.max(0,b.life/95)*.75;
+    ctx.globalAlpha = Math.max(0,b.life/105)*.75;
     ctx.strokeStyle = '#9ee8ff';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -154,38 +223,65 @@ function drawSpecialHearts(){
 
 function drawSpecialSpeech(){
   if(!specialPhotoScene || specialPhotoScene.phase !== 'ask') return;
-  const c = boxCenter(photoBoothBox);
-  const x = c.x - 12 - camera.x;
-  const y = c.y - 58 - camera.y;
+  const x = specialMemoryLeft.x + 8 - camera.x;
+  const y = specialMemoryLeft.y - 72 - camera.y;
   ctx.save();
   ctx.fillStyle = '#fff7ef';
   ctx.strokeStyle = '#241820';
   ctx.lineWidth = 4;
   ctx.beginPath();
-  ctx.roundRect(x,y,104,42,10);
+  ctx.roundRect(x,y,112,42,10);
   ctx.fill();
   ctx.stroke();
   ctx.fillStyle = '#241820';
   ctx.font = '10px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText('Will you be',x+52,y+16);
-  ctx.fillText('my girlfriend?',x+52,y+30);
+  ctx.fillText('Will you be',x+56,y+16);
+  ctx.fillText('my girlfriend?',x+56,y+30);
+  ctx.restore();
+}
+
+function drawYesSpeech(){
+  if(!specialPhotoScene || specialPhotoScene.phase !== 'yesWalk') return;
+  const x = players.her.x - camera.x + 8;
+  const y = players.her.y - camera.y - 72;
+  ctx.save();
+  ctx.fillStyle = '#fff7ef';
+  ctx.strokeStyle = '#241820';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.roundRect(x,y,48,28,9);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#241820';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('Yes!',x+24,y+18);
   ctx.restore();
 }
 
 function drawSpecialKneelDetail(){
   if(!specialPhotoScene || specialPhotoScene.phase !== 'ask') return;
-  const c = boxCenter(photoBoothBox);
-  const x = c.x - 13 - camera.x;
-  const y = c.y + 18 - camera.y;
+  const x = players.him.x - camera.x;
+  const y = players.him.y - camera.y - 20;
   ctx.save();
   ctx.fillStyle = '#241820';
-  ctx.fillRect(x-10,y+24,17,8);
+  ctx.fillRect(x-13,y+42,17,8);
   ctx.fillStyle = '#ff8fbd';
-  ctx.fillRect(x+16,y+5,7,7);
-  drawPixelHeart(x+23,y+9,2);
+  ctx.fillRect(x+17,y+18,7,7);
+  drawPixelHeart(x+24,y+22,2);
   ctx.restore();
 }
+
+const originalSpecialPhotoDrawDebugZones = drawDebugZones;
+drawDebugZones = function(){
+  originalSpecialPhotoDrawDebugZones();
+  if(!debugMode) return;
+  ctx.save();
+  drawDebugRect(specialMemorySpot,'rgba(120,220,255,0.24)');
+  drawDebugText('Special Memory Spot',specialMemorySpot.x,specialMemorySpot.y);
+  ctx.restore();
+};
 
 const originalSpecialPhotoDraw = draw;
 draw = function(){
@@ -196,6 +292,7 @@ draw = function(){
   drawSpecialBubbles();
   drawSpecialKneelDetail();
   drawSpecialSpeech();
+  drawYesSpeech();
   drawSpecialHearts();
 
   if(specialPhotoScene.flash > 0){
