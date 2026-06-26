@@ -8,25 +8,12 @@
   <style>
     body{margin:0;overflow:hidden;background:#061018}
     #game{display:block;width:100vw;height:100vh;image-rendering:pixelated}
-    #photoModal{
-      position:fixed; inset:0; display:none; align-items:center; justify-content:center;
-      background:rgba(4,10,18,.78); z-index:20; font-family:monospace;
-    }
-    #photoModal .box{
-      width:min(900px,90vw); max-height:82vh; overflow:auto;
-      background:rgba(25,12,18,.95); border:3px solid #b17142;
-      border-radius:16px; padding:24px; color:white; box-shadow:0 12px 40px #000;
-    }
+    #photoModal{position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(4,10,18,.78); z-index:20; font-family:monospace;}
+    #photoModal .box{width:min(900px,90vw); max-height:82vh; overflow:auto; background:rgba(25,12,18,.95); border:3px solid #b17142; border-radius:16px; padding:24px; color:white; box-shadow:0 12px 40px #000;}
     #photoModal h1{margin-top:0;color:#ff97cf}
-    #photoModal button{
-      background:#ff97cf; border:0; border-radius:10px; padding:10px 16px;
-      font-weight:bold; cursor:pointer; margin-bottom:16px;
-    }
+    #photoModal button{background:#ff97cf; border:0; border-radius:10px; padding:10px 16px; font-weight:bold; cursor:pointer; margin-bottom:16px;}
     .photo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
-    .photo-card{
-      min-height:130px; border:2px dashed #ff9dcc; border-radius:12px;
-      background:#241820; color:#ffd983; padding:14px;
-    }
+    .photo-card{min-height:130px; border:2px dashed #ff9dcc; border-radius:12px; background:#241820; color:#ffd983; padding:14px;}
   </style>
 </head>
 <body>
@@ -36,18 +23,19 @@
   <div id="photoModal">
     <div class="box">
       <button onclick="document.getElementById('photoModal').style.display='none'">Close</button>
-      <h1 id="modalTitle">🚁 Our Adventures Together</h1>
+      <h1 id="modalTitle">Our Adventures Together</h1>
       <p id="modalText">Add your trip photos, future plans, and adventure memories here later.</p>
       <div class="photo-grid">
-        <div class="photo-card">Favorite places 💕</div>
-        <div class="photo-card">Future trips ✈️</div>
-        <div class="photo-card">Adventure photos 🚁</div>
-        <div class="photo-card">Dreams together ⭐</div>
+        <div class="photo-card">Favorite places</div>
+        <div class="photo-card">Future trips</div>
+        <div class="photo-card">Adventure photos</div>
+        <div class="photo-card">Dreams together</div>
       </div>
     </div>
   </div>
 
   <script src="js/helipad.js"></script>
   <script src="js/helipad-interactions.js"></script>
+  <script src="js/helipad-fixes.js"></script>
 </body>
 </html>
