@@ -118,7 +118,7 @@ const solid = [
   {name:'Right Water', x:789, y:349, w:295, h:595},
   {name:'Top Right Trees', x:859, y:68, w:585, h:72},
   {name:'Top Left Trees', x:19, y:68, w:661, h:44},
-  {name:'Left Lake', x:10, y:476, w:432, h:437},
+  //{name:'Left Lake', x:10, y:476, w:432, h:437},
   {name:'Left Lakey', x:11, y:918, w:584, h:64},
   {name:'Right Lake', x:1079, y:418, w:360, h:487},
   {name:'Right Lakey', x:865, y:941, w:212, h:39},
