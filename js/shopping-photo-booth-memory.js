@@ -10,6 +10,7 @@ let specialPhotoScene = null;
 let specialPhotoLastStar = false;
 let specialPhotoBubbles = [];
 let specialPhotoHearts = [];
+let specialPhotoEndingStripTimer = 0;
 
 function specialStarPressed(){
   return !!keys['*'] || !!keys['8'];
@@ -43,12 +44,24 @@ function moveSpecialToward(p,target,speed=2.2){
   return false;
 }
 
+function finishSpecialPhotoScene(){
+  specialPhotoScene = null;
+  shoppingAction = null;
+  shoppingCooldown = 35;
+  specialPhotoEndingStripTimer = 120;
+  specialPhotoBubbles = [];
+  specialPhotoHearts = [];
+  players.her.frame = 0;
+  players.him.frame = 0;
+}
+
 function startSpecialPhotoScene(){
   const c = boxCenter(photoBoothBox);
   specialPhotoScene = {timer:0,phase:'walkOut',message:'',flash:0,walkDone:false,yesDone:false};
   shoppingAction = null;
   photoStrip = null;
   photoFlash = 0;
+  specialPhotoEndingStripTimer = 0;
 
   // Start inside/near the photo booth, then walk away to the real spot.
   players.him.x = c.x - 12;
@@ -135,8 +148,7 @@ function updateSpecialPhotoScene(){
     specialPhotoScene.message = 'Printing the special photo strip...';
     if(photoStrip) photoStrip.y = Math.min(122,photoStrip.y + 4);
     if(specialPhotoScene.timer > 155){
-      specialPhotoScene = null;
-      shoppingCooldown = 35;
+      finishSpecialPhotoScene();
       return;
     }
   }
@@ -162,13 +174,28 @@ update = function(){
   if(specialPhotoScene){
     updateSpecialPhotoScene();
     const prompt = document.getElementById('prompt');
-    prompt.style.display = 'block';
-    prompt.textContent = specialPhotoScene.message;
+
+    // Important: updateSpecialPhotoScene can finish and set specialPhotoScene to null.
+    // Do not read specialPhotoScene.message after that or the game loop crashes/freezes.
+    if(specialPhotoScene){
+      prompt.style.display = 'block';
+      prompt.textContent = specialPhotoScene.message;
+    } else {
+      prompt.style.display = 'none';
+    }
+
     specialPhotoLastStar = starNow;
     return;
   }
 
   originalSpecialPhotoUpdate();
+
+  if(specialPhotoEndingStripTimer > 0){
+    specialPhotoEndingStripTimer--;
+    if(specialPhotoEndingStripTimer <= 0){
+      photoStrip = null;
+    }
+  }
 
   if(starNow && !specialPhotoLastStar && shoppingAction && shoppingAction.type === 'photo'){
     startSpecialPhotoScene();
