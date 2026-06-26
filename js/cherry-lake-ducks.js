@@ -1,8 +1,9 @@
 // Cherry Blossom Lake duck feeding interaction.
-// Ducks wander around the lake, then swim to the food when you press E on the bridge.
+// Ducks wander around the lake, then the right-side ducks swim to the food when you press E on the bridge.
 
 const bridgeFeedBox = {x:671, y:580, w:115, h:126};
 const foodTossBox = {x:811, y:596, w:94, h:115};
+const duckBridgeBlock = {x:659, y:284, w:142, h:661};
 
 const duckWaterZones = [
   {x:0, y:396, w:659, h:491},
@@ -20,12 +21,12 @@ let duckActionCooldown = 0;
 let duckLastE = false;
 
 const ducks = [
-  {x:260,y:520,homeX:260,homeY:520,vx:.35,vy:.12,phase:0,target:null,zone:0},
-  {x:520,y:430,homeX:520,homeY:430,vx:-.28,vy:.10,phase:1.7,target:null,zone:2},
-  {x:360,y:760,homeX:360,homeY:760,vx:.26,vy:-.12,phase:3.1,target:null,zone:3},
-  {x:1085,y:535,homeX:1085,homeY:535,vx:-.22,vy:.16,phase:4.4,target:null,zone:4},
-  {x:930,y:760,homeX:930,homeY:760,vx:.24,vy:-.10,phase:2.4,target:null,zone:5},
-  {x:1265,y:600,homeX:1265,homeY:600,vx:-.32,vy:.08,phase:5.1,target:null,zone:4}
+  {x:260,y:520,homeX:260,homeY:520,vx:.35,vy:.12,phase:0,target:null,zone:0,side:'left'},
+  {x:520,y:430,homeX:520,homeY:430,vx:-.28,vy:.10,phase:1.7,target:null,zone:2,side:'left'},
+  {x:360,y:760,homeX:360,homeY:760,vx:.26,vy:-.12,phase:3.1,target:null,zone:3,side:'left'},
+  {x:1085,y:535,homeX:1085,homeY:535,vx:-.22,vy:.16,phase:4.4,target:null,zone:4,side:'right'},
+  {x:930,y:760,homeX:930,homeY:760,vx:.24,vy:-.10,phase:2.4,target:null,zone:5,side:'right'},
+  {x:1265,y:600,homeX:1265,homeY:600,vx:-.32,vy:.08,phase:5.1,target:null,zone:4,side:'right'}
 ];
 
 function pointInBox(x,y,b){
@@ -38,6 +39,16 @@ function clampDuckToZone(d){
   if(d.x > z.x + z.w - 18){ d.x = z.x + z.w - 18; d.vx = -Math.abs(d.vx); }
   if(d.y < z.y + 18){ d.y = z.y + 18; d.vy = Math.abs(d.vy); }
   if(d.y > z.y + z.h - 18){ d.y = z.y + z.h - 18; d.vy = -Math.abs(d.vy); }
+
+  if(d.side === 'left' && d.x > duckBridgeBlock.x - 18){
+    d.x = duckBridgeBlock.x - 18;
+    d.vx = -Math.abs(d.vx);
+  }
+
+  if(d.side === 'right' && d.x < duckBridgeBlock.x + duckBridgeBlock.w + 18){
+    d.x = duckBridgeBlock.x + duckBridgeBlock.w + 18;
+    d.vx = Math.abs(d.vx);
+  }
 }
 
 function nearFeedBridge(){
@@ -72,9 +83,15 @@ function startDuckFeeding(){
   }
 
   ducks.forEach((d,i) => {
+    if(d.side !== 'right'){
+      d.target = null;
+      return;
+    }
+
+    const rightIndex = ducks.filter(duck => duck.side === 'right').indexOf(d);
     d.target = {
-      x:endX + Math.cos(i * Math.PI * 2 / ducks.length) * 52,
-      y:endY + Math.sin(i * Math.PI * 2 / ducks.length) * 42
+      x:endX + Math.cos(rightIndex * Math.PI * 2 / 3) * 52,
+      y:endY + Math.sin(rightIndex * Math.PI * 2 / 3) * 42
     };
   });
 }
@@ -91,6 +108,7 @@ function updateDuckMovement(){
         d.x += dx / dist * 1.35;
         d.y += dy / dist * 1.35;
       }
+      clampDuckToZone(d);
     } else {
       d.x += d.vx + Math.sin(d.phase) * .12;
       d.y += d.vy + Math.cos(d.phase * .8) * .08;
@@ -134,6 +152,12 @@ function updateDuckFeeding(){
 
   duckFeedAction.timer++;
 
+  if(duckFeedAction.timer > 75 && duckFeedAction.timer < 210 && duckFeedAction.timer % 22 === 0){
+    ducks.filter(d => d.side === 'right').forEach(d => {
+      duckParticles.push({type:'splash',x:d.x,y:d.y+8,life:22,size:4});
+    });
+  }
+
   if(duckFeedAction.timer === 95){
     duckParticles.push({type:'heart',x:foodTossBox.x + foodTossBox.w / 2,y:foodTossBox.y - 12,life:75,size:4});
   }
@@ -165,8 +189,9 @@ update = function(){
 };
 
 function drawDuck(d){
+  const pecking = duckFeedAction && duckFeedAction.timer > 80 && duckFeedAction.timer < 230 && d.side === 'right';
   const x = Math.round(d.x - camera.x);
-  const y = Math.round(d.y - camera.y + Math.sin(d.phase * 2) * 1.5);
+  const y = Math.round(d.y - camera.y + Math.sin(d.phase * 2) * 1.5 + (pecking ? Math.sin(duckFeedAction.timer / 3) * 2 : 0));
   const facingLeft = d.target ? d.target.x < d.x : d.vx < 0;
   const flip = facingLeft ? -1 : 1;
 
@@ -237,6 +262,8 @@ drawDebugZones = function(){
   if(!debugMode) return;
   ctx.save();
   duckWaterZones.forEach(z => drawDebugRect(z,'rgba(0,180,255,0.12)'));
+  drawDebugRect(duckBridgeBlock,'rgba(255,0,120,0.18)');
+  drawDebugText('Duck Bridge Block',duckBridgeBlock.x,duckBridgeBlock.y);
   drawDebugRect(bridgeFeedBox,'rgba(255,220,0,0.25)');
   drawDebugText('Duck Feed Start',bridgeFeedBox.x,bridgeFeedBox.y);
   drawDebugRect(foodTossBox,'rgba(0,180,255,0.25)');
