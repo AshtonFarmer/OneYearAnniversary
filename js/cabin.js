@@ -133,14 +133,91 @@ const players = {
 };
 
 const interactZones = [
-  {name:'Love Letters', x:255, y:420, r:95, text:'Press E to open Love Letters 💌', title:'💌 Love Letters', body:'This is where your love letters can go.', cards:['Letter 1','Letter 2','Sweet notes']},
-  {name:'Inside Jokes', x:680, y:190, r:105, text:'Press E to open Inside Jokes 📖', title:'📖 Inside Jokes', body:'Add all the dumb funny things only y’all understand.', cards:['Funny quote','Random joke','Favorite laugh']},
-  {name:'Favorite Memories', x:740, y:430, r:120, text:'Press E to open Favorite Memories 💖', title:'💖 Favorite Memories', body:'Put your favorite memories from the year here.', cards:['Memory 1','Memory 2','Memory 3']},
-  {name:'Favorite Photos', x:925, y:310, r:105, text:'Press E to open Favorite Photos 📷', title:'📷 Favorite Photos', body:'A photo wall for your favorite pictures together.', cards:['Photo spot','Picture placeholder','Cute moment']},
-  {name:'Future Together', x:1260, y:375, r:110, text:'Press E to open Future Together ✨', title:'✨ Future Together', body:'Dreams, future plans, and all the places y’all want to go.', cards:['Future home','Trips','Dreams']},
-  {name:'Special Messages', x:1190, y:675, r:110, text:'Press E to open Special Messages 💌', title:'💌 Special Messages', body:'Put private messages, voice notes, or sweet paragraphs here.', cards:['Message 1','Message 2','Voice note']},
-  {name:'Secret Gift', x:1260, y:845, r:90, text:'Press E to open Secret Gift 🎁', title:'🎁 Secret Gift', body:'A secret hidden surprise can go here.', cards:['???','Hidden memory','Final surprise']},
-  {name:'Exit', x:760, y:930, r:90, text:'Press E to go back to the world 🌎', page:'index.html'}
+  {
+    name:'Kitchen Memories',
+    x:211,
+    y:754,
+    r:70,
+    text:'Press E to open Kitchen Memories 🍳',
+    title:'🍳 Kitchen Memories',
+    body:'All the meals, snacks, and memories you made together in the kitchen.',
+    cards:['Favorite meal','Cooking together','Late night snacks']
+  },
+
+  {
+    name:'Inside Jokes',
+    x:614,
+    y:329,
+    r:75,
+    text:'Press E to open Inside Jokes 📖',
+    title:'📖 Inside Jokes',
+    body:'Add all the dumb funny things only y’all understand.',
+    cards:['Funny quote','Random joke','Favorite laugh']
+  },
+
+  {
+    name:'Favorite Memories',
+    x:298,
+    y:400,
+    r:70,
+    text:'Press E to open Favorite Memories 💖',
+    title:'💖 Favorite Memories',
+    body:'Put your favorite memories from the year here.',
+    cards:['Memory 1','Memory 2','Memory 3']
+  },
+
+  {
+    name:'Favorite Photos',
+    x:925,
+    y:310,
+    r:105,
+    text:'Press E to open Favorite Photos 📷',
+    title:'📷 Favorite Photos',
+    body:'A photo wall for your favorite pictures together.',
+    cards:['Photo spot','Picture placeholder','Cute moment']
+  },
+
+  {
+    name:'Bed Fun',
+    x:1246,
+    y:218,
+    r:80,
+    text:'Press E to open Bed Fun 😏',
+    title:'😏 Bed Fun',
+    body:'A private place for your special moments together.',
+    cards:['💕','✨','🤍']
+  },
+
+  {
+    name:'Special Messages',
+    x:1190,
+    y:675,
+    r:110,
+    text:'Press E to open Special Messages 💌',
+    title:'💌 Special Messages',
+    body:'Put private messages, voice notes, or sweet paragraphs here.',
+    cards:['Message 1','Message 2','Voice note']
+  },
+
+  {
+    name:'Secret Gift',
+    x:1383,
+    y:829,
+    r:50,
+    text:'Press E to open Secret Gift 🎁',
+    title:'🎁 Secret Gift',
+    body:'A secret hidden surprise can go here.',
+    cards:['???','Hidden memory','Final surprise']
+  },
+
+  {
+    name:'Exit',
+    x:760,
+    y:930,
+    r:90,
+    text:'Press E to go back to the world 🌎',
+    page:'index.html'
+  }
 ];
 
 const solid = [
