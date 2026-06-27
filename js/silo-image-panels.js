@@ -1,11 +1,11 @@
 // Silo visual upgrade: real PNG panel system.
-// Step 1 uses the uploaded silo-interior.png from the repo root.
+// Step 1 uses silo-interior.png. Step 3 uses entrance-cavern.png.
 
 const siloInteriorArt = new Image();
 siloInteriorArt.src = 'silo-interior.png';
 
 const cavePanels = [
-  {name:'Entrance Cavern', src:'assets/cave/entrance.png', color:'#fff1c8'},
+  {name:'Entrance Cavern', src:'entrance-cavern.png', color:'#fff1c8'},
   {name:'Glowworm Grotto', src:'assets/cave/glowworms.png', color:'#6df4ff'},
   {name:'Crystal Caverns', src:'assets/cave/crystals.png', color:'#9ed8ff'},
   {name:'Underground River', src:'assets/cave/river.png', color:'#66e5ff'},
@@ -66,7 +66,7 @@ drawSiloInterior = function(){
   ctx.restore();
 };
 
-// Stack future PNG cave panels side-by-side, with a soft overlap blend.
+// Stack cave PNG panels side-by-side, with a soft overlap blend.
 drawCaveBackground = function(){
   ctx.fillStyle = '#071018';
   ctx.fillRect(0,0,CAVE_W,CAVE_H);
@@ -92,7 +92,7 @@ drawCaveBackground = function(){
   });
 };
 
-// Life on top of future cave maps.
+// Life on top of cave maps.
 drawCaveDecorations = function(){
   caveGlints.forEach(g => {
     g.life++;
