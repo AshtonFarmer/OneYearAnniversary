@@ -114,33 +114,17 @@ function drawWindmillPowerGlow(){
   ctx.restore();
 }
 
-function drawWindmillMilestonePulse(){
-  if(!wishGame) return;
-  const p = wishProgress();
-  const milestones = [10,20,30,40,52];
-  const close = milestones.some(m => Math.abs(wishGame.collected - m) <= 1);
-  if(!close) return;
-
-  const pulse = (Math.sin(heartTimer/5)+1)/2;
-  ctx.save();
-  ctx.globalAlpha = .08 + pulse*.08;
-  ctx.fillStyle = '#fff1a8';
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-  ctx.restore();
-}
-
 const originalWindmillReactDraw = draw;
 draw = function(){
   originalWindmillReactDraw();
   drawWindmillPowerGlow();
-  drawWindmillMilestonePulse();
 };
 
 const originalWindmillReactUpdate = update;
 update = function(){
   originalWindmillReactUpdate();
 
-  // Milestone messages for the room coming alive.
+  // Milestone messages for the room coming alive. No screen flashing.
   if(wishGame && !wishGame.finished){
     if([10,20,30,40].includes(wishGame.collected) && wishMessageTimer <= 0){
       wishGame.message = 'The windmill is waking up...';
