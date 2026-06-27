@@ -1,31 +1,41 @@
-// Silo visual upgrade: use artwork panels for the silo room and the long cave walk.
+// Silo visual upgrade: real PNG panel system.
+// Put the PNG files in assets/cave/ and this script stacks them into one long walk.
 
 const siloInteriorArt = new Image();
-siloInteriorArt.src = 'assets/cave/interior.svg';
+siloInteriorArt.src = 'assets/cave/silo-interior.png';
 
-const cavePanoramaArt = new Image();
-cavePanoramaArt.src = 'assets/cave/panorama.svg';
-
-const caveSceneLabels = [
-  ['Entrance Cavern',430,'#fff1c8'],
-  ['Glowworm Grotto',1120,'#6df4ff'],
-  ['Crystal Caverns',2050,'#9ed8ff'],
-  ['Dripstone Chamber',3300,'#ffd08a'],
-  ['Underground River',4380,'#66e5ff'],
-  ['Geodes & Metallic Veins',5620,'#eeb36a'],
-  ['Hidden Garden',6720,'#9dff9b'],
-  ['Ice Cavern',7850,'#bff9ff'],
-  ['The Underground Lake',8840,'#fff1c8']
+const cavePanels = [
+  {name:'Entrance Cavern', src:'assets/cave/entrance.png', color:'#fff1c8'},
+  {name:'Glowworm Grotto', src:'assets/cave/glowworms.png', color:'#6df4ff'},
+  {name:'Crystal Caverns', src:'assets/cave/crystals.png', color:'#9ed8ff'},
+  {name:'Underground River', src:'assets/cave/river.png', color:'#66e5ff'},
+  {name:'Geodes & Metallic Veins', src:'assets/cave/geodes.png', color:'#eeb36a'},
+  {name:'Hidden Garden', src:'assets/cave/garden.png', color:'#9dff9b'},
+  {name:'Ice Cavern', src:'assets/cave/ice.png', color:'#bff9ff'},
+  {name:'The Underground Lake', src:'assets/cave/lake-ending.png', color:'#fff1c8'}
 ];
+
+cavePanels.forEach(p => {
+  p.img = new Image();
+  p.img.src = p.src;
+});
+
+const PANEL_W = 1280;
+const PANEL_OVERLAP = 80;
+const PANEL_STEP = PANEL_W - PANEL_OVERLAP;
 
 const caveGlints = [];
 const caveRipples = [];
 for(let i=0;i<120;i++) caveGlints.push({x:520+Math.random()*8350,y:170+Math.random()*390,life:Math.random()*160,size:1+Math.random()*3});
 for(let i=0;i<35;i++) caveRipples.push({x:3900+Math.random()*5150,y:552+Math.random()*84,life:Math.random()*220,w:22+Math.random()*60});
 
-// Replace the rough canvas-drawn silo room with artwork.
+function imageReady(img){
+  return img && img.complete && img.naturalWidth;
+}
+
+// Replace the rough canvas-drawn silo room with real PNG artwork.
 drawSiloInterior = function(){
-  if(siloInteriorArt.complete && siloInteriorArt.naturalWidth){
+  if(imageReady(siloInteriorArt)){
     ctx.drawImage(siloInteriorArt,0,0,SILO_W,SILO_H);
   } else {
     ctx.fillStyle = '#17100c';
@@ -33,17 +43,34 @@ drawSiloInterior = function(){
   }
 };
 
-// Replace the rough cave background with one continuous artwork image.
+// Stack the real PNG panels side-by-side, with a soft overlap blend.
 drawCaveBackground = function(){
-  if(cavePanoramaArt.complete && cavePanoramaArt.naturalWidth){
-    ctx.drawImage(cavePanoramaArt,0,0,CAVE_W,CAVE_H);
-  } else {
-    ctx.fillStyle = '#071018';
-    ctx.fillRect(0,0,CAVE_W,CAVE_H);
-  }
+  ctx.fillStyle = '#071018';
+  ctx.fillRect(0,0,CAVE_W,CAVE_H);
+
+  cavePanels.forEach((p,i) => {
+    const x = i * PANEL_STEP;
+    if(x - camera.x > canvas.width + 200 || x + PANEL_W - camera.x < -200) return;
+
+    if(imageReady(p.img)){
+      ctx.drawImage(p.img,x,0,PANEL_W,CAVE_H);
+
+      // dark feather at the left edge so panels blend into each other.
+      if(i > 0){
+        const g = ctx.createLinearGradient(x,0,x+PANEL_OVERLAP,0);
+        g.addColorStop(0,'rgba(0,0,0,.45)');
+        g.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(x,0,PANEL_OVERLAP,CAVE_H);
+      }
+    } else {
+      ctx.fillStyle = i%2 ? '#11151b' : '#0a1018';
+      ctx.fillRect(x,0,PANEL_W,CAVE_H);
+    }
+  });
 };
 
-// Replace the old decoration layer with subtle life on top of the image.
+// Life on top of the images.
 drawCaveDecorations = function(){
   caveGlints.forEach(g => {
     g.life++;
@@ -79,17 +106,17 @@ drawCaveDecorations = function(){
     ctx.restore();
   });
 
-  // Section names float softly over each image panel.
   ctx.save();
   ctx.font = 'bold 22px monospace';
   ctx.textAlign = 'center';
   ctx.lineWidth = 6;
-  caveSceneLabels.forEach(([text,x,color]) => {
+  cavePanels.forEach((p,i) => {
+    const x = i * PANEL_STEP + PANEL_W/2;
     if(x-camera.x < -220 || x-camera.x > canvas.width+220) return;
     ctx.strokeStyle = '#02050a';
-    ctx.fillStyle = color;
-    ctx.strokeText(text,x-camera.x,165-camera.y);
-    ctx.fillText(text,x-camera.x,165-camera.y);
+    ctx.fillStyle = p.color;
+    ctx.strokeText(p.name,x-camera.x,165-camera.y);
+    ctx.fillText(p.name,x-camera.x,165-camera.y);
   });
   ctx.restore();
 };
