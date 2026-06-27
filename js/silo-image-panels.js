@@ -1,8 +1,8 @@
 // Silo visual upgrade: real PNG panel system.
-// Put the PNG files in assets/cave/ and this script stacks them into one long walk.
+// Step 1 uses the uploaded silo-interior.png from the repo root.
 
 const siloInteriorArt = new Image();
-siloInteriorArt.src = 'assets/cave/silo-interior.png';
+siloInteriorArt.src = 'silo-interior.png';
 
 const cavePanels = [
   {name:'Entrance Cavern', src:'assets/cave/entrance.png', color:'#fff1c8'},
@@ -29,11 +29,16 @@ const caveRipples = [];
 for(let i=0;i<120;i++) caveGlints.push({x:520+Math.random()*8350,y:170+Math.random()*390,life:Math.random()*160,size:1+Math.random()*3});
 for(let i=0;i<35;i++) caveRipples.push({x:3900+Math.random()*5150,y:552+Math.random()*84,life:Math.random()*220,w:22+Math.random()*60});
 
+const siloStep1Dust = [];
+for(let i=0;i<60;i++){
+  siloStep1Dust.push({x:170+Math.random()*620,y:100+Math.random()*500,life:Math.random()*160,size:1+Math.random()*2});
+}
+
 function imageReady(img){
   return img && img.complete && img.naturalWidth;
 }
 
-// Replace the rough canvas-drawn silo room with real PNG artwork.
+// Step 1: real map background, no characters baked into it.
 drawSiloInterior = function(){
   if(imageReady(siloInteriorArt)){
     ctx.drawImage(siloInteriorArt,0,0,SILO_W,SILO_H);
@@ -41,9 +46,27 @@ drawSiloInterior = function(){
     ctx.fillStyle = '#17100c';
     ctx.fillRect(0,0,SILO_W,SILO_H);
   }
+
+  // Soft animated dust only. The room itself stays in the PNG map.
+  ctx.save();
+  siloStep1Dust.forEach(d => {
+    d.life++;
+    if(d.life > 160){
+      d.x = 170+Math.random()*620;
+      d.y = 520+Math.random()*60;
+      d.life = 0;
+    }
+    d.y -= .05;
+    d.x += Math.sin((heartTimer+d.y)/80)*.04;
+    const a = Math.sin(d.life/160*Math.PI);
+    ctx.globalAlpha = .10 + a*.32;
+    ctx.fillStyle = '#ffe0a0';
+    ctx.fillRect(Math.round(d.x),Math.round(d.y),d.size,d.size);
+  });
+  ctx.restore();
 };
 
-// Stack the real PNG panels side-by-side, with a soft overlap blend.
+// Stack future PNG cave panels side-by-side, with a soft overlap blend.
 drawCaveBackground = function(){
   ctx.fillStyle = '#071018';
   ctx.fillRect(0,0,CAVE_W,CAVE_H);
@@ -55,7 +78,6 @@ drawCaveBackground = function(){
     if(imageReady(p.img)){
       ctx.drawImage(p.img,x,0,PANEL_W,CAVE_H);
 
-      // dark feather at the left edge so panels blend into each other.
       if(i > 0){
         const g = ctx.createLinearGradient(x,0,x+PANEL_OVERLAP,0);
         g.addColorStop(0,'rgba(0,0,0,.45)');
@@ -70,7 +92,7 @@ drawCaveBackground = function(){
   });
 };
 
-// Life on top of the images.
+// Life on top of future cave maps.
 drawCaveDecorations = function(){
   caveGlints.forEach(g => {
     g.life++;
