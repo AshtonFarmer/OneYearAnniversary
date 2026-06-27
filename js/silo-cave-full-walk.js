@@ -1,5 +1,6 @@
 // Full cave walk controller
 // Turns the 8 uploaded cave maps into one continuous right-scrolling cave journey.
+// Current mode: loose/free walking so testing is easy. We can tighten collisions later.
 
 const caveMapNames = [
   'Entrance Cavern',
@@ -27,30 +28,25 @@ function caveIndexForX(x){
 }
 
 function caveWalkYAtX(x){
+  // Only used for spawning/ending now. Movement is intentionally wide open.
   const i = caveIndexForX(x);
   const local = x - i*PANEL_STEP;
   if(i === 0) return 590 - Math.sin(local/190)*10;
-  if(i === 1) return 485 + Math.sin(local/220)*35;
-  if(i === 2) return 505 + Math.sin(local/180)*28;
-  if(i === 3) return 525 + Math.sin(local/210)*38;
-  if(i === 4) return 515 + Math.sin(local/200)*30;
-  if(i === 5) return 500 + Math.sin(local/220)*45;
-  if(i === 6) return 505 + Math.sin(local/180)*28;
-  return local < 760 ? 500 + Math.sin(local/210)*22 : 570;
-}
-
-function caveAllowedYRange(x){
-  const c = caveWalkYAtX(x);
-  const i = caveIndexForX(x);
-  if(i === 7 && x > PANEL_STEP*7 + 760) return {min:505,max:645};
-  return {min:c-74,max:c+74};
+  if(i === 1) return 520 + Math.sin(local/220)*25;
+  if(i === 2) return 520 + Math.sin(local/180)*22;
+  if(i === 3) return 535 + Math.sin(local/210)*28;
+  if(i === 4) return 525 + Math.sin(local/200)*24;
+  if(i === 5) return 520 + Math.sin(local/220)*28;
+  if(i === 6) return 520 + Math.sin(local/180)*22;
+  return local < 760 ? 520 + Math.sin(local/210)*18 : 570;
 }
 
 // Override world size now that all 8 maps are side-by-side.
 activeWorldW = function(){ return mode === 'silo' ? SILO_W : CAVE_TOTAL_W; };
 activeWorldH = function(){ return mode === 'silo' ? SILO_H : CAVE_H; };
 
-// Override cave collision so the whole cave is walkable along a sideways path.
+// Loose collision: only keep players inside the image bounds.
+// No path barriers for now, so you can actually walk and test the whole cave.
 solidHit = function(x,y){
   if(mode === 'silo'){
     if(x < 80 || x > SILO_W-80 || y < 90 || y > SILO_H-70) return true;
@@ -58,11 +54,7 @@ solidHit = function(x,y){
   }
 
   if(x < 65 || x > CAVE_TOTAL_W - 90) return true;
-  const range = caveAllowedYRange(x);
-  if(y < range.min || y > range.max) return true;
-
-  // Final lake overlook: allow ledge, block walking into the water/lake.
-  if(x > PANEL_STEP*7 + 850 && y > 615) return true;
+  if(y < 120 || y > CAVE_H - 55) return true;
 
   return false;
 };
@@ -172,7 +164,6 @@ function drawFullCaveAmbience(){
 
   ctx.save();
 
-  // Section-based soft lighting overlay.
   const idx = caveIndexForX(camera.x + canvas.width/2);
   let color = 'rgba(50,160,255,.06)';
   if(idx === 1) color = 'rgba(35,215,255,.10)';
@@ -185,7 +176,6 @@ function drawFullCaveAmbience(){
   ctx.fillStyle = color;
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  // Bats.
   ctx.strokeStyle = 'rgba(5,8,14,.72)';
   ctx.lineWidth = 3;
   caveBats.forEach(b => {
@@ -199,7 +189,6 @@ function drawFullCaveAmbience(){
     ctx.stroke();
   });
 
-  // Fish in lower river areas.
   ctx.fillStyle = 'rgba(180,245,255,.45)';
   caveFish.forEach(f => {
     const x = f.x - camera.x;
