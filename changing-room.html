@@ -1,1 +1,49 @@
-hello
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Changing Room</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    html,body{margin:0;height:100%;overflow:hidden;background:#061018;color:white;font-family:monospace}
+    canvas{display:block;width:100vw;height:100vh;image-rendering:pixelated}
+    .prompt{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:rgba(25,12,18,.92);border:3px solid #ff9dcc;border-radius:12px;color:#ffe18b;font-size:20px;padding:12px 22px;display:none;z-index:5;box-shadow:0 8px 22px #0009}
+    .back-btn{position:fixed;left:18px;top:18px;z-index:8;background:rgba(25,12,18,.92);border:3px solid #b17142;border-radius:12px;color:#ffe18b;padding:10px 14px;font-size:16px;text-decoration:none;box-shadow:0 8px 22px #0009}
+    #outfitModal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(4,10,18,.78);z-index:20;font-family:monospace}
+    #outfitModal .box{width:min(980px,92vw);max-height:84vh;overflow:auto;background:rgba(25,12,18,.96);border:3px solid #b17142;border-radius:16px;padding:24px;color:white;box-shadow:0 12px 40px #000}
+    #outfitModal h1{margin-top:0;color:#ff97cf}
+    #outfitModal p{color:#ffe18b;font-size:16px}
+    .outfit-row{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:16px}
+    .outfit-section{border:2px dashed #ff9dcc;border-radius:14px;padding:16px;background:#241820}
+    .outfit-section h2{margin-top:0;color:#ffd983}
+    .outfit-grid{display:grid;grid-template-columns:repeat(2,minmax(130px,1fr));gap:12px}
+    .outfit-card{border:2px solid #b17142;border-radius:12px;background:#2f1f2a;color:white;padding:12px;cursor:pointer;font-family:monospace;text-align:left}
+    .outfit-card:hover{border-color:#ff97cf;transform:translateY(-1px)}
+    .outfit-card.active{border-color:#ffe18b;box-shadow:0 0 14px rgba(255,225,139,.45)}
+    .outfit-card strong{display:block;color:#ff97cf;font-size:16px;margin-bottom:6px}
+    .close-btn{background:#ff97cf;border:0;border-radius:10px;padding:10px 16px;font-weight:bold;cursor:pointer;margin-bottom:12px}
+    @media(max-width:760px){.outfit-row{grid-template-columns:1fr}.outfit-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <a class="back-btn" href="shopping.html">← Back to Shopping</a>
+  <canvas id="game"></canvas>
+  <div id="prompt" class="prompt"></div>
+
+  <div id="outfitModal">
+    <div class="box">
+      <button class="close-btn" onclick="closeOutfitMenu()">Close</button>
+      <h1>Changing Room</h1>
+      <p>Pick one outfit for each sprite. The selected outfit is saved until it is changed here again.</p>
+      <div class="outfit-row">
+        <div class="outfit-section"><h2>Player 1 Outfit</h2><div class="outfit-grid" id="herOutfits"></div></div>
+        <div class="outfit-section"><h2>Player 2 Outfit</h2><div class="outfit-grid" id="himOutfits"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/outfit-loader.js"></script>
+  <script src="js/clothing-store.js"></script>
+</body>
+</html>
