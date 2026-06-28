@@ -1,18 +1,19 @@
 // Silo cave map system
 // Uses the uploaded PNG maps in assets/cave/ and stacks all 8 side-by-side.
+// yOffset moves whole maps up/down so the walkspaces line up at the seams.
 
 const siloInteriorArt = new Image();
 siloInteriorArt.src = 'silo-interior.png';
 
 const cavePanels = [
-  {name:'Entrance Cavern', src:'assets/cave/entrance-cavern.png', color:'#fff1c8'},
-  {name:'Glowworm Grotto', src:'assets/cave/glowworm-grotto.png', color:'#6df4ff'},
-  {name:'Crystal Caverns', src:'assets/cave/crystal-caverns.png', color:'#9ed8ff'},
-  {name:'Underground River', src:'assets/cave/underground-river.png', color:'#66e5ff'},
-  {name:'Geodes & Metallic Veins', src:'assets/cave/geodes-veins.png', color:'#eeb36a'},
-  {name:'Hidden Garden', src:'assets/cave/hidden-garden.png', color:'#9dff9b'},
-  {name:'Ice Cavern', src:'assets/cave/ice-cavern.png', color:'#bff9ff'},
-  {name:'The Underground Lake', src:'assets/cave/underground-lake.png', color:'#fff1c8'}
+  {name:'Entrance Cavern', src:'assets/cave/entrance-cavern.png', color:'#fff1c8', yOffset:0},
+  {name:'Glowworm Grotto', src:'assets/cave/glowworm-grotto.png', color:'#6df4ff', yOffset:-80},
+  {name:'Crystal Caverns', src:'assets/cave/crystal-caverns.png', color:'#9ed8ff', yOffset:-80},
+  {name:'Underground River', src:'assets/cave/underground-river.png', color:'#66e5ff', yOffset:102},
+  {name:'Geodes & Metallic Veins', src:'assets/cave/geodes-veins.png', color:'#eeb36a', yOffset:-61},
+  {name:'Hidden Garden', src:'assets/cave/hidden-garden.png', color:'#9dff9b', yOffset:-61},
+  {name:'Ice Cavern', src:'assets/cave/ice-cavern.png', color:'#bff9ff', yOffset:14},
+  {name:'The Underground Lake', src:'assets/cave/underground-lake.png', color:'#fff1c8', yOffset:106}
 ];
 
 cavePanels.forEach(p => {
@@ -65,17 +66,18 @@ drawSiloInterior = function(){
   ctx.restore();
 };
 
-// Stack all cave PNG maps side-by-side with a soft seam blend.
+// Stack all cave PNG maps side-by-side with vertical seam alignment.
 drawCaveBackground = function(){
   ctx.fillStyle = '#071018';
   ctx.fillRect(0,0,CAVE_TOTAL_W,CAVE_H);
 
   cavePanels.forEach((p,i) => {
     const x = i * PANEL_STEP;
+    const y = p.yOffset || 0;
     if(x - camera.x > canvas.width + 260 || x + PANEL_W - camera.x < -260) return;
 
     if(imageReady(p.img)){
-      ctx.drawImage(p.img,x,0,PANEL_W,PANEL_H);
+      ctx.drawImage(p.img,x,y,PANEL_W,PANEL_H);
 
       if(i > 0){
         const g = ctx.createLinearGradient(x,0,x+PANEL_OVERLAP,0);
@@ -87,7 +89,7 @@ drawCaveBackground = function(){
       }
     } else {
       ctx.fillStyle = i%2 ? '#11151b' : '#0a1018';
-      ctx.fillRect(x,0,PANEL_W,CAVE_H);
+      ctx.fillRect(x,y,PANEL_W,CAVE_H);
     }
   });
 };
