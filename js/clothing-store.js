@@ -41,9 +41,9 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
 const players = {
-  her:{key:'her', img:herImg, x:710, y:860, dir:'up', frame:0, speed:3.0, scale:.58,
+  her:{key:'her', img:herImg, x:710, y:860, dir:'up', frame:0, speed:3.0, scale:1.0,
        rows:{down:0, up:2, left:3, right:1}, frames:{down:[0,1,2,3], up:[0,1,2,3], left:[0,1,2,3], right:[0,1,2,3]}},
-  him:{key:'him', img:himImg, x:825, y:860, dir:'up', frame:0, speed:3.0, scale:.58,
+  him:{key:'him', img:himImg, x:825, y:860, dir:'up', frame:0, speed:3.0, scale:1.0,
        rows:{down:0, up:2, left:3, right:1}, frames:{down:[0,1,2], up:[0,1,2], left:[0,1,2], right:[0,1,2]}}
 };
 
