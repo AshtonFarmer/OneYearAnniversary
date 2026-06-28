@@ -66,20 +66,45 @@ drawSiloInterior = function(){
   ctx.restore();
 };
 
-function drawCaveBackdropCopy(p,x,y){
+function drawCaveBackdropStrip(p,x,y){
   if(!imageReady(p.img)) return;
 
   ctx.save();
-  ctx.globalAlpha = .42;
-  ctx.filter = 'brightness(55%) saturate(85%)';
+  ctx.globalAlpha = .62;
+  ctx.filter = 'brightness(48%) saturate(75%)';
 
-  // Draw several shifted copies behind the real map.
-  // This fills transparent top/bottom gaps with more cave art, without moving the real map.
-  // The offsets are large enough that exposed gaps mostly show rock/ceiling/floor, not main walkways.
-  ctx.drawImage(p.img,x,y-150,PANEL_W,PANEL_H);
-  ctx.drawImage(p.img,x,y+150,PANEL_W,PANEL_H);
-  ctx.drawImage(p.img,x-38,y,PANEL_W,PANEL_H);
-  ctx.drawImage(p.img,x+38,y,PANEL_W,PANEL_H);
+  // IMPORTANT:
+  // Instead of shifting the whole map behind itself, only use thin strips from the
+  // top/bottom edges. That should show cave wall/ceiling/floor, not duplicated walkways.
+
+  const topStripH = 110;
+  const bottomStripH = 110;
+
+  // Fill above maps that were shifted down.
+  if(y > 0){
+    ctx.drawImage(
+      p.img,
+      0, 0, PANEL_W, topStripH,
+      x, 0, PANEL_W, Math.min(y + 12, 160)
+    );
+  }
+
+  // Fill below maps that were shifted up.
+  if(y < 0){
+    const gapTop = PANEL_H + y;
+    const gapH = Math.min(Math.abs(y) + 16, 170);
+    ctx.drawImage(
+      p.img,
+      0, PANEL_H - bottomStripH, PANEL_W, bottomStripH,
+      x, gapTop - 4, PANEL_W, gapH
+    );
+  }
+
+  // Extra insurance for tiny top/bottom transparent slivers inside the PNGs.
+  // These are still only edge strips, not full-map copies.
+  ctx.globalAlpha = .28;
+  ctx.drawImage(p.img,0,0,PANEL_W,70,x,y-66,PANEL_W,70);
+  ctx.drawImage(p.img,0,PANEL_H-70,PANEL_W,70,x,y+PANEL_H-4,PANEL_W,70);
 
   ctx.filter = 'none';
   ctx.restore();
@@ -90,12 +115,12 @@ drawCaveBackground = function(){
   ctx.fillStyle = '#071018';
   ctx.fillRect(0,0,CAVE_TOTAL_W,CAVE_H);
 
-  // Behind-layer first: same maps, darker and offset, only visible where top maps are transparent.
+  // Behind-layer first: edge strips only, so walkways/bridges should not appear in gaps.
   cavePanels.forEach((p,i) => {
     const x = i * PANEL_STEP;
     const y = p.yOffset || 0;
     if(x - camera.x > canvas.width + 260 || x + PANEL_W - camera.x < -260) return;
-    drawCaveBackdropCopy(p,x,y);
+    drawCaveBackdropStrip(p,x,y);
   });
 
   // Real maps on top.
