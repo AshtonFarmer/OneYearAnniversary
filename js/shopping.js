@@ -111,7 +111,7 @@ const shops = [
   {name:'🍔 Food Court', x:285, y:405, r:95, text:'Food dates, snacks, meals, and the random stuff y’all wanted to try.', cards:['Food date','Favorite snack','Restaurant memory','Random cravings']},
   {name:'🎁 Gift Shop', x:285, y:610, r:95, text:'Gifts, surprises, cute things, and anything that made her smile.', cards:['Gift memory','Favorite surprise','Cute keepsake','Things I want to give you']},
   {name:'🎬 Movie Shop', x:285, y:815, r:95, text:'Shows, anime, movies, and the stuff you watched or want to watch together.', cards:['Movie night','Anime memory','Watch list','Favorite scene']},
-  {name:'🕹️ Arcade', x:1250, y:205, r:95, text:'Funny moments, games, goofy jokes, and competitive chaos.', cards:['Funny clip','Game memory','Laughing moment','Mini challenge']},
+  {name:'👗Outfit Change', x:1250, y:205, r:95, text:'Funny moments, games, goofy jokes, and competitive chaos.', cards:['Funny clip','Game memory','Laughing moment','Mini challenge']},
   {name:'😂 Inside Jokes', x:1250, y:405, r:95, text:'The jokes nobody else would understand.', cards:['Inside joke 1','Inside joke 2','Voice note','Dumb but perfect']},
   {name:'🎵 Music Shop', x:1250, y:610, r:95, text:'Songs that remind you of her, playlists, and music memories.', cards:['Our song','Playlist','Lyrics memory','Song note']},
   {name:'💖 Favorite Moments', x:1250, y:815, r:95, text:'The moments that make the whole year feel special.', cards:['Favorite moment','Sweet memory','Best day','Tiny moment']},
