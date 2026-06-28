@@ -66,11 +66,39 @@ drawSiloInterior = function(){
   ctx.restore();
 };
 
+function drawCaveBackdropCopy(p,x,y){
+  if(!imageReady(p.img)) return;
+
+  ctx.save();
+  ctx.globalAlpha = .42;
+  ctx.filter = 'brightness(55%) saturate(85%)';
+
+  // Draw several shifted copies behind the real map.
+  // This fills transparent top/bottom gaps with more cave art, without moving the real map.
+  // The offsets are large enough that exposed gaps mostly show rock/ceiling/floor, not main walkways.
+  ctx.drawImage(p.img,x,y-150,PANEL_W,PANEL_H);
+  ctx.drawImage(p.img,x,y+150,PANEL_W,PANEL_H);
+  ctx.drawImage(p.img,x-38,y,PANEL_W,PANEL_H);
+  ctx.drawImage(p.img,x+38,y,PANEL_W,PANEL_H);
+
+  ctx.filter = 'none';
+  ctx.restore();
+}
+
 // Stack all cave PNG maps side-by-side with vertical seam alignment.
 drawCaveBackground = function(){
   ctx.fillStyle = '#071018';
   ctx.fillRect(0,0,CAVE_TOTAL_W,CAVE_H);
 
+  // Behind-layer first: same maps, darker and offset, only visible where top maps are transparent.
+  cavePanels.forEach((p,i) => {
+    const x = i * PANEL_STEP;
+    const y = p.yOffset || 0;
+    if(x - camera.x > canvas.width + 260 || x + PANEL_W - camera.x < -260) return;
+    drawCaveBackdropCopy(p,x,y);
+  });
+
+  // Real maps on top.
   cavePanels.forEach((p,i) => {
     const x = i * PANEL_STEP;
     const y = p.yOffset || 0;
@@ -81,8 +109,8 @@ drawCaveBackground = function(){
 
       if(i > 0){
         const g = ctx.createLinearGradient(x,0,x+PANEL_OVERLAP,0);
-        g.addColorStop(0,'rgba(0,0,0,.34)');
-        g.addColorStop(.45,'rgba(0,0,0,.12)');
+        g.addColorStop(0,'rgba(0,0,0,.22)');
+        g.addColorStop(.45,'rgba(0,0,0,.08)');
         g.addColorStop(1,'rgba(0,0,0,0)');
         ctx.fillStyle = g;
         ctx.fillRect(x,0,PANEL_OVERLAP,CAVE_H);
