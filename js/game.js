@@ -13,8 +13,44 @@ function resize(){
 addEventListener('resize', resize); 
 resize();
 
-const map = new Image(); 
-map.src = 'assets/maps/main-map.png';
+const map = new Image();
+
+const seasons = [
+  {key:'spring', label:'Spring', emoji:'🌼', coins:1, map:'assets/maps/main-map-spring.png'},
+  {key:'summer', label:'Summer', emoji:'☀️', coins:2, map:'assets/maps/main-map.png'},
+  {key:'fall', label:'Fall', emoji:'🍁', coins:3, map:'assets/maps/main-map-fall.png'},
+  {key:'winter', label:'Winter', emoji:'❄️', coins:4, map:'assets/maps/main-map-winter.png'},
+  {key:'night', label:'Night', emoji:'🌙', coins:5, map:'assets/maps/main-map-night.png'}
+];
+
+let currentSeason = localStorage.getItem('currentSeason') || 'summer';
+let nextWellCoins = Number(localStorage.getItem('nextWellCoins') || 1);
+let seasonMessage = null;
+let seasonMessageTimer = 0;
+let coinAnimation = null;
+
+function getSeason(){
+  return seasons.find(season => season.key === currentSeason) || seasons[1];
+}
+
+function getNextWellSeason(){
+  return seasons.find(season => season.coins === nextWellCoins) || seasons[0];
+}
+
+function setMapForSeason(seasonKey){
+  const season = seasons.find(item => item.key === seasonKey) || seasons[1];
+  currentSeason = season.key;
+  localStorage.setItem('currentSeason', currentSeason);
+
+  map.onerror = () => {
+    map.onerror = null;
+    map.src = 'assets/maps/main-map.png';
+  };
+
+  map.src = season.map;
+}
+
+setMapForSeason(currentSeason);
 
 const herImg = new Image(); 
 herImg.src = 'assets/sprites/her_atlas.png';
@@ -111,6 +147,9 @@ let achievementTimer = 0;
 let achievement100Shown = localStorage.getItem('achievement100Kisses') === 'true';
 let achievement1000Shown = localStorage.getItem('achievement1000Kisses') === 'true';
 
+const wellZone = {x:112, y:271, w:57, h:45};
+const wellInside = {x:127, y:228, w:37, h:22};
+
 const locs = [
   {
     name:'Helipad',
@@ -138,6 +177,19 @@ const locs = [
     x:1116, y:534, r:90,
     page:'shopping.html',
     text:'Press E to enter the shopping center 🛍️'
+  },
+
+  {
+    name:'Well of Seasons',
+    x:wellZone.x + wellZone.w / 2,
+    y:wellZone.y + wellZone.h / 2,
+    r:62,
+    page:null,
+    action:'well',
+    text:() => {
+      const season = getNextWellSeason();
+      return `Press E to toss ${season.coins} coin${season.coins === 1 ? '' : 's'} into the Well of Seasons ${season.emoji} ${season.label}`;
+    }
   },
 
   {
@@ -268,6 +320,33 @@ function distPlayerLoc(p,l){
   return Math.hypot(p.x - l.x, p.y - l.y); 
 }
 
+function tossSeasonCoins(){
+  const season = getNextWellSeason();
+
+  currentSeason = season.key;
+  localStorage.setItem('currentSeason', currentSeason);
+
+  nextWellCoins = season.coins >= 5 ? 1 : season.coins + 1;
+  localStorage.setItem('nextWellCoins', nextWellCoins);
+
+  setMapForSeason(season.key);
+
+  seasonMessage = {
+    title:'🪙 The Well of Seasons',
+    text:`The well accepted ${season.coins} coin${season.coins === 1 ? '' : 's'}... ${season.emoji} ${season.label} has arrived.`
+  };
+  seasonMessageTimer = 260;
+
+  coinAnimation = {
+    x: wellInside.x + wellInside.w / 2,
+    y: wellInside.y - 16,
+    targetY: wellInside.y + wellInside.h / 2,
+    timer: 55
+  };
+
+  window.dispatchEvent(new CustomEvent('season-change', {detail:{season:season.key, coins:season.coins}}));
+}
+
 let lastE = false;
 
 function update(){
@@ -281,19 +360,32 @@ function update(){
 
   if(near){ 
     prompt.style.display = 'block'; 
-    prompt.textContent = near.text; 
+    prompt.textContent = typeof near.text === 'function' ? near.text() : near.text; 
   } else { 
     prompt.style.display = 'none'; 
   }
 
-  if(keys.e && !lastE && near && near.page){ 
-    location.href = near.page; 
+  if(keys.e && !lastE && near){
+    if(near.action === 'well'){
+      tossSeasonCoins();
+    } else if(near.page){ 
+      location.href = near.page; 
+    }
   }
 
   lastE = !!keys.e;
 
   if(achievementTimer > 0){ 
     achievementTimer--; 
+  }
+
+  if(seasonMessageTimer > 0){
+    seasonMessageTimer--;
+  }
+
+  if(coinAnimation){
+    coinAnimation.timer--;
+    if(coinAnimation.timer <= 0) coinAnimation = null;
   }
 }
 
@@ -402,6 +494,72 @@ function drawAchievement(){
   ctx.restore();
 }
 
+function drawSeasonMessage(){
+  if(seasonMessageTimer <= 0 || !seasonMessage) return;
+
+  const alpha = Math.min(1, seasonMessageTimer / 50);
+  const boxW = 560, boxH = 104, x = Math.round(canvas.width / 2 - boxW / 2), y = 26;
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = 'rgba(12, 8, 24, 0.92)';
+  ctx.strokeStyle = '#ffe18b';
+  ctx.lineWidth = 4;
+  roundRect(x, y, boxW, boxH, 14, true, true);
+
+  ctx.fillStyle = '#ffe18b';
+  ctx.font = 'bold 23px monospace';
+  ctx.fillText(seasonMessage.title, x + 22, y + 38);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '16px monospace';
+  ctx.fillText(seasonMessage.text, x + 22, y + 72);
+  ctx.restore();
+}
+
+function drawSeasonBadge(){
+  const season = getSeason();
+  const text = `${season.emoji} ${season.label}`;
+  const x = 24;
+  const y = canvas.height - 70;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(10, 8, 18, 0.75)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+  ctx.lineWidth = 2;
+  roundRect(x, y, 160, 44, 10, true, true);
+
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 18px monospace';
+  ctx.fillText(text, x + 18, y + 29);
+  ctx.restore();
+}
+
+function drawCoinAnimation(){
+  if(!coinAnimation) return;
+
+  const progress = 1 - coinAnimation.timer / 55;
+  const y = coinAnimation.y + (coinAnimation.targetY - coinAnimation.y) * progress;
+  const x = coinAnimation.x + Math.sin(progress * Math.PI * 2) * 5;
+  const size = progress > 0.75 ? 3 : 6;
+
+  ctx.save();
+  ctx.fillStyle = '#ffe18b';
+  ctx.strokeStyle = '#7a4a00';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(x - camera.x, y - camera.y, size, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.globalAlpha = 1 - progress;
+  ctx.fillStyle = '#fff8c8';
+  ctx.beginPath();
+  ctx.arc(x - camera.x - 8, y - camera.y - 8, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 function roundRect(x, y, w, h, r, fill, stroke){
   ctx.beginPath(); 
   ctx.moveTo(x + r, y); 
@@ -471,6 +629,11 @@ function drawDebugZones(){
     drawDebugText(loc.name, loc.x, loc.y); 
   });
 
+  drawDebugRect(wellZone, 'rgba(0,255,90,0.28)');
+  drawDebugRect(wellInside, 'rgba(255,230,80,0.38)');
+  drawDebugText('Well Toss Zone', wellZone.x, wellZone.y);
+  drawDebugText('Coin Drop', wellInside.x, wellInside.y);
+
   spawnPoints.forEach(spawn => { 
     drawDebugCircle(spawn.x, spawn.y, 20, 'rgba(170,80,255,0.75)'); 
     drawDebugText(spawn.name, spawn.x, spawn.y); 
@@ -480,14 +643,15 @@ function drawDebugZones(){
   drawDebugCircle(players.him.x, players.him.y, 10, 'rgba(0,130,255,0.85)');
 
   ctx.fillStyle = 'rgba(0,0,0,0.65)'; 
-  ctx.fillRect(18,18,460,98); 
+  ctx.fillRect(18,18,540,124); 
 
   ctx.fillStyle = '#fff'; 
   ctx.font = '15px monospace'; 
   ctx.fillText('DEBUG ON — press G to hide',32,42); 
   ctx.fillText('Press B, then drag to make a coordinate box',32,66);
-  ctx.fillText('Red=blocked Green=areas Blue=players',32,90); 
-  ctx.fillText(`Her: ${Math.round(players.her.x)}, ${Math.round(players.her.y)}  Me: ${Math.round(players.him.x)}, ${Math.round(players.him.y)}`,32,112);
+  ctx.fillText('Red=blocked Green=areas Blue=players Yellow=coin drop',32,90); 
+  ctx.fillText(`Season: ${getSeason().label} | Next well coins: ${nextWellCoins}`,32,114);
+  ctx.fillText(`Her: ${Math.round(players.her.x)}, ${Math.round(players.her.y)}  Me: ${Math.round(players.him.x)}, ${Math.round(players.him.y)}`,32,136);
 
   ctx.restore();
 }
@@ -501,6 +665,7 @@ function draw(){
 
   ctx.drawImage(map,-camera.x,-camera.y);
 
+  drawCoinAnimation();
   drawDebugZones();
   drawBoxSelector();
 
@@ -509,6 +674,8 @@ function draw(){
 
   drawCoupleHeart();
   drawAchievement();
+  drawSeasonMessage();
+  drawSeasonBadge();
 }
 
 function loop(){ 
@@ -517,8 +684,8 @@ function loop(){
   requestAnimationFrame(loop); 
 }
 
-Promise.all([map.decode(), herImg.decode(), himImg.decode()]).then(() => { 
-  WORLD_W = map.naturalWidth; 
-  WORLD_H = map.naturalHeight; 
+Promise.all([map.decode().catch(() => {}), herImg.decode(), himImg.decode()]).then(() => { 
+  WORLD_W = map.naturalWidth || WORLD_W; 
+  WORLD_H = map.naturalHeight || WORLD_H; 
   loop(); 
 });
