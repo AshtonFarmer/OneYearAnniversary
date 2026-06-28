@@ -20,7 +20,8 @@ const seasons = [
   {key:'summer', label:'Summer', emoji:'☀️', coins:2, map:'assets/maps/main-map.png'},
   {key:'fall', label:'Fall', emoji:'🍁', coins:3, map:'assets/maps/main-map-fall.png'},
   {key:'winter', label:'Winter', emoji:'❄️', coins:4, map:'assets/maps/main-map-winter.png'},
-  {key:'night', label:'Night', emoji:'🌙', coins:5, map:'assets/maps/main-map-night.png'}
+  {key:'night', label:'Night', emoji:'🌙', coins:5, map:'assets/maps/main-map-night.png'},
+  {key:'rainy', label:'Rainy', emoji:'🌧️', coins:6, map:'assets/maps/main-map-rainy.png'}
 ];
 
 let currentSeason = localStorage.getItem('currentSeason') || 'summer';
@@ -326,7 +327,7 @@ function tossSeasonCoins(){
   currentSeason = season.key;
   localStorage.setItem('currentSeason', currentSeason);
 
-  nextWellCoins = season.coins >= 5 ? 1 : season.coins + 1;
+  nextWellCoins = season.coins >= 6 ? 1 : season.coins + 1;
   localStorage.setItem('nextWellCoins', nextWellCoins);
 
   setMapForSeason(season.key);
@@ -408,6 +409,7 @@ function updateKissAchievement(){
   }
 
   if(kissCount >= 1000 && !achievement1000Shown){
+    achievement100Shown = achievement100Shown;
     achievement1000Shown = true;
     achievementMessage = {title:'😂 1000 Kisses', text:'Wow y’all are REALLY in love. Calm down you two.'};
     achievementTimer = 520;
@@ -527,7 +529,7 @@ function drawSeasonBadge(){
   ctx.fillStyle = 'rgba(10, 8, 18, 0.75)';
   ctx.strokeStyle = 'rgba(255,255,255,0.45)';
   ctx.lineWidth = 2;
-  roundRect(x, y, 160, 44, 10, true, true);
+  roundRect(x, y, 170, 44, 10, true, true);
 
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 18px monospace';
