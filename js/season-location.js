@@ -28,8 +28,15 @@
   const normalMap = `assets/maps/${baseName}.png`;
   const seasonalMap = part ? `assets/maps/${baseName}-${part}.png` : normalMap;
 
+  function updateWorldSize(){
+    if(typeof WORLD_W !== 'undefined' && map.naturalWidth) WORLD_W = map.naturalWidth;
+    if(typeof WORLD_H !== 'undefined' && map.naturalHeight) WORLD_H = map.naturalHeight;
+  }
+
+  map.onload = updateWorldSize;
   map.onerror = () => {
     map.onerror = null;
+    map.onload = updateWorldSize;
     map.src = normalMap;
   };
 
