@@ -61,11 +61,14 @@ const solid = [
 
 const outfitNames = [
   'Default',
-  'Casual',
-  'Date Night',
-  'Cozy',
-  'Fancy',
-  'Anniversary'
+  'Outfit 2',
+  'Outfit 3',
+  'Outfit 4',
+  'Outfit 5',
+  'Outfit 6',
+  'Outfit 7',
+  'Outfit 8',
+  'Outfit 9'
 ];
 
 function outfitPath(who, outfit){
