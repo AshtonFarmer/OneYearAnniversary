@@ -59,7 +59,18 @@ const solid = [
   {x:-60,y:WORLD_H,w:WORLD_W+120,h:60}
 ];
 
-const outfitNames = ['Default','Outfit 2','Outfit 3','Outfit 4'];
+const outfitNames = [
+  'Default',
+  'Casual',
+  'Date Night',
+  'Cozy',
+  'Fancy',
+  'Anniversary'
+];
+
+function outfitPath(who, outfit){
+  return outfit === 1 ? `assets/sprites/${who}_atlas.png` : `assets/sprites/${who}_outfit${outfit}.png`;
+}
 
 function rectHit(x,y){
   return solid.some(s => x > s.x && x < s.x + s.w && y > s.y && y < s.y + s.h);
@@ -143,14 +154,56 @@ function buildOutfitButtons(who){
   const box = document.getElementById(who + 'Outfits');
   box.innerHTML = '';
   const current = Number(localStorage.getItem(`${who}Outfit`) || 1);
+
   outfitNames.forEach((name, index) => {
     const outfit = index + 1;
     const btn = document.createElement('button');
     btn.className = 'outfit-card' + (current === outfit ? ' active' : '');
-    btn.innerHTML = `<strong>${name}</strong><span>${current === outfit ? 'Currently wearing' : 'Change into this'}</span>`;
+
+    const preview = document.createElement('canvas');
+    preview.width = 72;
+    preview.height = 96;
+    preview.className = 'outfit-preview';
+
+    const title = document.createElement('strong');
+    title.textContent = name;
+
+    const status = document.createElement('span');
+    status.textContent = current === outfit ? 'Currently wearing' : 'Click to wear';
+
+    btn.appendChild(preview);
+    btn.appendChild(title);
+    btn.appendChild(status);
     btn.onclick = () => chooseOutfit(who, outfit);
     box.appendChild(btn);
+
+    drawOutfitPreview(preview, who, outfit);
   });
+}
+
+function drawOutfitPreview(preview, who, outfit){
+  const pctx = preview.getContext('2d');
+  pctx.imageSmoothingEnabled = false;
+  pctx.clearRect(0,0,preview.width,preview.height);
+  pctx.fillStyle = 'rgba(0,0,0,.18)';
+  pctx.fillRect(0,0,preview.width,preview.height);
+
+  const img = new Image();
+  img.onload = () => {
+    pctx.clearRect(0,0,preview.width,preview.height);
+    pctx.fillStyle = 'rgba(0,0,0,.18)';
+    pctx.fillRect(0,0,preview.width,preview.height);
+    // Show the front-facing idle frame from the sprite sheet.
+    pctx.drawImage(img, 0, 0, 96, 128, 0, 0, 72, 96);
+  };
+  img.onerror = () => {
+    pctx.fillStyle = '#ffe18b';
+    pctx.font = '10px monospace';
+    pctx.textAlign = 'center';
+    pctx.fillText('sprite', 36, 42);
+    pctx.fillText('needed', 36, 56);
+  };
+  img.src = outfitPath(who, outfit);
 }
 
 function chooseOutfit(who, outfit){
@@ -159,7 +212,7 @@ function chooseOutfit(who, outfit){
   const newImg = new Image();
   newImg.onload = () => { p.img = newImg; };
   newImg.onerror = () => { p.img = who === 'her' ? herImg : himImg; };
-  newImg.src = outfit === 1 ? `assets/sprites/${who}_atlas.png` : `assets/sprites/${who}_outfit${outfit}.png`;
+  newImg.src = outfitPath(who, outfit);
   spinPlayer(p);
   buildOutfitButtons(who);
 }
