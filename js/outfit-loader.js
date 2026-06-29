@@ -1,8 +1,8 @@
 // Global outfit loader.
-// Keep outfit 1 as the current/default sprite sheets.
-// Add the new full sprite sheets here when they are ready:
-// assets/sprites/her_outfit2.png, her_outfit3.png, her_outfit4.png
-// assets/sprites/him_outfit2.png, him_outfit3.png, him_outfit4.png
+// Outfit 1 is the current/default sprite sheet.
+// Add these full sprite sheets when they are ready:
+// assets/sprites/her_outfit2.png through assets/sprites/her_outfit6.png
+// assets/sprites/him_outfit2.png through assets/sprites/him_outfit6.png
 (function(){
   const originalSrc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
 
