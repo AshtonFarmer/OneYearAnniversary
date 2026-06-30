@@ -25,15 +25,6 @@
     return `assets/sprites/${who}_outfit${outfit}.png`;
   }
 
-  function correctSpriteRow(row){
-    // New transparent sprite sheets are ordered:
-    // 0 = down/front, 1 = left, 2 = up/back, 3 = right.
-    // Some older map code still asks for left/right backwards, so fix it here globally.
-    if(row === 1) return 3;
-    if(row === 3) return 1;
-    return row;
-  }
-
   Object.defineProperty(HTMLImageElement.prototype, 'src', {
     get(){
       return originalSrc.get.call(this);
@@ -64,7 +55,7 @@
       const destH = args[7];
 
       const frame = Math.round(oldX / 96);
-      const row = correctSpriteRow(Math.round(oldY / 128));
+      const row = Math.round(oldY / 128);
       const cellW = image.naturalWidth / 4;
       const cellH = image.naturalHeight / 4;
 
