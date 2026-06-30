@@ -1,6 +1,6 @@
 // Global sprite direction/frame polish.
-// Her sprite sheet uses: row 0 down/front, row 1 left, row 2 up/back, row 3 right.
-// His sheet is being handled separately, and ONLY his directions are changed here.
+// Her stays untouched.
+// His side-facing frames are on row 3, so right uses row 3 and left mirrors row 3.
 (function(){
   try{
     if(typeof players === 'undefined') return;
@@ -9,7 +9,7 @@
       if(!player) return;
 
       if(key === 'him' || player.name === 'Me'){
-        player.rows = {down:0, up:2, left:3, right:1};
+        player.rows = {down:0, up:2, left:3, right:3};
       } else {
         player.rows = {down:0, up:2, left:1, right:3};
       }
@@ -31,7 +31,7 @@
         if(isHim && player.dir === 'left'){
           const sw = 96;
           const sh = 128;
-          const row = player.rows.right;
+          const row = 3;
           const dw = Math.round(sw * player.scale);
           const dh = Math.round(sh * player.scale);
           const drawX = Math.round(player.x - camera.x - dw / 2);
