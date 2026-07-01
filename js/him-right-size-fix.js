@@ -64,8 +64,28 @@
         exitZone.text = 'Press E to leave the clothing store';
       }
 
+      const outfitZone = zones.find(z => z.type === 'outfit');
+      if(outfitZone){
+        outfitZone.x = 1078;
+        outfitZone.y = 368;
+        outfitZone.r = 0;
+        outfitZone.text = 'Press E to change outfits';
+      }
+
       if(!zones.some(z => z.type === 'counter')){
         zones.push({name:'Counter', x:306, y:480, r:95, type:'counter', text:'Press E to talk to the lady at the counter'});
+      }
+
+      if(typeof solid !== 'undefined' && !window.clothingStoreNewBarriersAdded){
+        window.clothingStoreNewBarriersAdded = true;
+        solid.push(
+          {x:635, y:503, w:163, h:147},
+          {x:153, y:342, w:300, h:116},
+          {x:1215, y:442, w:112, h:258},
+          {x:333, y:560, w:165, h:132},
+          {x:904, y:556, w:163, h:140},
+          {x:537, y:237, w:265, h:108}
+        );
       }
 
       function inRect(px, py, r){
@@ -141,7 +161,11 @@
 
       const oldNearbyZone = nearbyZone;
       nearbyZone = function(){
+        const outfitRect = {x:968, y:334, w:220, h:69};
         const counterRect = {x:157, y:460, w:298, h:39};
+        if(inRect(players.her.x, players.her.y, outfitRect) || inRect(players.him.x, players.him.y, outfitRect)){
+          return {name:'Changing Clothes', x:1078, y:368, r:0, type:'outfit', text:'Press E to change outfits'};
+        }
         if(inRect(players.her.x, players.her.y, counterRect) || inRect(players.him.x, players.him.y, counterRect)){
           return {name:'Counter', x:306, y:480, r:95, type:'counter', text:'Press E to talk to the lady at the counter'};
         }
