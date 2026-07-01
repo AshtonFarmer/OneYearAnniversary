@@ -49,7 +49,7 @@
       overlay.id = 'takeoffVideoOverlay';
       overlay.style.cssText = 'position:fixed;inset:0;display:none;background:#000;z-index:9999;overflow:hidden;font-family:monospace;color:white;';
       overlay.innerHTML =
-        '<video id="takeoffVideo" playsinline preload="auto" style="width:100%;height:100%;object-fit:cover;display:block;background:#000;"></video>' +
+        '<video id="takeoffVideo" playsinline preload="auto" style="width:100%;height:100%;object-fit:contain;display:block;background:#000;"></video>' +
         '<div id="takeoffMemory" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;background:linear-gradient(rgba(2,5,10,.30),rgba(2,5,10,.92));padding:24px;text-align:center;">' +
           '<div style="width:min(900px,92vw);background:rgba(15,10,16,.88);border:3px solid #ff9dcc;border-radius:18px;padding:26px;box-shadow:0 12px 40px #000;">' +
             '<h1 style="margin:0 0 12px;color:#ff97cf;font-size:32px;">Our Next Adventure</h1>' +
