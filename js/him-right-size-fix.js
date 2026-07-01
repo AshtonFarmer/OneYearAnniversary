@@ -125,51 +125,109 @@
       };
     }
 
-    // B key coordinate helper. Safe on pages that already have G debug.
+    // B key boundary helper. Safe on pages that already have G debug.
+    // B turns it on/off. Click one corner, then click the opposite corner.
     if(typeof canvas !== 'undefined' && typeof camera !== 'undefined' && !window.anniversaryBTool){
       window.anniversaryBTool = true;
       let bMode = false;
-      let bPoint = null;
+      let firstPoint = null;
+      let secondPoint = null;
+      let mousePoint = null;
       let bText = '';
 
+      function mapPointFromEvent(e){
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: Math.round(e.clientX - rect.left + camera.x),
+          y: Math.round(e.clientY - rect.top + camera.y)
+        };
+      }
+
+      function rectFromPoints(a, b){
+        const x = Math.min(a.x, b.x);
+        const y = Math.min(a.y, b.y);
+        const w = Math.abs(a.x - b.x);
+        const h = Math.abs(a.y - b.y);
+        return {x, y, w, h};
+      }
+
       addEventListener('keydown', e => {
-        if(e.key.toLowerCase() === 'b'){
+        const key = e.key.toLowerCase();
+        if(key === 'b'){
           bMode = !bMode;
-          bText = bMode ? 'B coordinate tool ON. Click a spot.' : 'B coordinate tool OFF.';
+          firstPoint = null;
+          secondPoint = null;
+          mousePoint = null;
+          bText = bMode ? 'B boundary tool ON. Click corner 1.' : 'B boundary tool OFF.';
         }
+        if(bMode && key === 'escape'){
+          firstPoint = null;
+          secondPoint = null;
+          mousePoint = null;
+          bText = 'Cleared. Click corner 1.';
+        }
+      });
+
+      canvas.addEventListener('mousemove', e => {
+        if(!bMode) return;
+        mousePoint = mapPointFromEvent(e);
       });
 
       canvas.addEventListener('click', e => {
         if(!bMode) return;
-        const rect = canvas.getBoundingClientRect();
-        const x = Math.round(e.clientX - rect.left + camera.x);
-        const y = Math.round(e.clientY - rect.top + camera.y);
-        bPoint = {x,y};
-        bText = 'x:' + x + ' y:' + y;
-        console.log('Coordinate', x, y);
+        const p = mapPointFromEvent(e);
+
+        if(!firstPoint || secondPoint){
+          firstPoint = p;
+          secondPoint = null;
+          bText = 'Corner 1 x:' + p.x + ' y:' + p.y + '. Click corner 2.';
+          console.log('Boundary corner 1', p.x, p.y);
+          return;
+        }
+
+        secondPoint = p;
+        const r = rectFromPoints(firstPoint, secondPoint);
+        bText = 'x:' + r.x + ', y:' + r.y + ', w:' + r.w + ', h:' + r.h;
+        console.log('{x:' + r.x + ', y:' + r.y + ', w:' + r.w + ', h:' + r.h + '}');
       });
 
       const oldDrawForBTool = draw;
       draw = function(){
         oldDrawForBTool();
         if(!bMode) return;
+
         ctx.save();
         ctx.font = '18px monospace';
         ctx.fillStyle = 'rgba(25,12,18,.94)';
-        ctx.fillRect(18, 18, 360, 42);
+        ctx.fillRect(18, 18, 620, 48);
         ctx.strokeStyle = '#ffe18b';
-        ctx.strokeRect(18, 18, 360, 42);
+        ctx.strokeRect(18, 18, 620, 48);
         ctx.fillStyle = '#ffe18b';
-        ctx.fillText(bText || 'B coordinate tool ON. Click a spot.', 30, 45);
-        if(bPoint){
-          const sx = bPoint.x - camera.x;
-          const sy = bPoint.y - camera.y;
+        ctx.fillText(bText || 'B boundary tool ON. Click corner 1.', 30, 49);
+
+        const activeSecond = secondPoint || mousePoint;
+        if(firstPoint && activeSecond){
+          const r = rectFromPoints(firstPoint, activeSecond);
+          const sx = r.x - camera.x;
+          const sy = r.y - camera.y;
+
+          ctx.fillStyle = 'rgba(255,157,204,0.25)';
+          ctx.fillRect(sx, sy, r.w, r.h);
+          ctx.strokeStyle = '#ff9dcc';
+          ctx.lineWidth = 3;
+          ctx.strokeRect(sx, sy, r.w, r.h);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText('x:' + r.x + ' y:' + r.y + ' w:' + r.w + ' h:' + r.h, sx + 8, sy - 10);
+        } else if(firstPoint){
+          const sx = firstPoint.x - camera.x;
+          const sy = firstPoint.y - camera.y;
           ctx.strokeStyle = '#ff9dcc';
           ctx.lineWidth = 3;
           ctx.beginPath();
-          ctx.arc(sx, sy, 35, 0, Math.PI * 2);
+          ctx.arc(sx, sy, 10, 0, Math.PI * 2);
           ctx.stroke();
-          ctx.fillText('x:' + bPoint.x + ' y:' + bPoint.y, sx + 42, sy - 10);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText('corner 1', sx + 15, sy - 10);
         }
         ctx.restore();
       };
