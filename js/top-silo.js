@@ -56,9 +56,9 @@ function setLookoutImage(){
 setLookoutImage();
 
 const players = {
-  her:{key:'her', img:herImg, x:485, y:835, dir:'up', frame:0, speed:3.0, scale:.58,
+  her:{key:'her', img:herImg, x:485, y:835, dir:'up', frame:0, speed:3.0, scale:.9,
        rows:{down:0, up:2, left:1, right:3}, frames:{down:[0,1,2,3], up:[0,1,2,3], left:[0,1,2,3], right:[0,1,2,3]}},
-  him:{key:'him', img:himImg, x:545, y:835, dir:'up', frame:0, speed:3.0, scale:.58,
+  him:{key:'him', img:himImg, x:545, y:835, dir:'up', frame:0, speed:3.0, scale:.9,
        rows:{down:0, up:2, left:1, right:3}, frames:{down:[0,1,2,3], up:[0,1,2,3], left:[0,1,2,3], right:[0,1,2,3]}}
 };
 
