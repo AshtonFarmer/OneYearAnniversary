@@ -63,7 +63,11 @@
       }
 
       if(!zones.some(z => z.type === 'counter')){
-        zones.push({name:'Counter', x:768, y:275, r:115, type:'counter', text:'Press E at the counter'});
+        zones.push({name:'Counter', x:306, y:480, r:95, type:'counter', text:'Press E to talk to the lady at the counter'});
+      }
+
+      function inRect(px, py, r){
+        return px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h;
       }
 
       function say(text, frames){
@@ -76,6 +80,15 @@
         oldChooseOutfit(who, outfit);
         mustStopAtCounter = true;
         say('New outfit selected. We should stop by the counter first.');
+      };
+
+      const oldNearbyZone = nearbyZone;
+      nearbyZone = function(){
+        const counterRect = {x:157, y:460, w:298, h:39};
+        if(inRect(players.her.x, players.her.y, counterRect) || inRect(players.him.x, players.him.y, counterRect)){
+          return {name:'Counter', x:306, y:480, r:95, type:'counter', text:'Press E to talk to the lady at the counter'};
+        }
+        return oldNearbyZone();
       };
 
       const oldUpdate = update;
