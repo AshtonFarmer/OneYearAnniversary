@@ -44,7 +44,7 @@ const players = {
   her:{key:'her', img:herImg, x:710, y:860, dir:'up', frame:0, speed:3.0, scale:1.0,
        rows:{down:0, up:2, left:3, right:1}, frames:{down:[0,1,2,3], up:[0,1,2,3], left:[0,1,2,3], right:[0,1,2,3]}},
   him:{key:'him', img:himImg, x:825, y:860, dir:'up', frame:0, speed:3.0, scale:1.0,
-       rows:{down:0, up:2, left:3, right:1}, frames:{down:[0,1,2], up:[0,1,2], left:[0,1,2], right:[0,1,2]}}
+       rows:{down:0, up:2, left:3, right:1}, frames:{down:[0,1,2,3], up:[0,1,2,3], left:[0,1,2,3], right:[0,1,2,3]}}
 };
 
 const zones = [
@@ -216,8 +216,8 @@ function chooseOutfit(who, outfit){
   newImg.onload = () => { p.img = newImg; };
   newImg.onerror = () => { p.img = who === 'her' ? herImg : himImg; };
   newImg.src = outfitPath(who, outfit);
+  closeOutfitMenu();
   spinPlayer(p);
-  buildOutfitButtons(who);
 }
 
 function spinPlayer(p){
