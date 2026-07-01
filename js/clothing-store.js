@@ -196,7 +196,6 @@ function drawOutfitPreview(preview, who, outfit){
     pctx.clearRect(0,0,preview.width,preview.height);
     pctx.fillStyle = 'rgba(0,0,0,.18)';
     pctx.fillRect(0,0,preview.width,preview.height);
-    // Show the front-facing idle frame from the sprite sheet.
     pctx.drawImage(img, 0, 0, 96, 128, 0, 0, 72, 96);
   };
   img.onerror = () => {
@@ -284,14 +283,35 @@ function drawWind(){
 function drawDebug(){
   if(!debugMode) return;
   ctx.save();
+
+  // Red rectangles = collision barriers.
+  if(typeof solid !== 'undefined'){
+    solid.forEach((r, i) => {
+      ctx.fillStyle = 'rgba(255,60,60,0.30)';
+      ctx.strokeStyle = '#ff4444';
+      ctx.lineWidth = 2;
+      ctx.fillRect(r.x - camera.x, r.y - camera.y, r.w, r.h);
+      ctx.strokeRect(r.x - camera.x, r.y - camera.y, r.w, r.h);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '13px monospace';
+      ctx.fillText('barrier ' + i, r.x - camera.x + 6, r.y - camera.y + 18);
+    });
+  }
+
+  // Green circles = interaction zones.
   zones.forEach(z => {
     ctx.beginPath();
-    ctx.arc(z.x - camera.x, z.y - camera.y, z.r, 0, Math.PI * 2);
+    ctx.arc(z.x - camera.x, z.y - camera.y, z.r || 45, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(0,255,90,0.28)';
     ctx.fill();
-    ctx.strokeStyle = '#fff';
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
     ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '14px monospace';
+    ctx.fillText(z.name || z.type, z.x - camera.x - 45, z.y - camera.y - (z.r || 45) - 8);
   });
+
   ctx.restore();
 }
 
