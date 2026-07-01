@@ -55,6 +55,8 @@
       let note = '';
       let noteTimer = 0;
       let previousE = false;
+      let checkoutOpen = false;
+      let pendingOutfits = [];
 
       const exitZone = zones.find(z => z.type === 'exit');
       if(exitZone){
@@ -75,10 +77,65 @@
         noteTimer = frames || 160;
       }
 
+      function pendingLabel(){
+        if(!pendingOutfits.length) return 'Outfit change';
+        return pendingOutfits.join(' + ');
+      }
+
+      function ensureCheckoutPanel(){
+        let panel = document.getElementById('checkoutPanel');
+        if(panel) return panel;
+
+        panel = document.createElement('div');
+        panel.id = 'checkoutPanel';
+        panel.style.cssText = 'position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(4,10,18,.55);z-index:30;font-family:monospace;';
+        panel.innerHTML = '<div style="width:min(520px,90vw);background:rgba(25,12,18,.97);border:3px solid #b17142;border-radius:16px;padding:24px;color:white;box-shadow:0 12px 40px #000;text-align:center;">' +
+          '<h1 style="margin-top:0;color:#ff97cf;font-size:26px;">Checkout Counter</h1>' +
+          '<p id="checkoutLady" style="color:#ffe18b;font-size:18px;line-height:1.4;">Lady: Did you find everything you were looking for?</p>' +
+          '<div style="border-top:2px dashed #ff9dcc;border-bottom:2px dashed #ff9dcc;margin:18px 0;padding:16px 0;">' +
+          '<div id="checkoutOutfit" style="font-size:20px;color:#fff;margin-bottom:8px;">Outfit change</div>' +
+          '<div style="font-size:20px;color:#ffe18b;">Price: &hearts; Love</div>' +
+          '</div>' +
+          '<button id="buyOutfitBtn" style="background:#ff97cf;border:0;border-radius:10px;padding:12px 18px;font-weight:bold;cursor:pointer;margin:6px;">Buy Outfit</button>' +
+          '<button id="cancelOutfitBtn" style="background:#2f1f2a;color:#ffe18b;border:2px solid #b17142;border-radius:10px;padding:10px 16px;font-weight:bold;cursor:pointer;margin:6px;">Cancel</button>' +
+          '</div>';
+        document.body.appendChild(panel);
+
+        panel.querySelector('#buyOutfitBtn').onclick = function(){
+          panel.style.display = 'none';
+          checkoutOpen = false;
+          menuOpen = false;
+          mustStopAtCounter = false;
+          pendingOutfits = [];
+          say('Lady: You both look wonderful. Happy Anniversary!', 190);
+        };
+
+        panel.querySelector('#cancelOutfitBtn').onclick = function(){
+          panel.style.display = 'none';
+          checkoutOpen = false;
+          menuOpen = false;
+          say('Lady: No problem. Come back when you are ready.');
+        };
+
+        return panel;
+      }
+
+      function openCheckoutPanel(){
+        const panel = ensureCheckoutPanel();
+        const outfitLine = panel.querySelector('#checkoutOutfit');
+        outfitLine.textContent = pendingLabel();
+        checkoutOpen = true;
+        menuOpen = true;
+        panel.style.display = 'flex';
+      }
+
       const oldChooseOutfit = chooseOutfit;
       chooseOutfit = function(who, outfit){
         oldChooseOutfit(who, outfit);
         mustStopAtCounter = true;
+        const label = (who === 'her' ? 'Her' : 'His') + ' Outfit #' + outfit;
+        pendingOutfits = pendingOutfits.filter(item => !item.startsWith(who === 'her' ? 'Her Outfit' : 'His Outfit'));
+        pendingOutfits.push(label);
         say('New outfit selected. We should stop by the counter first.');
       };
 
@@ -93,6 +150,7 @@
 
       const oldUpdate = update;
       update = function(){
+        if(checkoutOpen) return;
         oldUpdate();
         if(noteTimer > 0) noteTimer--;
 
@@ -109,8 +167,11 @@
         }
 
         if(activeZone.type === 'counter'){
-          mustStopAtCounter = false;
-          say('Lady: You both look wonderful. Happy Anniversary!', 190);
+          if(mustStopAtCounter){
+            openCheckoutPanel();
+          } else {
+            say('Lady: You are all paid up. Have a beautiful day!');
+          }
         }
       };
 
