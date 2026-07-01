@@ -1,5 +1,6 @@
 // Fullscreen helicopter flyoff video.
 // Uses the season-selected MP4s in assets/animation/.
+// Rainy and night seasons close the helicopter ride instead.
 (function(){
   try{
     if(typeof startAction !== 'function') return;
@@ -8,20 +9,37 @@
       spring: 'assets/animation/helicopter_flyoff_spring.mp4',
       summer: 'assets/animation/helicopter_flyoff_main.mp4',
       fall: 'assets/animation/helicopter_flyoff_fall.mp4',
-      winter: 'assets/animation/helicopter_flyoff_winter.mp4',
-      night: 'assets/animation/helicopter_flyoff_main.mp4',
-      rainy: 'assets/animation/helicopter_flyoff_main.mp4'
+      winter: 'assets/animation/helicopter_flyoff_winter.mp4'
     };
 
     let overlay = null;
     let playing = false;
+    let notice = '';
+    let noticeTimer = 0;
 
     function currentSeason(){
       return localStorage.getItem('currentSeason') || 'summer';
     }
 
+    function rideClosed(){
+      const season = currentSeason();
+      return season === 'rainy' || season === 'night';
+    }
+
     function selectedVideo(){
       return videoBySeason[currentSeason()] || videoBySeason.summer;
+    }
+
+    function showClosedMessage(){
+      const season = currentSeason();
+      if(season === 'rainy'){
+        notice = 'The helicopter ride is closed because of the rain.';
+      } else if(season === 'night'){
+        notice = 'The helicopter ride is closed for the night.';
+      } else {
+        notice = 'The helicopter ride is closed right now.';
+      }
+      noticeTimer = 190;
     }
 
     function ensureOverlay(){
@@ -78,6 +96,11 @@
       };
 
       replay.onclick = function(){
+        if(rideClosed()){
+          overlay.style.display = 'none';
+          showClosedMessage();
+          return;
+        }
         playTakeoffVideo();
       };
 
@@ -111,6 +134,11 @@
     const originalStartAction = startAction;
     startAction = function(type){
       if(type === 'takeoff'){
+        if(rideClosed()){
+          showClosedMessage();
+          if(typeof actionCooldown !== 'undefined') actionCooldown = 20;
+          return;
+        }
         playTakeoffVideo();
         if(typeof actionCooldown !== 'undefined') actionCooldown = 20;
         return;
@@ -125,7 +153,32 @@
         lastE = !!keys.e;
         return;
       }
-      return originalUpdate();
+      const result = originalUpdate();
+      if(noticeTimer > 0) noticeTimer--;
+      return result;
+    };
+
+    const originalDraw = draw;
+    draw = function(){
+      originalDraw();
+      if(noticeTimer <= 0 || !notice) return;
+
+      ctx.save();
+      const w = Math.min(canvas.width - 60, 720);
+      const x = canvas.width / 2;
+      const y = 92;
+      ctx.fillStyle = 'rgba(15,10,16,.94)';
+      ctx.strokeStyle = '#ffe18b';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.roundRect(x - w / 2, y - 36, w, 72, 14);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#fff1c8';
+      ctx.font = '20px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(notice, x, y + 8, w - 34);
+      ctx.restore();
     };
   } catch(e){
     console.warn('helipad-takeoff-video failed', e);
