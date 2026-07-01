@@ -158,3 +158,12 @@ draw = function(){
   drawCoupleHeart();
   drawHeartParticles();
 };
+
+// Load the global auto-anchor sprite renderer for the cabin too.
+// It runs after this file and after him-right-size-fix.js finishes.
+setTimeout(function(){
+  if(document.querySelector('script[src="js/sprite-auto-anchor.js"]')) return;
+  const s = document.createElement('script');
+  s.src = 'js/sprite-auto-anchor.js';
+  document.body.appendChild(s);
+}, 0);
