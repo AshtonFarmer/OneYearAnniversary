@@ -124,5 +124,55 @@
         ctx.restore();
       };
     }
+
+    // B key coordinate helper. Safe on pages that already have G debug.
+    if(typeof canvas !== 'undefined' && typeof camera !== 'undefined' && !window.anniversaryBTool){
+      window.anniversaryBTool = true;
+      let bMode = false;
+      let bPoint = null;
+      let bText = '';
+
+      addEventListener('keydown', e => {
+        if(e.key.toLowerCase() === 'b'){
+          bMode = !bMode;
+          bText = bMode ? 'B coordinate tool ON. Click a spot.' : 'B coordinate tool OFF.';
+        }
+      });
+
+      canvas.addEventListener('click', e => {
+        if(!bMode) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = Math.round(e.clientX - rect.left + camera.x);
+        const y = Math.round(e.clientY - rect.top + camera.y);
+        bPoint = {x,y};
+        bText = 'x:' + x + ' y:' + y;
+        console.log('Coordinate', x, y);
+      });
+
+      const oldDrawForBTool = draw;
+      draw = function(){
+        oldDrawForBTool();
+        if(!bMode) return;
+        ctx.save();
+        ctx.font = '18px monospace';
+        ctx.fillStyle = 'rgba(25,12,18,.94)';
+        ctx.fillRect(18, 18, 360, 42);
+        ctx.strokeStyle = '#ffe18b';
+        ctx.strokeRect(18, 18, 360, 42);
+        ctx.fillStyle = '#ffe18b';
+        ctx.fillText(bText || 'B coordinate tool ON. Click a spot.', 30, 45);
+        if(bPoint){
+          const sx = bPoint.x - camera.x;
+          const sy = bPoint.y - camera.y;
+          ctx.strokeStyle = '#ff9dcc';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(sx, sy, 35, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.fillText('x:' + bPoint.x + ' y:' + bPoint.y, sx + 42, sy - 10);
+        }
+        ctx.restore();
+      };
+    }
   } catch(e){}
 })();
