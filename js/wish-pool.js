@@ -254,35 +254,75 @@
       });
     }
 
+    function wrapCanvasText(text,maxWidth,maxLines){
+      const words = String(text || '').split(/\s+/).filter(Boolean);
+      const lines = [];
+      let line = '';
+
+      words.forEach(word => {
+        const test = line ? `${line} ${word}` : word;
+        if(ctx.measureText(test).width <= maxWidth){
+          line = test;
+        } else {
+          if(line) lines.push(line);
+          line = word;
+        }
+      });
+
+      if(line) lines.push(line);
+
+      if(lines.length > maxLines){
+        const kept = lines.slice(0,maxLines);
+        kept[maxLines - 1] = kept[maxLines - 1].replace(/\.{3}$/,'') + '...';
+        return kept;
+      }
+
+      return lines.length ? lines : [''];
+    }
+
+    function drawWrappedLines(lines,x,y,lineHeight){
+      lines.forEach((line,i) => ctx.fillText(line,x,y + i * lineHeight));
+    }
+
     function drawWishMessage(){
       if(!wishScene) return;
       const alpha = wishScene.waiting ? .9 : Math.min(1, wishScene.timer / 40) * Math.min(1, (430 - wishScene.timer) / 60);
-      const boxW = Math.min(700, canvas.width - 48);
-      const boxH = 118;
+      const boxW = Math.min(760, canvas.width - 48);
       const x = Math.round(canvas.width / 2 - boxW / 2);
       const y = 28;
+      const pad = 22;
+      const textW = boxW - pad * 2;
 
       ctx.save();
       ctx.globalAlpha = Math.max(0,alpha);
+
+      ctx.font = '18px monospace';
+      const messageLines = wrapCanvasText(wishScene.message,textW,3);
+
+      ctx.font = '14px monospace';
+      const wishLines = wishScene.text ? wrapCanvasText(`Wish: ${wishScene.text}`,textW,2) : [];
+
+      const boxH = 72 + messageLines.length * 23 + wishLines.length * 19;
+
       ctx.fillStyle = 'rgba(12,8,24,.93)';
       ctx.strokeStyle = '#d9a7ff';
       ctx.lineWidth = 4;
       roundRect(x,y,boxW,boxH,16,true,true);
 
       ctx.fillStyle = '#d9a7ff';
-      ctx.font = 'bold 24px monospace';
-      ctx.fillText('Wish Pool',x+22,y+38);
+      ctx.font = 'bold 26px monospace';
+      ctx.fillText('Wish Pool',x + pad,y + 38);
 
       ctx.fillStyle = '#fff1c8';
-      ctx.font = '17px monospace';
-      ctx.fillText(wishScene.message,x+22,y+72,boxW-44);
+      ctx.font = '18px monospace';
+      drawWrappedLines(messageLines,x + pad,y + 70,23);
 
-      if(wishScene.text){
-        ctx.fillStyle = 'rgba(255,255,255,.75)';
+      if(wishLines.length){
+        ctx.fillStyle = 'rgba(255,255,255,.78)';
         ctx.font = '14px monospace';
-        const wishLine = `Wish: ${wishScene.text}`;
-        ctx.fillText(wishLine,x+22,y+98,boxW-44);
+        drawWrappedLines(wishLines,x + pad,y + 70 + messageLines.length * 23 + 8,19);
       }
+
       ctx.restore();
     }
 
