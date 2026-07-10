@@ -25,38 +25,16 @@
       return inWishBox(players.her.x,players.her.y) || inWishBox(players.him.x,players.him.y);
     }
 
-    function localWishResult(text){
-      const lower = text.toLowerCase();
-      let effect = 'sparkles';
-      let message = 'The water glows... your wish has been heard.';
-
-      if(lower.includes('heart') || lower.includes('love') || lower.includes('tanima') || lower.includes('forever')){
-        effect = 'hearts';
-        message = 'The water glows pink... love answers back.';
-      }
-      else if(lower.includes('flower') || lower.includes('petal') || lower.includes('spring')){
-        effect = 'petals';
-        message = 'Soft petals drift across the water.';
-      }
-      else if(lower.includes('star') || lower.includes('moon') || lower.includes('night')){
-        effect = 'stars';
-        message = 'Tiny stars shimmer above the pool.';
-      }
-      else if(lower.includes('duck') || lower.includes('ducks')){
-        effect = 'ducks';
-        message = 'A tiny duck appears like it had somewhere important to be.';
-      }
-      else if(lower.includes('rain')){
-        effect = 'rain';
-        message = 'Little drops fall softly around the wish pool.';
-      }
-
-      return {effect,message};
+    function neutralWishResult(){
+      return {
+        effect:'none',
+        message:'The water glows... your wish has been heard.'
+      };
     }
 
     async function askWishAI(text){
       const endpoint = window.WISH_AI_ENDPOINT || '';
-      if(!endpoint) return localWishResult(text);
+      if(!endpoint) return neutralWishResult();
 
       try{
         const res = await fetch(endpoint,{
@@ -67,19 +45,19 @@
         if(!res.ok) throw new Error('Wish AI failed');
         const data = await res.json();
         return {
-          effect: data.effect || 'sparkles',
+          effect: data.effect || 'none',
           message: data.message || 'The water glows... your wish has been heard.'
         };
       } catch(err){
         console.warn('Wish AI fallback:', err);
-        return localWishResult(text);
+        return neutralWishResult();
       }
     }
 
     function startWishScene(text){
       wishScene = {
         text,
-        effect:'listening',
+        effect:'none',
         message:'The water is listening...',
         timer:0,
         waiting:true
@@ -88,7 +66,7 @@
 
       askWishAI(text).then(result => {
         if(!wishScene || wishScene.text !== text) return;
-        wishScene.effect = result.effect || 'sparkles';
+        wishScene.effect = result.effect || 'none';
         wishScene.message = result.message || 'The water glows... your wish has been heard.';
         wishScene.waiting = false;
         wishScene.timer = 0;
@@ -100,7 +78,7 @@
       if(!text || !text.trim()){
         wishScene = {
           text:'',
-          effect:'sparkles',
+          effect:'none',
           message:'The water ripples softly. Maybe next time.',
           timer:0,
           waiting:false
@@ -113,6 +91,8 @@
     function spawnWishParticle(){
       if(!wishScene) return;
       const effect = wishScene.effect;
+      if(effect === 'none') return;
+
       const baseX = wishPoolCenter.x + (Math.random() - .5) * 76;
       const baseY = wishPoolCenter.y + (Math.random() - .5) * 34;
 
@@ -133,7 +113,7 @@
       else if(effect === 'rain'){
         wishParticles.push({type:'drop',x:baseX,y:wishPoolCenter.y-86-Math.random()*90,life:90,vx:0,vy:1.8+Math.random()*1.4,size:3});
       }
-      else {
+      else if(effect === 'sparkles'){
         wishParticles.push({type:'sparkle',x:baseX,y:baseY,life:80,vx:(Math.random()-.5)*.45,vy:-.6-Math.random()*.5,size:2+Math.random()*3});
       }
     }
@@ -154,7 +134,10 @@
 
       if(wishScene){
         wishScene.timer++;
-        if(wishScene.timer % (wishScene.waiting ? 8 : 3) === 0) spawnWishParticle();
+        if(wishScene.waiting && wishScene.timer % 12 === 0){
+          wishParticles.push({type:'sparkle',x:wishPoolCenter.x + (Math.random()-.5)*50,y:wishPoolCenter.y + (Math.random()-.5)*24,life:45,vx:(Math.random()-.5)*.22,vy:-.22,size:2});
+        }
+        if(!wishScene.waiting && wishScene.timer % 3 === 0) spawnWishParticle();
         if(!wishScene.waiting && wishScene.timer > 430){
           wishScene = null;
           wishParticles = [];
