@@ -1,6 +1,6 @@
 // AI Wish Pool starter.
 // Nothing is saved to localStorage, so refreshing the page resets every wish.
-// The Cloudflare Worker keeps the OpenAI key hidden.
+// The Cloudflare Worker keeps the AI key/binding hidden.
 (function(){
   try{
     if(typeof update !== 'function' || typeof draw !== 'function') return;
@@ -103,6 +103,7 @@
         wishScene.message = result.message || 'The water glows... your wish has been heard.';
         wishScene.waiting = false;
         wishScene.timer = 0;
+        wishParticles = [];
       });
     }
 
@@ -121,33 +122,135 @@
       startWishScene(text.trim());
     }
 
+    function viewWorld(){
+      return {
+        x: (typeof camera !== 'undefined' ? camera.x : 0),
+        y: (typeof camera !== 'undefined' ? camera.y : 0),
+        w: canvas.width,
+        h: canvas.height
+      };
+    }
+
+    function rand(min,max){
+      return min + Math.random() * (max - min);
+    }
+
+    function spawnFromPoolSparkle(){
+      wishParticles.push({
+        type:'sparkle',
+        x:wishPoolCenter.x + rand(-26,26),
+        y:wishPoolCenter.y + rand(-14,14),
+        life:45,
+        vx:rand(-.22,.22),
+        vy:-.22,
+        size:2,
+        screenWide:false
+      });
+    }
+
     function spawnWishParticle(){
       if(!wishScene) return;
       const effect = wishScene.effect;
       if(effect === 'none') return;
 
-      const baseX = wishPoolCenter.x + (Math.random() - .5) * 76;
-      const baseY = wishPoolCenter.y + (Math.random() - .5) * 34;
+      const v = viewWorld();
+      const safeTop = v.y + 60;
+      const safeBottom = v.y + Math.max(90, v.h - 35);
+      const safeLeft = v.x - 80;
+      const safeRight = v.x + v.w + 80;
 
       if(effect === 'hearts'){
-        wishParticles.push({type:'heart',x:baseX,y:baseY,life:90,vx:(Math.random()-.5)*.6,vy:-.9-Math.random()*.6,size:3+Math.random()*2});
+        for(let i=0;i<3;i++){
+          wishParticles.push({
+            type:'heart',
+            x:safeLeft - rand(0,120),
+            y:rand(safeTop, safeBottom),
+            life:330,
+            vx:rand(1.5,2.7),
+            vy:rand(-.55,.25),
+            wave:rand(0,Math.PI*2),
+            waveSpeed:rand(.035,.07),
+            waveAmp:rand(.35,1.25),
+            size:3+Math.random()*2,
+            screenWide:true
+          });
+        }
       }
       else if(effect === 'petals'){
-        wishParticles.push({type:'petal',x:baseX,y:baseY,life:120,vx:.25+Math.random()*.8,vy:-.25+Math.random()*.45,size:3+Math.random()*3,spin:Math.random()*6});
+        for(let i=0;i<4;i++){
+          wishParticles.push({
+            type:'petal',
+            x:safeLeft - rand(0,140),
+            y:rand(safeTop, safeBottom),
+            life:360,
+            vx:rand(1.7,3.1),
+            vy:rand(-.25,.45),
+            wave:rand(0,Math.PI*2),
+            waveSpeed:rand(.045,.085),
+            waveAmp:rand(.5,1.8),
+            size:3+Math.random()*3,
+            spin:Math.random()*6,
+            screenWide:true
+          });
+        }
       }
       else if(effect === 'stars'){
-        wishParticles.push({type:'star',x:baseX,y:baseY-20-Math.random()*60,life:100,vx:(Math.random()-.5)*.25,vy:-.18,size:2+Math.random()*3});
+        for(let i=0;i<3;i++){
+          wishParticles.push({
+            type:'star',
+            x:rand(v.x + 20, v.x + v.w - 20),
+            y:rand(v.y + 50, v.y + Math.max(90, v.h * .62)),
+            life:105,
+            vx:rand(-.12,.12),
+            vy:rand(-.08,.08),
+            twinkle:rand(0,Math.PI*2),
+            size:2+Math.random()*3,
+            screenWide:true
+          });
+        }
       }
       else if(effect === 'ducks'){
-        if(wishParticles.filter(p => p.type === 'duck').length < 5){
-          wishParticles.push({type:'duck',x:wishPoolBox.x-12,y:wishPoolCenter.y-2+Math.random()*12,life:220,vx:.45+Math.random()*.35,vy:Math.sin(heartTimer/20)*.05,size:5});
+        if(wishParticles.filter(p => p.type === 'duck').length < 9){
+          wishParticles.push({
+            type:'duck',
+            x:safeLeft - rand(0,80),
+            y:rand(v.y + v.h * .55, v.y + v.h - 80),
+            life:430,
+            vx:rand(1.15,2.1),
+            vy:0,
+            bob:rand(0,Math.PI*2),
+            size:5,
+            screenWide:true
+          });
         }
       }
       else if(effect === 'rain'){
-        wishParticles.push({type:'drop',x:baseX,y:wishPoolCenter.y-86-Math.random()*90,life:90,vx:0,vy:1.8+Math.random()*1.4,size:3});
+        for(let i=0;i<9;i++){
+          wishParticles.push({
+            type:'drop',
+            x:rand(v.x - 25, v.x + v.w + 25),
+            y:v.y - rand(10,130),
+            life:130,
+            vx:rand(-.22,.22),
+            vy:rand(3.0,5.2),
+            size:2+Math.random()*2,
+            screenWide:true
+          });
+        }
       }
       else if(effect === 'sparkles'){
-        wishParticles.push({type:'sparkle',x:baseX,y:baseY,life:80,vx:(Math.random()-.5)*.45,vy:-.6-Math.random()*.5,size:2+Math.random()*3});
+        for(let i=0;i<5;i++){
+          wishParticles.push({
+            type:'sparkle',
+            x:rand(v.x + 20, v.x + v.w - 20),
+            y:rand(v.y + 60, v.y + v.h - 60),
+            life:85,
+            vx:rand(-.35,.35),
+            vy:rand(-.85,-.2),
+            size:2+Math.random()*3,
+            screenWide:true
+          });
+        }
       }
     }
 
@@ -168,22 +271,32 @@
       if(wishScene){
         wishScene.timer++;
         if(wishScene.waiting && wishScene.timer % 12 === 0){
-          wishParticles.push({type:'sparkle',x:wishPoolCenter.x + (Math.random()-.5)*50,y:wishPoolCenter.y + (Math.random()-.5)*24,life:45,vx:(Math.random()-.5)*.22,vy:-.22,size:2});
+          spawnFromPoolSparkle();
         }
-        if(!wishScene.waiting && wishScene.timer % 3 === 0) spawnWishParticle();
-        if(!wishScene.waiting && wishScene.timer > 430){
+        if(!wishScene.waiting && wishScene.timer % 3 === 0){
+          spawnWishParticle();
+        }
+        if(!wishScene.waiting && wishScene.timer > 520){
           wishScene = null;
           wishParticles = [];
           wishCooldown = 35;
         }
       }
 
+      const v = viewWorld();
       wishParticles = wishParticles.filter(p => {
         p.life--;
+        p.age = (p.age || 0) + 1;
+        p.wave = (p.wave || 0) + (p.waveSpeed || 0);
+        p.bob = (p.bob || 0) + .08;
         p.x += p.vx || 0;
         p.y += p.vy || 0;
-        if(p.type === 'drop' && p.y > wishPoolCenter.y + 18) p.life = 0;
-        if(p.type === 'duck' && p.x > wishPoolBox.x + wishPoolBox.w + 30) p.life = 0;
+        if(p.waveAmp) p.y += Math.sin(p.wave) * p.waveAmp;
+        if(p.type === 'duck') p.y += Math.sin(p.bob) * .28;
+
+        const margin = 160;
+        if(p.x < v.x - margin || p.x > v.x + v.w + margin) p.life = 0;
+        if(p.y < v.y - margin || p.y > v.y + v.h + margin) p.life = 0;
         return p.life > 0;
       });
 
@@ -214,7 +327,7 @@
       wishParticles.forEach(p => {
         const x = p.x - camera.x;
         const y = p.y - camera.y;
-        const alpha = Math.max(0,Math.min(1,p.life/80));
+        const alpha = Math.max(0,Math.min(1,p.life/90));
         ctx.save();
         ctx.globalAlpha = alpha;
 
@@ -232,6 +345,8 @@
           ctx.fillRect(0,-p.size/2,Math.max(1,p.size/2),Math.max(1,p.size/2));
         }
         else if(p.type === 'star'){
+          const twinkle = .55 + Math.abs(Math.sin((p.twinkle || 0) + heartTimer / 12)) * .45;
+          ctx.globalAlpha = alpha * twinkle;
           ctx.shadowColor = '#fff1a8';
           ctx.shadowBlur = 8;
           drawStar(x,y,p.size);
@@ -241,7 +356,7 @@
         }
         else if(p.type === 'drop'){
           ctx.fillStyle = '#8ee8ff';
-          ctx.fillRect(x,y,p.size,p.size*2);
+          ctx.fillRect(x,y,p.size,p.size*3);
         }
         else {
           ctx.shadowColor = '#fff1a8';
@@ -286,7 +401,7 @@
 
     function drawWishMessage(){
       if(!wishScene) return;
-      const alpha = wishScene.waiting ? .9 : Math.min(1, wishScene.timer / 40) * Math.min(1, (430 - wishScene.timer) / 60);
+      const alpha = wishScene.waiting ? .9 : Math.min(1, wishScene.timer / 40) * Math.min(1, (520 - wishScene.timer) / 60);
       const boxW = Math.min(760, canvas.width - 48);
       const x = Math.round(canvas.width / 2 - boxW / 2);
       const y = 28;
