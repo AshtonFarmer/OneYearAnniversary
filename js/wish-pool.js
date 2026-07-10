@@ -1,9 +1,11 @@
-// Temporary Wish Pool starter.
+// AI Wish Pool starter.
 // Nothing is saved to localStorage, so refreshing the page resets every wish.
-// Later we can connect window.WISH_AI_ENDPOINT to a Cloudflare Worker.
+// The Cloudflare Worker keeps the OpenAI key hidden.
 (function(){
   try{
     if(typeof update !== 'function' || typeof draw !== 'function') return;
+
+    window.WISH_AI_ENDPOINT = 'https://damp-cherry-8310.ashton20-bama.workers.dev';
 
     const wishPoolBox = {x:1303, y:801, w:60, h:31};
     const wishPoolCenter = {
@@ -32,6 +34,37 @@
       };
     }
 
+    function getMapUrlForAI(){
+      if(typeof map !== 'undefined' && map.src) return map.src;
+      if(typeof getSeason === 'function'){
+        const season = getSeason();
+        if(season && season.map) return new URL(season.map, location.href).href;
+      }
+      return new URL('assets/maps/main-map.png', location.href).href;
+    }
+
+    function getSeasonForAI(){
+      if(typeof currentSeason !== 'undefined') return currentSeason;
+      return localStorage.getItem('currentSeason') || 'summer';
+    }
+
+    function getWishPayload(text){
+      return {
+        wish:text,
+        season:getSeasonForAI(),
+        mapUrl:getMapUrlForAI(),
+        wishPool:{
+          box:wishPoolBox,
+          center:wishPoolCenter,
+          note:'The wish starts at the fourth water pool in the home hot springs area.'
+        },
+        players:{
+          her:{x:Math.round(players.her.x), y:Math.round(players.her.y), dir:players.her.dir},
+          him:{x:Math.round(players.him.x), y:Math.round(players.him.y), dir:players.him.dir}
+        }
+      };
+    }
+
     async function askWishAI(text){
       const endpoint = window.WISH_AI_ENDPOINT || '';
       if(!endpoint) return neutralWishResult();
@@ -40,7 +73,7 @@
         const res = await fetch(endpoint,{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({wish:text})
+          body:JSON.stringify(getWishPayload(text))
         });
         if(!res.ok) throw new Error('Wish AI failed');
         const data = await res.json();
