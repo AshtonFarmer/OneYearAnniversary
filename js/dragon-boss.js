@@ -4,9 +4,44 @@
     if(typeof update !== 'function' || typeof draw !== 'function') return;
 
     const dragonImg = new Image();
+    const dragonSheet = document.createElement('canvas');
+    const dragonSheetCtx = dragonSheet.getContext('2d',{willReadFrequently:true});
+    let dragonSource = dragonImg;
+    let sourceFrameW = 256;
+    let sourceFrameH = 256;
+    let dragonReady = false;
+
+    dragonImg.onload = function(){
+      sourceFrameW = dragonImg.naturalWidth / 4;
+      sourceFrameH = dragonImg.naturalHeight / 4;
+
+      dragonSheet.width = dragonImg.naturalWidth;
+      dragonSheet.height = dragonImg.naturalHeight;
+      dragonSheetCtx.clearRect(0,0,dragonSheet.width,dragonSheet.height);
+      dragonSheetCtx.drawImage(dragonImg,0,0);
+
+      // Some image tools export the transparency checkerboard as real pixels.
+      // Remove only very bright neutral gray/white pixels while preserving fire,
+      // horns, eyes, and the dragon's colored highlights.
+      try{
+        const imageData = dragonSheetCtx.getImageData(0,0,dragonSheet.width,dragonSheet.height);
+        const data = imageData.data;
+        for(let i=0;i<data.length;i+=4){
+          const r=data[i], g=data[i+1], b=data[i+2];
+          const max=Math.max(r,g,b), min=Math.min(r,g,b);
+          const neutral=(max-min)<13;
+          if(neutral && min>205) data[i+3]=0;
+        }
+        dragonSheetCtx.putImageData(imageData,0,0);
+        dragonSource = dragonSheet;
+      }catch(e){
+        dragonSource = dragonImg;
+      }
+
+      dragonReady = true;
+    };
     dragonImg.src = 'assets/sprites/dragon_sprite.png';
 
-    const FRAME = 256;
     const hoverFrames = [0,1,2,3];
     const fireFrames = [8,9,10,11];
     const roarFrame = 12;
@@ -31,7 +66,7 @@
         target,
         timer:0,
         duration:760,
-        x:-260,
+        x:-320,
         y:Math.max(80,target.y-250),
         scale:1.18,
         state:'enter',
@@ -105,7 +140,7 @@
       }
 
       embers=embers.filter(e=>{e.life--;e.x+=e.vx;e.y+=e.vy;e.vy+=.035;return e.life>0;});
-      if(dragon.timer>dragon.duration || dragon.x>WORLD_W+320){dragon=null;embers=[];}
+      if(dragon.timer>dragon.duration || dragon.x>WORLD_W+360){dragon=null;embers=[];}
     }
 
     function drawShadow(){
@@ -124,20 +159,24 @@
     }
 
     function drawDragon(){
-      if(!dragon || !dragonImg.complete) return;
+      if(!dragon || !dragonReady) return;
       drawShadow();
       const col=dragon.frame%4;
       const row=Math.floor(dragon.frame/4);
-      const size=FRAME*dragon.scale;
-      const x=Math.round(dragon.x-camera.x-size/2);
+      const drawSize=256*dragon.scale;
+      const x=Math.round(dragon.x-camera.x-drawSize/2);
       const bob=Math.sin(dragon.timer/7)*5;
-      const y=Math.round(dragon.y-camera.y-size/2+bob);
+      const y=Math.round(dragon.y-camera.y-drawSize/2+bob);
       ctx.save();
       if(dragon.state==='fire' || dragon.state==='impact'){
         ctx.shadowColor='#ff5a1f';
         ctx.shadowBlur=28;
       }
-      ctx.drawImage(dragonImg,col*FRAME,row*FRAME,FRAME,FRAME,x,y,size,size);
+      ctx.drawImage(
+        dragonSource,
+        col*sourceFrameW,row*sourceFrameH,sourceFrameW,sourceFrameH,
+        x,y,drawSize,drawSize
+      );
       ctx.restore();
 
       embers.forEach(e=>{
