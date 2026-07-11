@@ -27,6 +27,7 @@
     let duplicateClone=null;
     let errorCount=0;
     let audioContext=null;
+    let legacyAiActive=false;
 
     function systems(){
       return{
@@ -35,12 +36,13 @@
         cinema:!!(window.WishCinemaFx&&window.WishCinemaFx.active),
         phase2:!!(window.WishPhase2&&window.WishPhase2.active),
         phase1:!!(window.WishPhase1&&window.WishPhase1.active),
-        dragon:!!(window.DragonBoss&&window.DragonBoss.active)
+        dragon:!!(window.DragonBoss&&window.DragonBoss.active),
+        aiDirector:legacyAiActive
       };
     }
 
     function anyBusy(s=systems()){
-      return s.phase4||s.secret||s.cinema||s.phase2||s.phase1||s.dragon;
+      return s.phase4||s.secret||s.cinema||s.phase2||s.phase1||s.dragon||s.aiDirector;
     }
 
     function safeCall(fn){try{fn();}catch(e){errorCount++;}}
@@ -298,6 +300,8 @@
       if(frameDelta>0&&frameDelta<250)averageFrameMs=averageFrameMs*.96+frameDelta*.04;
     };
 
+    window.addEventListener('wish-ai-scene-start',()=>{legacyAiActive=true;});
+    window.addEventListener('wish-ai-scene-end',()=>{legacyAiActive=false;});
     window.addEventListener('wish-secret-start',()=>{tone('secret');setStatus('granting',180,'A rare secret awakened');});
     window.addEventListener('wish-phase4-personal-start',()=>{tone('secret');setStatus('granting',200,'A personal secret awakened');});
     window.addEventListener('error',()=>{errorCount++;});
