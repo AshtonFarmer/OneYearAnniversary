@@ -29,7 +29,7 @@
         const audit=window.WishExpansion.audit();
         report.checks={...report.checks,expansion:audit.valid};
         report.expansion=audit;
-        report.verifiedIndividualEffects=(report.verifiedIndividualEffects||450)+audit.count;
+        report.minimumIndividualEffects=450+audit.count;
         report.ok=report.ok&&audit.valid;
         return report;
       };
@@ -39,6 +39,6 @@
       };
       try{Object.defineProperty(window.WishPoolDiagnostics,'report',{configurable:true,get(){return window.WishPoolDiagnostics.run();}});}catch(e){}
     }
-    window.WISH_POOL_VERIFIED_INDIVIDUAL_EFFECTS=1050;
+    window.WISH_POOL_MINIMUM_INDIVIDUAL_EFFECTS=1050;
   }catch(e){console.warn('wish expansion polish addon failed',e);}
 })();
