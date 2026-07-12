@@ -5,8 +5,26 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>One Year Together</title>
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/start-menu.css">
 </head>
 <body>
+  <div id="start-menu" role="dialog" aria-modal="true" aria-label="One Year Together main menu">
+    <div class="start-menu-stage">
+      <button class="start-menu-hit" data-action="start" aria-label="Start a new game"><span class="start-menu-screen-reader">Start</span></button>
+      <button class="start-menu-hit" data-action="continue" aria-label="Continue the game"><span class="start-menu-screen-reader">Continue</span></button>
+      <button class="start-menu-hit" data-action="memories" aria-label="Open memories"><span class="start-menu-screen-reader">Memories</span></button>
+      <button class="start-menu-hit" data-action="settings" aria-label="Open settings"><span class="start-menu-screen-reader">Settings</span></button>
+      <button class="start-menu-hit" data-action="credits" aria-label="Open credits"><span class="start-menu-screen-reader">Credits</span></button>
+      <button class="start-menu-hit" data-action="exit" aria-label="Exit game"><span class="start-menu-screen-reader">Exit</span></button>
+      <div class="start-menu-dialog-backdrop" aria-hidden="true">
+        <section class="start-menu-dialog" role="dialog" aria-modal="true" aria-labelledby="start-menu-dialog-title">
+          <button class="start-menu-dialog-close" aria-label="Close panel">×</button>
+          <h2 id="start-menu-dialog-title" data-dialog-title></h2>
+          <div data-dialog-body></div>
+        </section>
+      </div>
+    </div>
+  </div>
   <canvas id="game"></canvas>
   <div id="prompt" class="prompt"></div>
   <script src="js/music.js"></script>
@@ -38,5 +56,13 @@
   <script src="js/wish-expansion-router.js"></script>
   <script src="js/wish-pool-polish.js"></script>
   <script src="js/wish-expansion-polish-addon.js"></script>
+  <script src="js/start-menu-bg-0.js"></script>
+  <script src="js/start-menu-bg-1.js"></script>
+  <script src="js/start-menu-bg-2.js"></script>
+  <script src="js/start-menu-bg-3.js"></script>
+  <script src="js/start-menu-bg-final-4.js"></script>
+  <script src="js/start-menu-bg-final-5.js"></script>
+  <script src="js/start-menu-bg-final-6.js"></script>
+  <script src="js/start-menu.js"></script>
 </body>
 </html>
