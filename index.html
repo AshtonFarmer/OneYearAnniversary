@@ -6,6 +6,13 @@
   <title>One Year Together</title>
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/start-menu.css">
+  <script>
+    try {
+      if (sessionStorage.getItem('oneYearStartMenuShown') === '1') {
+        document.documentElement.classList.add('skip-start-menu');
+      }
+    } catch (error) {}
+  </script>
 </head>
 <body>
   <div id="start-menu" role="dialog" aria-modal="true" aria-label="One Year Together main menu">
@@ -57,5 +64,6 @@
   <script src="js/wish-pool-polish.js"></script>
   <script src="js/wish-expansion-polish-addon.js"></script>
   <script src="js/start-menu.js"></script>
+  <script src="js/start-menu-session.js"></script>
 </body>
 </html>
