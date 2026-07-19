@@ -1,4 +1,4 @@
-// Adds left-to-right rocking during both 10-second hammock poses.
+// Controls the movement during both 10-second hammock poses.
 (function(){
   try{
     if(!window.topSiloHammockEvent || typeof draw !== 'function' ||
@@ -26,42 +26,26 @@
       return Math.max(min, Math.min(max, value));
     }
 
-    // Each pose lasts ten seconds:
-    // 0-5 seconds = slower left/right ride.
-    // 5-10 seconds = quicker left/right ride.
-    function rockingOffset(localElapsed){
+    // Every pose lasts ten seconds.
+    // First five seconds move slowly. The final five move faster.
+    function movement(localElapsed, slowAmount, fastAmount){
       const local = clamp(localElapsed, 0, 9999);
       const slowLength = 5000;
       const slowPeriod = 1900;
       const fastPeriod = 520;
-      const startPhase = -Math.PI / 2; // Begin on the left side.
+      const startPhase = -Math.PI / 2;
 
       if(local < slowLength){
         const phase = startPhase + (local / slowPeriod) * Math.PI * 2;
-        return {
-          x:Math.sin(phase) * 18,
-          y:Math.cos(phase * 2) * 1.5
-        };
+        return Math.sin(phase) * slowAmount;
       }
 
       const slowEndPhase = startPhase + (slowLength / slowPeriod) * Math.PI * 2;
       const fastElapsed = local - slowLength;
       const speedUpBlend = clamp(fastElapsed / 350, 0, 1);
-      const amplitude = 18 + 12 * speedUpBlend;
+      const amount = slowAmount + (fastAmount - slowAmount) * speedUpBlend;
       const phase = slowEndPhase + (fastElapsed / fastPeriod) * Math.PI * 2;
-      return {
-        x:Math.sin(phase) * amplitude,
-        y:Math.cos(phase * 2) * 3
-      };
-    }
-
-    function frame(now, rate){
-      return Math.floor(now / rate) % 4;
-    }
-
-    function direction(now, offset){
-      const dirs = ['right','down','left','up'];
-      return dirs[Math.floor((now + (offset || 0)) / 2500) % 4];
+      return Math.sin(phase) * amount;
     }
 
     function drawActor(image, who, dir, spriteFrame, x, y, options){
@@ -88,32 +72,33 @@
       ctx.restore();
     }
 
-    function drawRockingPose(now, elapsed){
+    function drawHammockPose(elapsed){
       const center = {
         x:hammock.x + hammock.w/2,
         y:hammock.y + hammock.h/2
       };
       const secondPose = elapsed >= 10000;
       const local = secondPose ? elapsed - 10000 : elapsed;
-      const ride = rockingOffset(local);
 
       if(!secondPose){
-        const bob = Math.cos(now/330)*2 + ride.y;
-        drawActor(players.her.img,'her','down',frame(now,320),
-          center.x+28+ride.x,center.y+bob,
+        // First position: she stays lying still. Only he moves left and right.
+        const himX = movement(local, 18, 30);
+        drawActor(players.her.img,'her','down',0,
+          center.x+28,center.y,
           {rotation:Math.PI/2,centered:true,size:128});
-        drawActor(players.him.img,'him',direction(now),frame(now,165),
-          center.x-24+ride.x,hammock.y+hammock.h-10+bob,
+        drawActor(players.him.img,'him','right',0,
+          center.x-24+himX,hammock.y+hammock.h-10,
           {size:128});
         return;
       }
 
-      const bob = Math.cos(now/310)*2 + ride.y;
-      drawActor(players.him.img,'him','down',frame(now,330),
-        center.x+33+ride.x,center.y+2+bob,
+      // Second position: he stays lying still. Only she moves slightly up and down.
+      const herY = movement(local, 3, 7);
+      drawActor(players.him.img,'him','down',0,
+        center.x+33,center.y+2,
         {rotation:Math.PI/2,centered:true,size:128});
-      drawActor(players.her.img,'her',direction(now,1250),frame(now,165),
-        center.x-15+ride.x,hammock.y+hammock.h-10+bob,
+      drawActor(players.her.img,'her','left',0,
+        center.x-15,hammock.y+hammock.h-10+herY,
         {size:128});
     }
 
@@ -121,18 +106,18 @@
     draw = function(){
       const now = performance.now();
       const elapsed = scene.active ? now-scene.started : Infinity;
-      const inRockingPose = scene.active && elapsed >= 0 && elapsed < 20000;
+      const inHammockPose = scene.active && elapsed >= 0 && elapsed < 20000;
 
-      hideOriginalHammockActors = inRockingPose;
+      hideOriginalHammockActors = inHammockPose;
       try{
         previousDraw();
       } finally {
         hideOriginalHammockActors = false;
       }
 
-      if(inRockingPose) drawRockingPose(now,elapsed);
+      if(inHammockPose) drawHammockPose(elapsed);
     };
   } catch(error){
-    console.warn('top-silo hammock rocking failed',error);
+    console.warn('top-silo hammock movement failed',error);
   }
 })();
