@@ -87,7 +87,7 @@
           center.x+28,center.y,
           {rotation:Math.PI/2,centered:true,size:128});
         drawActor(players.him.img,'him','right',0,
-          center.x-24+himX,hammock.y+hammock.h-10,
+          center.x-24+himX,hammock.y+hammock.h-18,
           {size:128});
         return;
       }
@@ -97,7 +97,7 @@
       drawActor(players.him.img,'him','down',0,
         center.x+33,center.y+2,
         {rotation:Math.PI/2,centered:true,size:128});
-      drawActor(players.her.img,'her','left',0,
+      drawActor(players.her.img,'her','right',0,
         center.x-15,hammock.y+hammock.h-10+herY,
         {size:128});
     }
