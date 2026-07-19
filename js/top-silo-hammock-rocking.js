@@ -7,9 +7,16 @@
 
     const event = window.topSiloHammockEvent;
     const scene = event.state;
-    const hammock = event.zones.hammock;
     const originalDrawImage = CanvasRenderingContext2D.prototype.drawImage;
+    const hipZone = {x:638, y:492, w:7, h:1};
+    const hipTarget = {
+      x:hipZone.x + hipZone.w / 2,
+      y:hipZone.y + hipZone.h / 2
+    };
+    const boundsCache = new Map();
     let hideOriginalHammockActors = false;
+
+    event.zones.hip = hipZone;
 
     function isHammockSkin(image){
       const src = image && (image.currentSrc || image.src) ? String(image.currentSrc || image.src) : '';
@@ -48,7 +55,48 @@
       return Math.sin(phase) * amount;
     }
 
-    function drawActor(image, who, dir, spriteFrame, x, y, options){
+    function getVisibleBounds(image, sx, sy, sw, sh){
+      const key = (image.currentSrc || image.src || 'sprite') + ':' + sx + ':' + sy + ':' + sw + ':' + sh;
+      if(boundsCache.has(key)) return boundsCache.get(key);
+
+      try{
+        const sample = document.createElement('canvas');
+        sample.width = sw;
+        sample.height = sh;
+        const sampleCtx = sample.getContext('2d', {willReadFrequently:true});
+        sampleCtx.clearRect(0,0,sw,sh);
+        originalDrawImage.call(sampleCtx,image,sx,sy,sw,sh,0,0,sw,sh);
+        const pixels = sampleCtx.getImageData(0,0,sw,sh).data;
+        let minX = sw;
+        let minY = sh;
+        let maxX = -1;
+        let maxY = -1;
+
+        for(let y=0;y<sh;y++){
+          for(let x=0;x<sw;x++){
+            if(pixels[(y*sw+x)*4+3] <= 10) continue;
+            if(x < minX) minX = x;
+            if(y < minY) minY = y;
+            if(x > maxX) maxX = x;
+            if(y > maxY) maxY = y;
+          }
+        }
+
+        const result = maxX < 0
+          ? {x:0,y:0,w:sw,h:sh}
+          : {x:minX,y:minY,w:maxX-minX+1,h:maxY-minY+1};
+        boundsCache.set(key,result);
+        return result;
+      } catch(error){
+        const fallback = {x:0,y:0,w:sw,h:sh};
+        boundsCache.set(key,fallback);
+        return fallback;
+      }
+    }
+
+    // x/y are the exact world coordinates of the character's hip.
+    // Rotation and scaling happen around that hip so it never leaves the target.
+    function drawActorAtHip(image, who, dir, spriteFrame, x, y, options){
       if(!image || !image.complete || !image.naturalWidth) return;
       options = options || {};
 
@@ -59,47 +107,50 @@
       const size = options.size || 128;
       const sx = (spriteFrame % 4) * cellW;
       const sy = row * cellH;
+      const visible = getVisibleBounds(image,sx,sy,cellW,cellH);
+
+      // The hips sit a little below the center of each visible chibi body.
+      const hipRatioY = who === 'him' ? .62 : .61;
+      const sourceHipX = visible.x + visible.w * .5;
+      const sourceHipY = visible.y + visible.h * hipRatioY;
+      const drawX = -(sourceHipX / cellW) * size;
+      const drawY = -(sourceHipY / cellH) * size;
       const mirror = who === 'him' && dir === 'left';
 
       ctx.save();
-      ctx.translate(Math.round(x-camera.x), Math.round(y-camera.y));
+      ctx.translate(Math.round(x-camera.x),Math.round(y-camera.y));
       ctx.rotate(options.rotation || 0);
-      if(mirror) ctx.scale(-1,1);
-
-      const dx = -size/2;
-      const dy = options.centered ? -size/2 : -size+10;
-      originalDrawImage.call(ctx, image, sx, sy, cellW, cellH, dx, dy, size, size);
+      ctx.scale((mirror ? -1 : 1) * (options.scaleX || 1),options.scaleY || 1);
+      originalDrawImage.call(ctx,image,sx,sy,cellW,cellH,drawX,drawY,size,size);
       ctx.restore();
     }
 
     function drawHammockPose(elapsed){
-      const center = {
-        x:hammock.x + hammock.w/2,
-        y:hammock.y + hammock.h/2
-      };
       const secondPose = elapsed >= 10000;
       const local = secondPose ? elapsed - 10000 : elapsed;
 
       if(!secondPose){
-        // First position: she stays lying still. Only he moves left and right.
-        const himX = movement(local, 18, 30);
-        drawActor(players.her.img,'her','down',0,
-          center.x+28,center.y,
-          {rotation:Math.PI/2,centered:true,size:128});
-        drawActor(players.him.img,'him','right',0,
-          center.x-24+himX,hammock.y+hammock.h-18,
-          {size:128});
+        // First position: both hips stay at the exact shared target.
+        // She lies still. Only he sways left and right around his hip.
+        const himLean = movement(local,.055,.15);
+        drawActorAtHip(players.her.img,'her','down',0,
+          hipTarget.x,hipTarget.y,
+          {rotation:Math.PI/2,size:128});
+        drawActorAtHip(players.him.img,'him','right',0,
+          hipTarget.x,hipTarget.y,
+          {rotation:himLean,size:128});
         return;
       }
 
-      // Second position: he stays lying still. Only she moves slightly up and down.
-      const herY = movement(local, 3, 7);
-      drawActor(players.him.img,'him','down',0,
-        center.x+33,center.y+2,
-        {rotation:Math.PI/2,centered:true,size:128});
-      drawActor(players.her.img,'her','right',0,
-        center.x-15,hammock.y+hammock.h-10+herY,
-        {size:128});
+      // Second position: both hips stay at the exact shared target.
+      // He lies still. Only she makes a small up/down motion around her hip.
+      const herStretch = movement(local,.018,.045);
+      drawActorAtHip(players.him.img,'him','down',0,
+        hipTarget.x,hipTarget.y,
+        {rotation:Math.PI/2,size:128});
+      drawActorAtHip(players.her.img,'her','right',0,
+        hipTarget.x,hipTarget.y,
+        {scaleY:1+herStretch,size:128});
     }
 
     const previousDraw = draw;
@@ -116,6 +167,19 @@
       }
 
       if(inHammockPose) drawHammockPose(elapsed);
+
+      if(typeof debugMode !== 'undefined' && debugMode){
+        ctx.save();
+        ctx.fillStyle = 'rgba(80,255,170,.45)';
+        ctx.strokeStyle = '#50ffaa';
+        ctx.lineWidth = 2;
+        ctx.fillRect(hipZone.x-camera.x,hipZone.y-camera.y,hipZone.w,Math.max(1,hipZone.h));
+        ctx.strokeRect(hipZone.x-camera.x,hipZone.y-camera.y,hipZone.w,Math.max(1,hipZone.h));
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '13px monospace';
+        ctx.fillText('shared hip point',hipZone.x-camera.x-45,hipZone.y-camera.y-8);
+        ctx.restore();
+      }
     };
   } catch(error){
     console.warn('top-silo hammock movement failed',error);
