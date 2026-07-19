@@ -17,6 +17,7 @@
     });
 
     const smokeZone = {x:600, y:365, w:63, h:49};
+    const facePlantZone = {x:467, y:575, w:292, h:57};
     const herSkin = new Image();
     const himSkin = new Image();
     herSkin.src = 'assets/sprites/her_skin.png';
@@ -25,20 +26,17 @@
     const times = {
       pose1:10000,
       pose2:10000,
+      fall:2800,
       walk:2400,
       smoke:6500,
       wait:3000
     };
-    const pose2At = times.pose1;
-    const walkAt = pose2At + times.pose2;
-    const smokeAt = walkAt + times.walk;
-    const waitAt = smokeAt + times.smoke;
-    const finishAt = waitAt + times.wait;
 
     const scene = {
       active:false,
       started:0,
-      original:null
+      original:null,
+      fall:false
     };
 
     function center(){
@@ -47,6 +45,10 @@
 
     function smokeTarget(){
       return {x:smokeZone.x + smokeZone.w/2, y:smokeZone.y + smokeZone.h - 2};
+    }
+
+    function facePlantTarget(){
+      return {x:facePlantZone.x + facePlantZone.w/2, y:facePlantZone.y + facePlantZone.h/2};
     }
 
     function clamp(v, min, max){
@@ -58,12 +60,24 @@
       return t < .5 ? 2*t*t : 1 - Math.pow(-2*t+2,2)/2;
     }
 
+    function timeline(){
+      const pose2At = times.pose1;
+      const fallAt = pose2At + times.pose2;
+      const walkAt = fallAt + (scene.fall ? times.fall : 0);
+      const smokeAt = walkAt + times.walk;
+      const waitAt = smokeAt + times.smoke;
+      const finishAt = waitAt + times.wait;
+      return {pose2At,fallAt,walkAt,smokeAt,waitAt,finishAt};
+    }
+
     function phase(elapsed){
-      if(elapsed < pose2At) return 'pose1';
-      if(elapsed < walkAt) return 'pose2';
-      if(elapsed < smokeAt) return 'walk';
-      if(elapsed < waitAt) return 'smoke';
-      if(elapsed < finishAt) return 'wait';
+      const at = timeline();
+      if(elapsed < at.pose2At) return 'pose1';
+      if(elapsed < at.fallAt) return 'pose2';
+      if(scene.fall && elapsed < at.walkAt) return 'fall';
+      if(elapsed < at.smokeAt) return 'walk';
+      if(elapsed < at.waitAt) return 'smoke';
+      if(elapsed < at.finishAt) return 'wait';
       return 'done';
     }
 
@@ -73,6 +87,7 @@
         herImg:players.her.img,
         himImg:players.him.img
       };
+      scene.fall = Math.random() < .10;
       players.her.img = herSkin;
       players.him.img = himSkin;
       players.her.frame = players.him.frame = 0;
@@ -86,6 +101,8 @@
     function finishScene(){
       const c = center();
       const target = smokeTarget();
+      const face = facePlantTarget();
+      const fell = scene.fall;
       players.her.img = scene.original.herImg;
       players.him.img = scene.original.himImg;
 
@@ -95,14 +112,15 @@
       players.her.frame = 0;
       players.her.frameTimer = 0;
 
-      players.him.x = c.x - 34;
-      players.him.y = hammock.y + hammock.h - 4;
+      players.him.x = fell ? face.x : c.x - 34;
+      players.him.y = fell ? face.y + facePlantZone.h/2 : hammock.y + hammock.h - 4;
       players.him.dir = 'down';
       players.him.frame = 0;
       players.him.frameTimer = 0;
 
       scene.active = false;
       scene.original = null;
+      scene.fall = false;
     }
 
     function frame(now, rate){
@@ -204,15 +222,73 @@
       drawFlyingHearts(now);
     }
 
+    function drawImpact(now, target, strength){
+      ctx.save();
+      const x = target.x-camera.x-48;
+      const y = target.y-camera.y+4;
+      ctx.strokeStyle = '#ffe18b';
+      ctx.fillStyle = 'rgba(225,190,140,.72)';
+      ctx.lineWidth = 3;
+      for(let i=0;i<6;i++){
+        const a = (Math.PI*2*i)/6 + now/700;
+        const inner = 12 + strength*8;
+        const outer = 24 + strength*18;
+        ctx.beginPath();
+        ctx.moveTo(x+Math.cos(a)*inner,y+Math.sin(a)*inner*.5);
+        ctx.lineTo(x+Math.cos(a)*outer,y+Math.sin(a)*outer*.5);
+        ctx.stroke();
+      }
+      for(let i=0;i<5;i++){
+        const a = i*1.7 + now/900;
+        ctx.globalAlpha = .55*(1-strength*.25);
+        ctx.beginPath();
+        ctx.arc(x+Math.cos(a)*(18+i*3),y+8+Math.sin(a)*8,4+i,0,Math.PI*2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function drawFacePlant(now, elapsed){
+      const c = center();
+      const target = facePlantTarget();
+      const at = timeline();
+      const raw = clamp((elapsed-at.fallAt)/times.fall,0,1);
+      const t = ease(raw);
+      const start = {x:c.x+33,y:c.y+2};
+      const x = start.x + (target.x-start.x)*t;
+      const y = start.y + (target.y-start.y)*t - Math.sin(Math.PI*t)*72;
+      const spin = Math.PI/2 + Math.sin(Math.PI*t)*Math.PI*1.35;
+
+      drawActor(herSkin,'her','down',0,c.x-18,hammock.y+hammock.h-10,{size:128});
+      drawActor(himSkin,'him','down',frame(now,120),x,y,
+        {rotation:spin,centered:true,size:128});
+
+      if(raw > .62){
+        drawImpact(now,target,(raw-.62)/.38);
+      }
+    }
+
+    function drawFallenHim(now){
+      const target = facePlantTarget();
+      const twitch = Math.sin(now/95)*1.5;
+      drawActor(himSkin,'him','down',0,target.x,target.y+twitch,
+        {rotation:Math.PI/2,centered:true,size:128});
+    }
+
     function drawWalk(now, elapsed){
       const c = center();
       const target = smokeTarget();
       const from = {x:c.x-14,y:hammock.y+hammock.h-10};
-      const t = ease((elapsed-walkAt)/times.walk);
+      const at = timeline();
+      const t = ease((elapsed-at.walkAt)/times.walk);
       const x = from.x + (target.x-from.x)*t;
       const y = from.y + (target.y-from.y)*t;
-      drawActor(himSkin,'him','down',0,c.x+30,c.y+2,
-        {rotation:Math.PI/2,centered:true,size:128});
+      if(scene.fall){
+        drawFallenHim(now);
+      } else {
+        drawActor(himSkin,'him','down',0,c.x+30,c.y+2,
+          {rotation:Math.PI/2,centered:true,size:128});
+      }
       drawActor(herSkin,'her','up',frame(now,135),x,y,{size:128});
     }
 
@@ -250,8 +326,12 @@
       const c = center();
       const target = smokeTarget();
       const breathe = Math.sin(now/420)*1.5;
-      drawActor(himSkin,'him','down',0,c.x+30,c.y+2+breathe,
-        {rotation:Math.PI/2,centered:true,size:128});
+      if(scene.fall){
+        drawFallenHim(now);
+      } else {
+        drawActor(himSkin,'him','down',0,c.x+30,c.y+2+breathe,
+          {rotation:Math.PI/2,centered:true,size:128});
+      }
       drawActor(herSkin,'her','right',0,target.x,target.y+breathe*.25,{size:128});
       if(smoking){
         drawCigarette(target);
@@ -269,6 +349,7 @@
         drawPinkLighting();
         drawPoseTwo(now);
       }
+      if(current === 'fall') drawFacePlant(now,elapsed);
       if(current === 'walk') drawWalk(now,elapsed);
       if(current === 'smoke') drawAtLookout(now,true);
       if(current === 'wait') drawAtLookout(now,false);
@@ -314,6 +395,13 @@
         ctx.fillStyle = '#fff';
         ctx.font = '13px monospace';
         ctx.fillText('smoke spot',smokeZone.x-camera.x+4,smokeZone.y-camera.y-7);
+
+        ctx.fillStyle = 'rgba(255,115,80,.26)';
+        ctx.strokeStyle = '#ff7350';
+        ctx.fillRect(facePlantZone.x-camera.x,facePlantZone.y-camera.y,facePlantZone.w,facePlantZone.h);
+        ctx.strokeRect(facePlantZone.x-camera.x,facePlantZone.y-camera.y,facePlantZone.w,facePlantZone.h);
+        ctx.fillStyle = '#fff';
+        ctx.fillText('10% face plant',facePlantZone.x-camera.x+4,facePlantZone.y-camera.y-7);
         ctx.restore();
       }
     };
@@ -322,7 +410,7 @@
       start:() => startScene(performance.now()),
       stop:() => scene.active && finishScene(),
       state:scene,
-      zones:{hammock,missingBrick,smoke:smokeZone}
+      zones:{hammock,missingBrick,smoke:smokeZone,facePlant:facePlantZone}
     };
   } catch(error){
     console.warn('top-silo hammock event failed',error);
