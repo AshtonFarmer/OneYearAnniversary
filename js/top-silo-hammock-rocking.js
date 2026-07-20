@@ -33,8 +33,6 @@
       return Math.max(min, Math.min(max, value));
     }
 
-    // Every pose lasts ten seconds.
-    // First five seconds move slowly. The final five move faster.
     function movement(localElapsed, slowAmount, fastAmount){
       const local = clamp(localElapsed, 0, 9999);
       const slowLength = 5000;
@@ -94,8 +92,6 @@
       }
     }
 
-    // x/y are the exact world coordinates of the character's hip.
-    // Rotation and scaling happen around that hip so it never leaves the target.
     function drawActorAtHip(image, who, dir, spriteFrame, x, y, options){
       if(!image || !image.complete || !image.naturalWidth) return;
       options = options || {};
@@ -109,10 +105,9 @@
       const sy = row * cellH;
       const visible = getVisibleBounds(image,sx,sy,cellW,cellH);
 
-      // The hips sit a little below the center of each visible chibi body.
       const hipRatioY = who === 'him' ? .62 : .61;
-      const sourceHipX = visible.x + visible.w * .5;
-      const sourceHipY = visible.y + visible.h * hipRatioY;
+      const sourceHipX = visible.x + visible.w * .5 + (options.sourceHipOffsetX || 0) * cellW;
+      const sourceHipY = visible.y + visible.h * hipRatioY + (options.sourceHipOffsetY || 0) * cellH;
       const drawX = -(sourceHipX / cellW) * size;
       const drawY = -(sourceHipY / cellH) * size;
       const mirror = who === 'him' && dir === 'left';
@@ -130,27 +125,23 @@
       const local = secondPose ? elapsed - 10000 : elapsed;
 
       if(!secondPose){
-        // First position: both hips stay at the exact shared target.
-        // She lies still. Only he sways left and right around his hip.
         const himLean = movement(local,.055,.15);
         drawActorAtHip(players.her.img,'her','down',0,
           hipTarget.x,hipTarget.y,
           {rotation:Math.PI/2,size:128});
         drawActorAtHip(players.him.img,'him','right',0,
           hipTarget.x,hipTarget.y,
-          {rotation:himLean,size:128});
+          {rotation:himLean,size:128,sourceHipOffsetX:.085,sourceHipOffsetY:.065});
         return;
       }
 
-      // Second position: both hips stay at the exact shared target.
-      // He lies still. Only she makes a small up/down motion around her hip.
       const herStretch = movement(local,.018,.045);
       drawActorAtHip(players.him.img,'him','down',0,
         hipTarget.x,hipTarget.y,
         {rotation:Math.PI/2,size:128});
       drawActorAtHip(players.her.img,'her','right',0,
         hipTarget.x,hipTarget.y,
-        {scaleY:1+herStretch,size:128});
+        {scaleY:1+herStretch,size:128,sourceHipOffsetX:.085,sourceHipOffsetY:.065});
     }
 
     const previousDraw = draw;
