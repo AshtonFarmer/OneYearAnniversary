@@ -18,12 +18,19 @@
 
     const smokeZone = {x:600, y:365, w:63, h:49};
     const facePlantZone = {x:467, y:575, w:292, h:57};
+    const hipZone = {x:638, y:492, w:7, h:1};
+
     const herSkin = new Image();
     const himSkin = new Image();
     herSkin.src = 'assets/sprites/her_skin.png';
     himSkin.src = 'assets/sprites/him_skin.png';
 
     const times = {
+      approach:4200,
+      gaze:2600,
+      kiss1:1800,
+      kiss2:2400,
+      change:650,
       pose1:10000,
       pose2:10000,
       fall:2800,
@@ -36,11 +43,24 @@
       active:false,
       started:0,
       original:null,
-      fall:false
+      fall:false,
+      skinApplied:false
     };
 
     function center(){
       return {x:hammock.x + hammock.w/2, y:hammock.y + hammock.h/2};
+    }
+
+    function hipTarget(){
+      return {x:hipZone.x + hipZone.w/2, y:hipZone.y + hipZone.h/2};
+    }
+
+    function meetingTargets(){
+      const hip = hipTarget();
+      return {
+        her:{x:hip.x-34,y:hip.y+72},
+        him:{x:hip.x+34,y:hip.y+72}
+      };
     }
 
     function smokeTarget(){
@@ -60,18 +80,32 @@
       return t < .5 ? 2*t*t : 1 - Math.pow(-2*t+2,2)/2;
     }
 
+    function lerp(a,b,t){
+      return a + (b-a)*t;
+    }
+
     function timeline(){
-      const pose2At = times.pose1;
+      const gazeAt = times.approach;
+      const kiss1At = gazeAt + times.gaze;
+      const kiss2At = kiss1At + times.kiss1;
+      const changeAt = kiss2At + times.kiss2;
+      const pose1At = changeAt + times.change;
+      const pose2At = pose1At + times.pose1;
       const fallAt = pose2At + times.pose2;
       const walkAt = fallAt + (scene.fall ? times.fall : 0);
       const smokeAt = walkAt + times.walk;
       const waitAt = smokeAt + times.smoke;
       const finishAt = waitAt + times.wait;
-      return {pose2At,fallAt,walkAt,smokeAt,waitAt,finishAt};
+      return {gazeAt,kiss1At,kiss2At,changeAt,pose1At,pose2At,fallAt,walkAt,smokeAt,waitAt,finishAt};
     }
 
     function phase(elapsed){
       const at = timeline();
+      if(elapsed < at.gazeAt) return 'approach';
+      if(elapsed < at.kiss1At) return 'gaze';
+      if(elapsed < at.kiss2At) return 'kiss1';
+      if(elapsed < at.changeAt) return 'kiss2';
+      if(elapsed < at.pose1At) return 'change';
       if(elapsed < at.pose2At) return 'pose1';
       if(elapsed < at.fallAt) return 'pose2';
       if(scene.fall && elapsed < at.walkAt) return 'fall';
@@ -81,16 +115,56 @@
       return 'done';
     }
 
+    function cinematicStandingPositions(elapsed){
+      const at = timeline();
+      const meet = meetingTargets();
+      const original = scene.original;
+      if(elapsed < at.gazeAt){
+        const t = ease(elapsed/times.approach);
+        return {
+          her:{x:lerp(original.herX,meet.her.x,t),y:lerp(original.herY,meet.her.y,t)},
+          him:{x:lerp(original.himX,meet.him.x,t),y:lerp(original.himY,meet.him.y,t)}
+        };
+      }
+
+      let closeness = 0;
+      if(elapsed >= at.kiss1At && elapsed < at.kiss2At){
+        closeness = ease((elapsed-at.kiss1At)/times.kiss1)*9;
+      } else if(elapsed >= at.kiss2At){
+        closeness = 9 + ease((elapsed-at.kiss2At)/times.kiss2)*8;
+      }
+
+      return {
+        her:{x:meet.her.x+closeness,y:meet.her.y},
+        him:{x:meet.him.x-closeness,y:meet.him.y}
+      };
+    }
+
+    function applySkin(){
+      if(scene.skinApplied) return;
+      players.her.img = herSkin;
+      players.him.img = himSkin;
+      players.her.frame = 0;
+      players.him.frame = 0;
+      scene.skinApplied = true;
+    }
+
     function startScene(now){
       if(scene.active) return;
       scene.original = {
         herImg:players.her.img,
-        himImg:players.him.img
+        himImg:players.him.img,
+        herX:players.her.x,
+        herY:players.her.y,
+        himX:players.him.x,
+        himY:players.him.y,
+        herDir:players.her.dir,
+        himDir:players.him.dir
       };
-      scene.fall = Math.random() < .10;
-      players.her.img = herSkin;
-      players.him.img = himSkin;
-      players.her.frame = players.him.frame = 0;
+      scene.fall = Math.random() < .25;
+      scene.skinApplied = false;
+      players.her.frame = 0;
+      players.him.frame = 0;
       viewingLookout = false;
       scene.active = true;
       scene.started = now;
@@ -121,19 +195,15 @@
       scene.active = false;
       scene.original = null;
       scene.fall = false;
+      scene.skinApplied = false;
     }
 
     function frame(now, rate){
       return Math.floor(now / rate) % 4;
     }
 
-    function direction(now, offset){
-      const dirs = ['right','down','left','up'];
-      return dirs[Math.floor((now + (offset || 0)) / 2500) % 4];
-    }
-
     function drawActor(img, who, dir, spriteFrame, x, y, options){
-      if(!img.complete || !img.naturalWidth) return;
+      if(!img || !img.complete || !img.naturalWidth) return;
       options = options || {};
       const rows = who === 'him' ? players.him.rows : players.her.rows;
       const row = rows[dir] === undefined ? 0 : rows[dir];
@@ -156,14 +226,12 @@
       ctx.restore();
     }
 
-    function drawHeart(x,y,size,alpha){
-      const pixels = [
-        '0110110','1111111','1111111','0111110','0011100','0001000'
-      ];
+    function drawHeart(x,y,size,alpha,color){
+      const pixels = ['0110110','1111111','1111111','0111110','0011100','0001000'];
       const unit = Math.max(1, Math.round(size/7));
       ctx.save();
       ctx.globalAlpha = alpha;
-      ctx.fillStyle = '#ff6faf';
+      ctx.fillStyle = color || '#ff6faf';
       ctx.shadowColor = '#ff9dcc';
       ctx.shadowBlur = unit*3;
       pixels.forEach((line,row) => {
@@ -174,52 +242,119 @@
       ctx.restore();
     }
 
-    function drawPinkLighting(){
-      const c = center();
-      const x = c.x-camera.x;
-      const y = c.y-camera.y;
+    function drawPinkLightingAt(worldX,worldY,strength){
+      const x = worldX-camera.x;
+      const y = worldY-camera.y;
+      const s = clamp(strength === undefined ? 1 : strength,0,1.35);
       ctx.save();
-      ctx.fillStyle = 'rgba(12,0,18,.46)';
+      ctx.fillStyle = `rgba(12,0,18,${.20+.27*s})`;
       ctx.fillRect(0,0,canvas.width,canvas.height);
-      const glow = ctx.createRadialGradient(x,y,15,x,y,235);
-      glow.addColorStop(0,'rgba(255,120,190,.42)');
-      glow.addColorStop(.5,'rgba(255,105,180,.20)');
+      const glow = ctx.createRadialGradient(x,y,15,x,y,245);
+      glow.addColorStop(0,`rgba(255,120,190,${.22+.25*s})`);
+      glow.addColorStop(.5,`rgba(255,105,180,${.10+.14*s})`);
       glow.addColorStop(1,'rgba(255,105,180,0)');
       ctx.fillStyle = glow;
-      ctx.fillRect(x-250,y-250,500,500);
+      ctx.fillRect(x-260,y-260,520,520);
       ctx.restore();
     }
 
-    function drawFlyingHearts(now){
-      const c = center();
-      for(let i=0;i<10;i++){
-        const t = ((now/1700) + i*.137) % 1;
-        const x = c.x + Math.sin(i*2.1 + now/700)*95 + (i%2 ? 24 : -24);
-        const y = c.y + 52 - t*155;
+    function drawFlyingHearts(now,worldX,worldY,count,speed,spread){
+      const total = count || 10;
+      const heartSpeed = speed || 1700;
+      const radius = spread || 95;
+      for(let i=0;i<total;i++){
+        const t = ((now/heartSpeed) + i/total) % 1;
+        const x = worldX + Math.sin(i*2.1 + now/700)*radius + (i%2 ? 18 : -18);
+        const y = worldY + 52 - t*155;
         const alpha = Math.sin(Math.PI*t);
-        drawHeart(x-camera.x,y-camera.y,11+(i%4)*2,alpha);
+        drawHeart(x-camera.x,y-camera.y,10+(i%4)*2,alpha);
       }
+    }
+
+    function drawSwirlingHearts(now,positions,intensity){
+      const midX = (positions.her.x+positions.him.x)/2;
+      const midY = (positions.her.y+positions.him.y)/2-58;
+      const count = Math.round(6+intensity*8);
+      for(let i=0;i<count;i++){
+        const angle = now/(900-300*intensity) + i*(Math.PI*2/count);
+        const radiusX = 45+intensity*25;
+        const radiusY = 24+intensity*18;
+        const rise = ((now/1800+i/count)%1)*28;
+        const x = midX + Math.cos(angle)*radiusX;
+        const y = midY + Math.sin(angle)*radiusY-rise;
+        drawHeart(x-camera.x,y-camera.y,9+(i%3)*2,.50+.45*intensity);
+      }
+    }
+
+    function drawApproach(now,elapsed){
+      const positions = cinematicStandingPositions(elapsed);
+      const progress = clamp(elapsed/times.approach,0,1);
+      const herMoving = Math.abs(positions.her.x-scene.original.herX)+Math.abs(positions.her.y-scene.original.herY) > 2;
+      const himMoving = Math.abs(positions.him.x-scene.original.himX)+Math.abs(positions.him.y-scene.original.himY) > 2;
+      const herDir = positions.her.x >= scene.original.herX ? 'right' : 'left';
+      const himDir = positions.him.x >= scene.original.himX ? 'right' : 'left';
+      const midX = (positions.her.x+positions.him.x)/2;
+      const midY = (positions.her.y+positions.him.y)/2-45;
+      drawPinkLightingAt(midX,midY,.35+.65*progress);
+      drawSwirlingHearts(now,positions,.30+.55*progress);
+      drawActor(scene.original.herImg,'her',herDir,herMoving ? frame(now,145) : 0,positions.her.x,positions.her.y,{size:128});
+      drawActor(scene.original.himImg,'him',himDir,himMoving ? frame(now,145) : 0,positions.him.x,positions.him.y,{size:128});
+    }
+
+    function drawGazeOrKiss(now,elapsed,current){
+      const positions = cinematicStandingPositions(elapsed);
+      const at = timeline();
+      let intensity = .65;
+      let kissBob = 0;
+      let lean = 0;
+      if(current === 'kiss1'){
+        intensity = .95;
+        const t = ease((elapsed-at.kiss1At)/times.kiss1);
+        lean = t*.035;
+        kissBob = Math.sin(now/260)*1.2*t;
+      }
+      if(current === 'kiss2'){
+        const t = ease((elapsed-at.kiss2At)/times.kiss2);
+        intensity = 1.05+.25*t;
+        lean = .035+Math.sin(now/300)*.018;
+        kissBob = Math.sin(now/190)*(1.5+1.5*t);
+      }
+      const midX = (positions.her.x+positions.him.x)/2;
+      const midY = (positions.her.y+positions.him.y)/2-48;
+      drawPinkLightingAt(midX,midY,intensity);
+      drawSwirlingHearts(now,positions,intensity);
+      if(current !== 'gaze') drawFlyingHearts(now,midX,midY,Math.round(7+intensity*6),1200,60);
+      drawActor(scene.original.herImg,'her','right',0,positions.her.x,positions.her.y+kissBob,{rotation:-lean,size:128});
+      drawActor(scene.original.himImg,'him','left',0,positions.him.x,positions.him.y-kissBob,{rotation:lean,size:128});
+    }
+
+    function drawChange(now,elapsed){
+      const positions = cinematicStandingPositions(elapsed);
+      const at = timeline();
+      const t = clamp((elapsed-at.changeAt)/times.change,0,1);
+      const midX = (positions.her.x+positions.him.x)/2;
+      const midY = (positions.her.y+positions.him.y)/2-45;
+      drawPinkLightingAt(midX,midY,1.25);
+      drawSwirlingHearts(now,positions,1.25);
+      ctx.save();
+      const flash = Math.sin(Math.PI*t);
+      ctx.fillStyle = `rgba(255,205,235,${flash*.48})`;
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.restore();
+      drawActor(scene.original.herImg,'her','right',0,positions.her.x,positions.her.y,{size:128});
+      drawActor(scene.original.himImg,'him','left',0,positions.him.x,positions.him.y,{size:128});
     }
 
     function drawPoseOne(now){
       const c = center();
-      const sway = Math.sin(now/280)*3;
-      const bob = Math.cos(now/330)*2;
-      drawActor(herSkin,'her','down',frame(now,320),c.x+28+sway,c.y+bob,
-        {rotation:Math.PI/2,centered:true,size:128});
-      drawActor(himSkin,'him',direction(now),frame(now,165),c.x-24+sway*.45,
-        hammock.y+hammock.h-10+bob,{size:128});
+      drawActor(herSkin,'her','down',0,c.x+28,c.y,{rotation:Math.PI/2,centered:true,size:128});
+      drawActor(himSkin,'him','right',0,c.x-24,hammock.y+hammock.h-10,{size:128});
     }
 
     function drawPoseTwo(now){
       const c = center();
-      const sway = Math.sin(now/240)*3;
-      const bob = Math.cos(now/310)*2;
-      drawActor(himSkin,'him','down',frame(now,330),c.x+33+sway,c.y+2+bob,
-        {rotation:Math.PI/2,centered:true,size:128});
-      drawActor(herSkin,'her',direction(now,1250),frame(now,165),c.x-15+sway*.35,
-        hammock.y+hammock.h-10+bob,{size:128});
-      drawFlyingHearts(now);
+      drawActor(himSkin,'him','down',0,c.x+33,c.y+2,{rotation:Math.PI/2,centered:true,size:128});
+      drawActor(herSkin,'her','right',0,c.x-15,hammock.y+hammock.h-10,{size:128});
     }
 
     function drawImpact(now, target, strength){
@@ -258,21 +393,15 @@
       const x = start.x + (target.x-start.x)*t;
       const y = start.y + (target.y-start.y)*t - Math.sin(Math.PI*t)*72;
       const spin = Math.PI/2 + Math.sin(Math.PI*t)*Math.PI*1.35;
-
       drawActor(herSkin,'her','down',0,c.x-18,hammock.y+hammock.h-10,{size:128});
-      drawActor(himSkin,'him','down',frame(now,120),x,y,
-        {rotation:spin,centered:true,size:128});
-
-      if(raw > .62){
-        drawImpact(now,target,(raw-.62)/.38);
-      }
+      drawActor(himSkin,'him','down',frame(now,120),x,y,{rotation:spin,centered:true,size:128});
+      if(raw > .62) drawImpact(now,target,(raw-.62)/.38);
     }
 
     function drawFallenHim(now){
       const target = facePlantTarget();
       const twitch = Math.sin(now/95)*1.5;
-      drawActor(himSkin,'him','down',0,target.x,target.y+twitch,
-        {rotation:Math.PI/2,centered:true,size:128});
+      drawActor(himSkin,'him','down',0,target.x,target.y+twitch,{rotation:Math.PI/2,centered:true,size:128});
     }
 
     function drawWalk(now, elapsed){
@@ -283,12 +412,8 @@
       const t = ease((elapsed-at.walkAt)/times.walk);
       const x = from.x + (target.x-from.x)*t;
       const y = from.y + (target.y-from.y)*t;
-      if(scene.fall){
-        drawFallenHim(now);
-      } else {
-        drawActor(himSkin,'him','down',0,c.x+30,c.y+2,
-          {rotation:Math.PI/2,centered:true,size:128});
-      }
+      if(scene.fall) drawFallenHim(now);
+      else drawActor(himSkin,'him','down',0,c.x+30,c.y+2,{rotation:Math.PI/2,centered:true,size:128});
       drawActor(herSkin,'her','up',frame(now,135),x,y,{size:128});
     }
 
@@ -326,16 +451,47 @@
       const c = center();
       const target = smokeTarget();
       const breathe = Math.sin(now/420)*1.5;
-      if(scene.fall){
-        drawFallenHim(now);
-      } else {
-        drawActor(himSkin,'him','down',0,c.x+30,c.y+2+breathe,
-          {rotation:Math.PI/2,centered:true,size:128});
-      }
+      if(scene.fall) drawFallenHim(now);
+      else drawActor(himSkin,'him','down',0,c.x+30,c.y+2+breathe,{rotation:Math.PI/2,centered:true,size:128});
       drawActor(herSkin,'her','right',0,target.x,target.y+breathe*.25,{size:128});
       if(smoking){
         drawCigarette(target);
         drawSmoke(now,target);
+      }
+    }
+
+    function updateCinematicAnchors(elapsed,current){
+      const at = timeline();
+      if(elapsed < at.pose1At){
+        const positions = cinematicStandingPositions(elapsed);
+        players.her.x = positions.her.x;
+        players.her.y = positions.her.y;
+        players.him.x = positions.him.x;
+        players.him.y = positions.him.y;
+        return;
+      }
+      if(current === 'pose1' || current === 'pose2' || current === 'change'){
+        const hip = hipTarget();
+        players.her.x = hip.x-18;
+        players.her.y = hip.y+55;
+        players.him.x = hip.x+18;
+        players.him.y = hip.y+55;
+        return;
+      }
+      if(current === 'fall'){
+        const face = facePlantTarget();
+        players.her.x = center().x-18;
+        players.her.y = hammock.y+hammock.h-10;
+        players.him.x = face.x;
+        players.him.y = face.y;
+        return;
+      }
+      if(current === 'walk' || current === 'smoke' || current === 'wait'){
+        const target = smokeTarget();
+        players.her.x = target.x;
+        players.her.y = target.y;
+        players.him.x = scene.fall ? facePlantTarget().x : center().x+30;
+        players.him.y = scene.fall ? facePlantTarget().y : center().y+2;
       }
     }
 
@@ -344,22 +500,36 @@
       const now = performance.now();
       const elapsed = now-scene.started;
       const current = phase(elapsed);
-      if(current === 'pose1') drawPoseOne(now);
-      if(current === 'pose2'){
-        drawPinkLighting();
-        drawPoseTwo(now);
+      const at = timeline();
+
+      if(current === 'approach') drawApproach(now,elapsed);
+      if(current === 'gaze' || current === 'kiss1' || current === 'kiss2') drawGazeOrKiss(now,elapsed,current);
+      if(current === 'change') drawChange(now,elapsed);
+      if(current === 'pose1' || current === 'pose2'){
+        const c = center();
+        drawPinkLightingAt(c.x,c.y,1.15);
+        drawFlyingHearts(now,c.x,c.y,12,1450,100);
+        if(current === 'pose1') drawPoseOne(now);
+        else drawPoseTwo(now);
       }
       if(current === 'fall') drawFacePlant(now,elapsed);
       if(current === 'walk') drawWalk(now,elapsed);
       if(current === 'smoke') drawAtLookout(now,true);
       if(current === 'wait') drawAtLookout(now,false);
+
+      if(elapsed >= at.pose1At && !scene.skinApplied) applySkin();
     }
 
     const oldUpdate = update;
     update = function(){
       const now = performance.now();
       if(scene.active){
-        if(phase(now-scene.started) === 'done') finishScene();
+        const elapsed = now-scene.started;
+        const current = phase(elapsed);
+        const at = timeline();
+        if(elapsed >= at.pose1At) applySkin();
+        updateCinematicAnchors(elapsed,current);
+        if(current === 'done') finishScene();
         const prompt = document.getElementById('prompt');
         if(prompt) prompt.style.display = 'none';
         lastE = !!keys.e;
@@ -401,7 +571,7 @@
         ctx.fillRect(facePlantZone.x-camera.x,facePlantZone.y-camera.y,facePlantZone.w,facePlantZone.h);
         ctx.strokeRect(facePlantZone.x-camera.x,facePlantZone.y-camera.y,facePlantZone.w,facePlantZone.h);
         ctx.fillStyle = '#fff';
-        ctx.fillText('10% face plant',facePlantZone.x-camera.x+4,facePlantZone.y-camera.y-7);
+        ctx.fillText('25% face plant',facePlantZone.x-camera.x+4,facePlantZone.y-camera.y-7);
         ctx.restore();
       }
     };
@@ -410,7 +580,10 @@
       start:() => startScene(performance.now()),
       stop:() => scene.active && finishScene(),
       state:scene,
-      zones:{hammock,missingBrick,smoke:smokeZone,facePlant:facePlantZone}
+      times,
+      timeline,
+      phase,
+      zones:{hammock,missingBrick,smoke:smokeZone,facePlant:facePlantZone,hip:hipZone}
     };
   } catch(error){
     console.warn('top-silo hammock event failed',error);
