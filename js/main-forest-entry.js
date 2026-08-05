@@ -6,14 +6,19 @@
   if(typeof locs === 'undefined' || typeof players === 'undefined') return;
 
   const forestEntrance = {
-    x:1453,
-    y:248,
-    w:80,
-    h:60
+    x:1454,
+    y:257,
+    w:82,
+    h:43
   };
 
+  // Remove any older Forest Trail entry before installing the corrected doorway.
+  for(let index=locs.length-1;index>=0;index--){
+    if(locs[index] && locs[index].name === 'Forest Trail') locs.splice(index,1);
+  }
+
   // The original location system uses circles. Add rectangle-aware distance
-  // support so this doorway activates only inside the selected 80 x 60 box.
+  // support so this doorway activates only inside the selected 82 x 43 box.
   if(typeof distPlayerLoc === 'function' && !window.__forestRectangleLocations){
     const originalDistPlayerLoc = distPlayerLoc;
 
@@ -71,12 +76,12 @@
       sessionStorage.removeItem('forestSwingReturn');
 
       players.her.x = forestEntrance.x - 28;
-      players.her.y = forestEntrance.y + 18;
+      players.her.y = forestEntrance.y + 13;
       players.her.dir = 'right';
       players.her.frame = 0;
 
       players.him.x = forestEntrance.x - 28;
-      players.him.y = forestEntrance.y + 44;
+      players.him.y = forestEntrance.y + 32;
       players.him.dir = 'right';
       players.him.frame = 0;
     }
