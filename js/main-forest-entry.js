@@ -11,6 +11,84 @@
     w:82,
     h:43
   };
+  let enteringForest = false;
+
+  function playerInsideEntrance(player){
+    return !!player &&
+      player.x >= forestEntrance.x &&
+      player.x <= forestEntrance.x + forestEntrance.w &&
+      player.y >= forestEntrance.y &&
+      player.y <= forestEntrance.y + forestEntrance.h;
+  }
+
+  function playEntryThwip(){
+    const AudioCtor=window.AudioContext || window.webkitAudioContext;
+    if(!AudioCtor) return;
+
+    try{
+      const context=new AudioCtor();
+      const now=context.currentTime+.004;
+      const oscillator=context.createOscillator();
+      const gain=context.createGain();
+      oscillator.type='triangle';
+      oscillator.frequency.setValueAtTime(980,now);
+      oscillator.frequency.exponentialRampToValueAtTime(120,now+.2);
+      gain.gain.setValueAtTime(.0001,now);
+      gain.gain.exponentialRampToValueAtTime(.28,now+.008);
+      gain.gain.exponentialRampToValueAtTime(.0001,now+.21);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start(now);
+      oscillator.stop(now+.22);
+      window.setTimeout(() => context.close().catch(() => {}),420);
+    } catch(error){}
+  }
+
+  function fadePageMusic(){
+    const music=document.getElementById('bgm');
+    if(!music || music.paused) return;
+    const startVolume=music.volume;
+    const startedAt=performance.now();
+
+    function fade(now){
+      const progress=Math.min(1,(now-startedAt)/430);
+      music.volume=startVolume*(1-progress);
+      if(progress<1){
+        requestAnimationFrame(fade);
+      } else {
+        music.pause();
+        music.volume=startVolume;
+      }
+    }
+
+    requestAnimationFrame(fade);
+  }
+
+  function enterForest(){
+    if(enteringForest) return;
+    enteringForest=true;
+    playEntryThwip();
+    fadePageMusic();
+
+    const fade=document.createElement('div');
+    fade.setAttribute('aria-hidden','true');
+    fade.style.position='fixed';
+    fade.style.inset='0';
+    fade.style.zIndex='100000';
+    fade.style.pointerEvents='none';
+    fade.style.opacity='0';
+    fade.style.background='radial-gradient(circle at 88% 22%,rgba(34,86,62,.42),rgba(2,11,13,.98) 68%)';
+    fade.style.transition='opacity 520ms ease-in';
+    document.body.appendChild(fade);
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => { fade.style.opacity='1'; });
+    });
+
+    window.setTimeout(() => {
+      window.location.href='forest-swing.html';
+    },620);
+  }
 
   // Remove any older Forest Trail entry before installing the corrected doorway.
   for(let index=locs.length-1;index>=0;index--){
@@ -52,6 +130,18 @@
     page:'forest-swing.html',
     text:'Press E to enter the forest trail 🌲'
   });
+
+  // Capture E before the main game performs its normal instant page change.
+  // This keeps the exact doorway trigger while giving the forest a cinematic fade.
+  window.addEventListener('keydown',event => {
+    if(event.key.toLowerCase()!=='e' || event.repeat || enteringForest) return;
+    if(!playerInsideEntrance(players.her) && !playerInsideEntrance(players.him)) return;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if(typeof keys!=='undefined') keys.e=false;
+    enterForest();
+  },{capture:true});
 
   // Show the exact rectangle when G debug mode is enabled.
   if(typeof drawDebugZones === 'function' && !window.__forestRectangleDebug){
