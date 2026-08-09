@@ -114,12 +114,19 @@
   let currentPanel = -1;
   let chapterTimer = 0;
   let riderPoses = [];
+  let ambientParticles = [];
+  let impactParticles = [];
+  let ambientSpawnCarry = 0;
+  let landingRevealTimer = 0;
+  let landingPanelShown = false;
 
   function clamp(value,min,max){ return Math.max(min,Math.min(max,value)); }
   function mix(a,b,t){ return a + (b-a)*t; }
   function easeInOut(t){ return .5 - Math.cos(clamp(t,0,1)*Math.PI)/2; }
   function easeOut(t){ return 1-Math.pow(1-clamp(t,0,1),3); }
   function pointMix(a,b,t){ return {x:mix(a.x,b.x,t),y:mix(a.y,b.y,t)}; }
+
+  function randomBetween(min,max){ return min+Math.random()*(max-min); }
 
   function resize(){
     const dpr = Math.min(window.devicePixelRatio || 1,2);
@@ -294,6 +301,156 @@
     });
   }
 
+  function spawnAmbientParticle(){
+    const viewW=canvas.width/sceneScale;
+    const viewH=canvas.height/sceneScale;
+    const visibleTop=Math.max(45,camera.y+45);
+    const visibleBottom=Math.max(visibleTop+1,Math.min(WORLD_H-45,camera.y+viewH-70));
+    const roll=Math.random();
+    const type=roll<.52 ? 'leaf' : (roll<.72 ? 'petal' : 'streak');
+    const life=type==='streak' ? randomBetween(.34,.58) : randomBetween(1.7,2.8);
+    ambientParticles.push({
+      type,
+      x:camera.x+viewW+randomBetween(10,120),
+      y:randomBetween(visibleTop,visibleBottom),
+      vx:type==='streak' ? randomBetween(-720,-500) : randomBetween(-64,-28),
+      vy:type==='petal' ? randomBetween(4,18) : randomBetween(-10,18),
+      life,
+      maxLife:life,
+      size:type==='streak' ? randomBetween(24,54) : randomBetween(3,6),
+      angle:randomBetween(0,Math.PI*2),
+      spin:randomBetween(-3.4,3.4),
+      phase:randomBetween(0,Math.PI*2)
+    });
+  }
+
+  function spawnLandingImpact(){
+    riders.forEach(rider => {
+      const groundX=rider.landing.x;
+      const groundY=rider.landing.y+54;
+
+      for(let i=0;i<10;i++){
+        const life=randomBetween(.55,.95);
+        impactParticles.push({
+          type:'dust',
+          x:groundX+randomBetween(-24,24),
+          y:groundY+randomBetween(-4,4),
+          vx:randomBetween(-58,58),
+          vy:randomBetween(-75,-24),
+          life,
+          maxLife:life,
+          size:randomBetween(4,9),
+          gravity:88
+        });
+      }
+
+      for(let i=0;i<8;i++){
+        const life=randomBetween(.75,1.25);
+        impactParticles.push({
+          type:'leaf',
+          x:groundX+randomBetween(-18,18),
+          y:groundY-3,
+          vx:randomBetween(-95,95),
+          vy:randomBetween(-145,-62),
+          life,
+          maxLife:life,
+          size:randomBetween(3,6),
+          gravity:130,
+          angle:randomBetween(0,Math.PI*2),
+          spin:randomBetween(-6,6)
+        });
+      }
+    });
+  }
+
+  function updateParticles(dt,allowAmbient){
+    if(allowAmbient && sceneTime>INTRO_DURATION+.15 && !landed){
+      ambientSpawnCarry+=dt*8.5;
+      while(ambientSpawnCarry>=1){
+        spawnAmbientParticle();
+        ambientSpawnCarry--;
+      }
+    }
+
+    ambientParticles.forEach(particle => {
+      particle.life-=dt;
+      particle.x+=particle.vx*dt;
+      particle.y+=(particle.vy+Math.sin(sceneTime*5+particle.phase)*10)*dt;
+      particle.angle+=particle.spin*dt;
+    });
+    ambientParticles=ambientParticles.filter(particle => particle.life>0 && particle.x>camera.x-120);
+
+    impactParticles.forEach(particle => {
+      particle.life-=dt;
+      particle.x+=particle.vx*dt;
+      particle.y+=particle.vy*dt;
+      particle.vy+=(particle.gravity || 0)*dt;
+      if(typeof particle.angle==='number') particle.angle+=particle.spin*dt;
+    });
+    impactParticles=impactParticles.filter(particle => particle.life>0);
+  }
+
+  function drawLeafParticle(particle,alpha){
+    ctx.save();
+    ctx.globalAlpha=alpha;
+    ctx.translate(Math.round(particle.x),Math.round(particle.y));
+    ctx.rotate(particle.angle || 0);
+    const size=Math.max(2,Math.round(particle.size));
+    ctx.fillStyle='#7ebf68';
+    ctx.fillRect(-size,-Math.ceil(size*.45),size*2,size);
+    ctx.fillStyle='#d2e879';
+    ctx.fillRect(-size,0,size,Math.max(1,Math.floor(size*.35)));
+    ctx.restore();
+  }
+
+  function drawAmbientEffects(){
+    ambientParticles.forEach(particle => {
+      const alpha=clamp(particle.life/Math.min(.5,particle.maxLife),0,1)*.72;
+      if(particle.type==='streak'){
+        ctx.save();
+        ctx.globalAlpha=alpha*.62;
+        ctx.strokeStyle='#d9fff0';
+        ctx.lineWidth=1.5;
+        ctx.beginPath();
+        ctx.moveTo(Math.round(particle.x),Math.round(particle.y));
+        ctx.lineTo(Math.round(particle.x+particle.size),Math.round(particle.y));
+        ctx.stroke();
+        ctx.restore();
+      } else if(particle.type==='petal'){
+        ctx.save();
+        ctx.globalAlpha=alpha;
+        ctx.translate(Math.round(particle.x),Math.round(particle.y));
+        ctx.rotate(particle.angle || 0);
+        ctx.fillStyle='#ffd3e8';
+        ctx.fillRect(-3,-2,6,4);
+        ctx.fillStyle='#fff1f8';
+        ctx.fillRect(-2,-2,2,2);
+        ctx.restore();
+      } else {
+        drawLeafParticle(particle,alpha);
+      }
+    });
+  }
+
+  function drawImpactEffects(){
+    impactParticles.forEach(particle => {
+      const alpha=clamp(particle.life/particle.maxLife,0,1);
+      if(particle.type==='leaf'){
+        drawLeafParticle(particle,alpha);
+        return;
+      }
+
+      ctx.save();
+      ctx.globalAlpha=alpha*.45;
+      ctx.fillStyle='#b6ab82';
+      const size=Math.max(2,Math.round(particle.size*(1+(1-alpha)*.7)));
+      ctx.fillRect(Math.round(particle.x-size/2),Math.round(particle.y-size/2),size,size);
+      ctx.fillStyle='#d2c7a2';
+      ctx.fillRect(Math.round(particle.x-size/3),Math.round(particle.y-size/2),Math.max(2,Math.round(size*.35)),Math.max(2,Math.round(size*.35)));
+      ctx.restore();
+    });
+  }
+
   function drawWebStrand(from,to,loose){
     const dx=to.x-from.x;
     const dy=to.y-from.y;
@@ -426,7 +583,17 @@
   }
 
   function update(dt){
-    if(!running) return;
+    if(!running){
+      updateParticles(dt,false);
+      if(landed && !landingPanelShown){
+        landingRevealTimer=Math.max(0,landingRevealTimer-dt);
+        if(landingRevealTimer<=0){
+          landingPanelShown=true;
+          landingPanel.classList.add('is-visible');
+        }
+      }
+      return;
+    }
     sceneTime+=dt;
 
     if(sceneTime<INTRO_DURATION){
@@ -438,12 +605,16 @@
     }
 
     updateCamera(dt);
+    updateParticles(dt,true);
 
     if(!landed && riderPoses.every(pose => pose.landed)){
       landed=true;
       running=false;
       chapter.style.opacity='0';
-      landingPanel.classList.add('is-visible');
+      landingRevealTimer=.9;
+      landingPanelShown=false;
+      spawnLandingImpact();
+      window.dispatchEvent(new CustomEvent('forest-swing-landed'));
       sceneStatus.textContent='The forest swing is complete. Ashton and Tanima landed together in the final clearing.';
       try{ localStorage.setItem('forestSwingCompleted','true'); }catch(error){}
     }
@@ -458,8 +629,10 @@
     ctx.setTransform(sceneScale,0,0,sceneScale,-camera.x*sceneScale,-camera.y*sceneScale);
     ctx.imageSmoothingEnabled=false;
     drawBackground();
+    drawAmbientEffects();
     riderPoses.forEach((pose,index) => drawWeb(pose,riders[index]));
     riderPoses.forEach((pose,index) => drawRider(pose,riders[index]));
+    drawImpactEffects();
 
     const vignette=ctx.createRadialGradient(
       camera.x+canvas.width/sceneScale*.5,
@@ -492,6 +665,11 @@
     running=true;
     currentPanel=-1;
     chapterTimer=0;
+    ambientParticles=[];
+    impactParticles=[];
+    ambientSpawnCarry=0;
+    landingRevealTimer=0;
+    landingPanelShown=false;
     landingPanel.classList.remove('is-visible');
     riderPoses=riders.map(rider => evaluateIntro(rider,0));
     sceneStatus.textContent='The automatic forest swing has started.';
