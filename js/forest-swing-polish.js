@@ -161,6 +161,45 @@
     body.stop(now+.19);
   }
 
+  function playLandingThump(){
+    const context=audioContext;
+    if(!context || context.state!=='running' || !sfxGain) return;
+    const now=context.currentTime+.006;
+
+    const thump=context.createOscillator();
+    const thumpGain=context.createGain();
+    thump.type='sine';
+    thump.frequency.setValueAtTime(118,now);
+    thump.frequency.exponentialRampToValueAtTime(42,now+.24);
+    thumpGain.gain.setValueAtTime(.0001,now);
+    thumpGain.gain.exponentialRampToValueAtTime(.34,now+.012);
+    thumpGain.gain.exponentialRampToValueAtTime(.0001,now+.3);
+    thump.connect(thumpGain);
+    thumpGain.connect(sfxGain);
+    thump.start(now);
+    thump.stop(now+.32);
+
+    const dust=context.createBufferSource();
+    const dustFilter=context.createBiquadFilter();
+    const dustGain=context.createGain();
+    dust.buffer=noiseBuffer;
+    dustFilter.type='lowpass';
+    dustFilter.frequency.setValueAtTime(740,now);
+    dustFilter.frequency.exponentialRampToValueAtTime(190,now+.32);
+    dustGain.gain.setValueAtTime(.14,now);
+    dustGain.gain.exponentialRampToValueAtTime(.0001,now+.34);
+    dust.connect(dustFilter);
+    dustFilter.connect(dustGain);
+    dustGain.connect(sfxGain);
+    dust.start(now);
+    dust.stop(now+.35);
+  }
+
+  function handleLanding(){
+    playLandingThump();
+    stopTheme();
+  }
+
   function midiToFrequency(midi){ return 440*Math.pow(2,(midi-69)/12); }
 
   function scheduleTone(start,midi,duration,volume,type,filterFrequency,destination){
@@ -419,6 +458,7 @@
   document.addEventListener('pointerdown',resumeAudio,{passive:true});
   document.addEventListener('keydown',resumeAudio);
   window.addEventListener('load',silencePageMusic);
+  window.addEventListener('forest-swing-landed',handleLanding);
   bindSceneControls();
   resumeAudio();
   requestAnimationFrame(watchSceneAudio);
