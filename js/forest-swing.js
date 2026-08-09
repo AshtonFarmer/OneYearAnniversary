@@ -21,6 +21,11 @@
   const SWING_END = .81;
   const SPRITE_CELL = 256;
   const SPRITE_SIZE = 148;
+  const WEB_BOMB_DELAY = .52;
+  const WEB_BOMB_FLIGHT_DURATION = 1.18;
+  const WEB_HEART_REVEAL_DURATION = 1.42;
+  const WEB_HEART_FALL_DURATION = 3.05;
+  const LANDING_MENU_DELAY = 6.35;
 
   const panelDefinitions = [
     ['Entrance Canopy','assets/forest/forest-swing-01-entrance-canopy.png'],
@@ -64,6 +69,8 @@
   herImage.src = 'assets/sprites/her_spidey_swing_atlas.png';
   const himImage = new Image();
   himImage.src = 'assets/sprites/him_spidey_swing_atlas.png';
+  const webHeartImage = new Image();
+  webHeartImage.src = 'assets/forest/spiderweb-heart.png';
 
   const riders = [
     {
@@ -119,6 +126,10 @@
   let ambientSpawnCarry = 0;
   let landingRevealTimer = 0;
   let landingPanelShown = false;
+  let landingFinaleTime = 0;
+  let webBombThrown = false;
+  let webHeartBurst = false;
+  let webBurstParticles = [];
 
   function clamp(value,min,max){ return Math.max(min,Math.min(max,value)); }
   function mix(a,b,t){ return a + (b-a)*t; }
@@ -127,6 +138,26 @@
   function pointMix(a,b,t){ return {x:mix(a.x,b.x,t),y:mix(a.y,b.y,t)}; }
 
   function randomBetween(min,max){ return min+Math.random()*(max-min); }
+
+  function quadraticPoint(start,control,end,t){
+    const inverse=1-t;
+    return {
+      x:inverse*inverse*start.x+2*inverse*t*control.x+t*t*end.x,
+      y:inverse*inverse*start.y+2*inverse*t*control.y+t*t*end.y
+    };
+  }
+
+  function landingFinaleLayout(){
+    const centerX=(riders[0].landing.x+riders[1].landing.x)/2;
+    const viewW=canvas.width/sceneScale;
+    return {
+      centerX,
+      burstY:278,
+      startY:292,
+      settledY:405,
+      heartSize:clamp(viewW-54,260,340)
+    };
+  }
 
   function resize(){
     const dpr = Math.min(window.devicePixelRatio || 1,2);
@@ -363,6 +394,42 @@
     });
   }
 
+  function spawnWebHeartBurst(){
+    const layout=landingFinaleLayout();
+    for(let index=0;index<30;index++){
+      const angle=index/30*Math.PI*2+randomBetween(-.12,.12);
+      const speed=randomBetween(72,176);
+      const life=randomBetween(.58,1.02);
+      webBurstParticles.push({
+        x:layout.centerX+22,
+        y:layout.burstY,
+        vx:Math.cos(angle)*speed,
+        vy:Math.sin(angle)*speed,
+        life,
+        maxLife:life,
+        length:randomBetween(8,19),
+        width:index%5===0 ? 2.4 : 1.35
+      });
+    }
+  }
+
+  function updateLandingFinale(dt){
+    landingFinaleTime+=dt;
+    const burstAt=WEB_BOMB_DELAY+WEB_BOMB_FLIGHT_DURATION;
+
+    if(!webBombThrown && landingFinaleTime>=WEB_BOMB_DELAY){
+      webBombThrown=true;
+      window.dispatchEvent(new CustomEvent('forest-web-bomb-thrown'));
+    }
+
+    if(!webHeartBurst && landingFinaleTime>=burstAt){
+      webHeartBurst=true;
+      spawnWebHeartBurst();
+      window.dispatchEvent(new CustomEvent('forest-web-heart-burst'));
+      sceneStatus.textContent='Ashton tossed a pixel web bomb. It burst into a spiderweb heart above Ashton and Tanima.';
+    }
+  }
+
   function updateParticles(dt,allowAmbient){
     if(allowAmbient && sceneTime>INTRO_DURATION+.15 && !landed){
       ambientSpawnCarry+=dt*8.5;
@@ -388,6 +455,15 @@
       if(typeof particle.angle==='number') particle.angle+=particle.spin*dt;
     });
     impactParticles=impactParticles.filter(particle => particle.life>0);
+
+    webBurstParticles.forEach(particle => {
+      particle.life-=dt;
+      particle.x+=particle.vx*dt;
+      particle.y+=particle.vy*dt;
+      particle.vx*=Math.pow(.18,dt);
+      particle.vy=particle.vy*Math.pow(.24,dt)+30*dt;
+    });
+    webBurstParticles=webBurstParticles.filter(particle => particle.life>0);
   }
 
   function drawLeafParticle(particle,alpha){
@@ -449,6 +525,174 @@
       ctx.fillRect(Math.round(particle.x-size/3),Math.round(particle.y-size/2),Math.max(2,Math.round(size*.35)),Math.max(2,Math.round(size*.35)));
       ctx.restore();
     });
+  }
+
+  function drawPixelWebBomb(position,rotation,pulse){
+    ctx.save();
+    ctx.translate(Math.round(position.x),Math.round(position.y));
+    ctx.rotate(rotation);
+    ctx.shadowColor='rgba(212,250,255,.8)';
+    ctx.shadowBlur=4+pulse*4;
+
+    ctx.fillStyle='#071117';
+    ctx.fillRect(-12,-10,24,20);
+    ctx.fillRect(-9,-13,18,26);
+
+    ctx.fillStyle='#b8182c';
+    ctx.fillRect(-8,-10,16,5);
+    ctx.fillRect(-10,-5,20,10);
+    ctx.fillRect(-7,5,14,5);
+    ctx.fillStyle='#e83a42';
+    ctx.fillRect(-7,-9,8,4);
+    ctx.fillRect(-8,-4,5,7);
+
+    ctx.fillStyle='#163d82';
+    ctx.fillRect(-2,-9,7,18);
+    ctx.fillStyle='#2d65b3';
+    ctx.fillRect(0,-8,3,16);
+
+    ctx.fillStyle='#f6ffff';
+    ctx.fillRect(-1,-5,2,10);
+    ctx.fillRect(-4,-2,8,3);
+    ctx.fillRect(-5,-5,2,2);
+    ctx.fillRect(3,-5,2,2);
+    ctx.fillRect(-5,4,2,2);
+    ctx.fillRect(3,4,2,2);
+
+    ctx.fillStyle='#071117';
+    ctx.fillRect(-3,-17,7,5);
+    ctx.fillStyle='#c8e7df';
+    ctx.fillRect(0,-20,8,3);
+    ctx.fillRect(6,-22,3,4);
+    ctx.fillStyle=pulse>.5 ? '#fff6a8' : '#f47b42';
+    ctx.fillRect(8,-25,4,4);
+    ctx.fillStyle='#fff';
+    ctx.fillRect(9,-25,2,2);
+    ctx.restore();
+  }
+
+  function drawWebBomb(){
+    const burstAt=WEB_BOMB_DELAY+WEB_BOMB_FLIGHT_DURATION;
+    if(landingFinaleTime<WEB_BOMB_DELAY || landingFinaleTime>=burstAt) return;
+
+    const t=clamp((landingFinaleTime-WEB_BOMB_DELAY)/WEB_BOMB_FLIGHT_DURATION,0,1);
+    const ashton=riders[1];
+    const start=wristFor(riderPoses[1],ashton);
+    const layout=landingFinaleLayout();
+    const target={x:layout.centerX+22,y:layout.burstY};
+    const control={x:start.x+112,y:Math.min(start.y,target.y)-158};
+    const position=quadraticPoint(start,control,target,easeInOut(t));
+
+    for(let index=3;index>=1;index--){
+      const trailT=Math.max(0,t-index*.035);
+      const trail=quadraticPoint(start,control,target,easeInOut(trailT));
+      ctx.save();
+      ctx.globalAlpha=(4-index)*.12;
+      ctx.fillStyle='#dffcff';
+      ctx.fillRect(Math.round(trail.x-2),Math.round(trail.y-2),4,4);
+      ctx.restore();
+    }
+
+    drawPixelWebBomb(position,t*Math.PI*4.7,(Math.sin(landingFinaleTime*24)+1)/2);
+  }
+
+  function drawWebBurstParticles(){
+    webBurstParticles.forEach(particle => {
+      const alpha=clamp(particle.life/particle.maxLife,0,1);
+      const speed=Math.hypot(particle.vx,particle.vy) || 1;
+      const nx=particle.vx/speed;
+      const ny=particle.vy/speed;
+      ctx.save();
+      ctx.globalAlpha=alpha*.9;
+      ctx.strokeStyle='#f2ffff';
+      ctx.lineWidth=particle.width;
+      ctx.lineCap='square';
+      ctx.beginPath();
+      ctx.moveTo(particle.x-nx*particle.length,particle.y-ny*particle.length);
+      ctx.lineTo(particle.x,particle.y);
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+
+  function drawWebHeart(){
+    const burstAt=WEB_BOMB_DELAY+WEB_BOMB_FLIGHT_DURATION;
+    const revealStart=burstAt-.08;
+    if(landingFinaleTime<revealStart || !webHeartImage.naturalWidth) return;
+
+    const layout=landingFinaleLayout();
+    const reveal=clamp((landingFinaleTime-revealStart)/WEB_HEART_REVEAL_DURATION,0,1);
+    const fallStart=burstAt+.18;
+    const fall=clamp((landingFinaleTime-fallStart)/WEB_HEART_FALL_DURATION,0,1);
+    const fallEase=easeInOut(fall);
+    const centerY=mix(layout.startY,layout.settledY,fallEase)+Math.sin(landingFinaleTime*2.05)*(1-fallEase)*3.5;
+    const size=layout.heartSize*mix(.82,1,easeOut(reveal));
+    const revealRadius=size*.78*easeOut(reveal);
+
+    ctx.save();
+    ctx.translate(layout.centerX,centerY);
+    ctx.rotate(Math.sin(landingFinaleTime*1.35)*(1-fallEase)*.012);
+    ctx.globalAlpha=.2+.78*easeOut(reveal);
+    ctx.shadowColor='rgba(205,252,255,.94)';
+    ctx.shadowBlur=5;
+    ctx.beginPath();
+    ctx.arc(0,0,revealRadius,0,Math.PI*2);
+    ctx.clip();
+    ctx.imageSmoothingEnabled=true;
+    ctx.drawImage(webHeartImage,-size/2,-size/2,size,size);
+    ctx.restore();
+
+    if(reveal<1){
+      ctx.save();
+      ctx.translate(layout.centerX,centerY);
+      ctx.globalAlpha=(1-reveal)*.76;
+      ctx.strokeStyle='#efffff';
+      ctx.lineWidth=1.4;
+      for(let index=0;index<12;index++){
+        const angle=index/12*Math.PI*2;
+        const inner=8+reveal*18;
+        const outer=18+reveal*layout.heartSize*.44;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(angle)*inner,Math.sin(angle)*inner);
+        ctx.lineTo(Math.cos(angle)*outer,Math.sin(angle)*outer);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
+  function drawWebHeartFlash(){
+    const burstAt=WEB_BOMB_DELAY+WEB_BOMB_FLIGHT_DURATION;
+    const age=landingFinaleTime-burstAt;
+    if(age<0 || age>.48) return;
+    const layout=landingFinaleLayout();
+    const progress=age/.48;
+    ctx.save();
+    ctx.translate(layout.centerX+22,layout.burstY);
+    ctx.globalAlpha=(1-progress)*.9;
+    ctx.fillStyle='#f8ffff';
+    const core=Math.max(2,Math.round(12*(1-progress)));
+    ctx.fillRect(-core,-core,core*2,core*2);
+    ctx.strokeStyle='#e9ffff';
+    ctx.lineWidth=2;
+    for(let index=0;index<8;index++){
+      const angle=index*Math.PI/4;
+      const inner=14+progress*12;
+      const outer=30+progress*48;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(angle)*inner,Math.sin(angle)*inner);
+      ctx.lineTo(Math.cos(angle)*outer,Math.sin(angle)*outer);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawLandingFinale(){
+    if(!landed) return;
+    drawWebHeart();
+    drawWebBomb();
+    drawWebHeartFlash();
+    drawWebBurstParticles();
   }
 
   function drawWebStrand(from,to,loose){
@@ -586,6 +830,7 @@
     if(!running){
       updateParticles(dt,false);
       if(landed && !landingPanelShown){
+        updateLandingFinale(dt);
         landingRevealTimer=Math.max(0,landingRevealTimer-dt);
         if(landingRevealTimer<=0){
           landingPanelShown=true;
@@ -611,8 +856,12 @@
       landed=true;
       running=false;
       chapter.style.opacity='0';
-      landingRevealTimer=.9;
+      landingRevealTimer=LANDING_MENU_DELAY;
       landingPanelShown=false;
+      landingFinaleTime=0;
+      webBombThrown=false;
+      webHeartBurst=false;
+      webBurstParticles=[];
       spawnLandingImpact();
       window.dispatchEvent(new CustomEvent('forest-swing-landed'));
       sceneStatus.textContent='The forest swing is complete. Ashton and Tanima landed together in the final clearing.';
@@ -633,6 +882,7 @@
     riderPoses.forEach((pose,index) => drawWeb(pose,riders[index]));
     riderPoses.forEach((pose,index) => drawRider(pose,riders[index]));
     drawImpactEffects();
+    drawLandingFinale();
 
     const vignette=ctx.createRadialGradient(
       camera.x+canvas.width/sceneScale*.5,
@@ -670,6 +920,10 @@
     ambientSpawnCarry=0;
     landingRevealTimer=0;
     landingPanelShown=false;
+    landingFinaleTime=0;
+    webBombThrown=false;
+    webHeartBurst=false;
+    webBurstParticles=[];
     landingPanel.classList.remove('is-visible');
     riderPoses=riders.map(rider => evaluateIntro(rider,0));
     sceneStatus.textContent='The automatic forest swing has started.';
@@ -687,7 +941,7 @@
     if((event.key==='r' || event.key==='R') && landed) resetScene();
   });
 
-  const assets=[...panels.map(panel => panel.img),herImage,himImage];
+  const assets=[...panels.map(panel => panel.img),herImage,himImage,webHeartImage];
   Promise.all(assets.map(image => image.decode().catch(() => {}))).then(() => {
     const missing=assets.filter(image => !image.naturalWidth);
     if(missing.length){

@@ -195,6 +195,79 @@
     dust.stop(now+.35);
   }
 
+  function playWebBombThrow(){
+    const context=audioContext;
+    if(!context || context.state!=='running' || !sfxGain || !noiseBuffer) return;
+    const now=context.currentTime+.006;
+    const panner=makePanner(context,.18);
+    panner.connect(sfxGain);
+
+    const air=context.createBufferSource();
+    const filter=context.createBiquadFilter();
+    const gain=context.createGain();
+    air.buffer=noiseBuffer;
+    filter.type='bandpass';
+    filter.frequency.setValueAtTime(1320,now);
+    filter.frequency.exponentialRampToValueAtTime(420,now+.28);
+    filter.Q.value=.66;
+    gain.gain.setValueAtTime(.0001,now);
+    gain.gain.exponentialRampToValueAtTime(.12,now+.025);
+    gain.gain.exponentialRampToValueAtTime(.0001,now+.31);
+    air.connect(filter);
+    filter.connect(gain);
+    gain.connect(panner);
+    air.start(now);
+    air.stop(now+.32);
+
+    const flick=context.createOscillator();
+    const flickGain=context.createGain();
+    flick.type='triangle';
+    flick.frequency.setValueAtTime(620,now);
+    flick.frequency.exponentialRampToValueAtTime(170,now+.2);
+    flickGain.gain.setValueAtTime(.11,now);
+    flickGain.gain.exponentialRampToValueAtTime(.0001,now+.22);
+    flick.connect(flickGain);
+    flickGain.connect(panner);
+    flick.start(now);
+    flick.stop(now+.23);
+  }
+
+  function playWebHeartBurst(){
+    const context=audioContext;
+    if(!context || context.state!=='running' || !sfxGain || !noiseBuffer) return;
+    const now=context.currentTime+.006;
+
+    const snap=context.createBufferSource();
+    const snapFilter=context.createBiquadFilter();
+    const snapGain=context.createGain();
+    snap.buffer=noiseBuffer;
+    snapFilter.type='highpass';
+    snapFilter.frequency.value=1050;
+    snapGain.gain.setValueAtTime(.3,now);
+    snapGain.gain.exponentialRampToValueAtTime(.0001,now+.26);
+    snap.connect(snapFilter);
+    snapFilter.connect(snapGain);
+    snapGain.connect(sfxGain);
+    snap.start(now);
+    snap.stop(now+.28);
+
+    const pop=context.createOscillator();
+    const popGain=context.createGain();
+    pop.type='sine';
+    pop.frequency.setValueAtTime(230,now);
+    pop.frequency.exponentialRampToValueAtTime(68,now+.27);
+    popGain.gain.setValueAtTime(.24,now);
+    popGain.gain.exponentialRampToValueAtTime(.0001,now+.3);
+    pop.connect(popGain);
+    popGain.connect(sfxGain);
+    pop.start(now);
+    pop.stop(now+.31);
+
+    scheduleTone(now+.025,81,.34,.075,'triangle',3100,sfxGain);
+    scheduleTone(now+.065,86,.38,.065,'triangle',3300,sfxGain);
+    scheduleTone(now+.11,90,.46,.055,'sine',3600,sfxGain);
+  }
+
   function handleLanding(){
     playLandingThump();
     stopTheme();
@@ -459,6 +532,8 @@
   document.addEventListener('keydown',resumeAudio);
   window.addEventListener('load',silencePageMusic);
   window.addEventListener('forest-swing-landed',handleLanding);
+  window.addEventListener('forest-web-bomb-thrown',playWebBombThrow);
+  window.addEventListener('forest-web-heart-burst',playWebHeartBurst);
   bindSceneControls();
   resumeAudio();
   requestAnimationFrame(watchSceneAudio);
