@@ -5,11 +5,25 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>Forest Swing</title>
   <link rel="stylesheet" href="css/style.css">
+  <link rel="preload" as="image" href="assets/sprites/him_spidey_loader_static_hd.png">
+  <link rel="preload" as="image" href="assets/sprites/her_spidey_loader_static_hd.png">
   <style>
     html,body{margin:0;height:100%;overflow:hidden;background:#020b0d;color:#fff;font-family:monospace}
     #game{display:block;width:100vw;height:100vh;image-rendering:pixelated;touch-action:none}
-    #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#020b0d;color:#d9ffd7;font-size:clamp(18px,4vw,28px);letter-spacing:.04em;z-index:20;transition:opacity .55s ease}
+    #loading{position:fixed;inset:0;overflow:hidden;background:#02040b;color:#fff;z-index:20;opacity:1;transition:opacity .58s ease;isolation:isolate}
     #loading.is-hidden{opacity:0;pointer-events:none}
+    #spiderLoaderCanvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:auto}
+    .loader-frame{position:absolute;inset:max(10px,env(safe-area-inset-top)) 10px max(10px,env(safe-area-inset-bottom));border:2px solid rgba(234,244,255,.68);box-shadow:inset 0 0 0 2px rgba(2,5,15,.88),inset 0 0 0 5px rgba(108,165,224,.16),inset 0 0 58px rgba(0,0,0,.72),0 0 22px rgba(49,119,205,.18);pointer-events:none}
+    .loader-frame::after{content:"";position:absolute;inset:8px;border:1px solid rgba(255,255,255,.13);box-shadow:inset 0 0 36px rgba(72,142,225,.08)}
+    .loader-progress{position:absolute;left:50%;bottom:max(31px,calc(env(safe-area-inset-bottom) + 19px));transform:translateX(-50%);width:min(82vw,650px);filter:drop-shadow(0 0 8px rgba(92,167,255,.32))}
+    .loader-progress-copy{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:10px;color:#fff;font-size:clamp(10px,2.7vw,15px);font-weight:900;letter-spacing:.1em;text-shadow:0 2px 2px #070914,0 0 10px rgba(138,196,255,.42)}
+    #loaderPercent{color:#ff5268;font-size:1.12em;min-width:4ch;text-align:right}
+    .loader-web-track{position:relative;height:18px}
+    .loader-web-track::before,.loader-web-fill{position:absolute;left:0;right:0;top:8px;height:2px;background:rgba(255,255,255,.3);box-shadow:0 -6px 0 -1px rgba(255,255,255,.12),0 6px 0 -1px rgba(255,255,255,.12);content:""}
+    .loader-web-fill{right:auto;width:calc(var(--loader-progress,0) * 100%);background:#fff;box-shadow:0 0 11px #fff,0 -6px 0 -1px rgba(255,255,255,.75),0 6px 0 -1px rgba(255,255,255,.75);transition:width .18s linear}
+    .loader-web-knot{position:absolute;left:calc(var(--loader-progress,0) * 100%);top:9px;width:14px;height:14px;transform:translate(-50%,-50%) rotate(45deg);border:2px solid #fff;border-radius:50% 50% 2px 50%;background:linear-gradient(135deg,#ff4b62,#b80d27);box-shadow:0 0 12px #fff,0 0 22px rgba(71,151,255,.55);transition:left .18s linear}
+    #loading.is-finishing .loader-progress{opacity:0;transition:opacity .18s ease}
+    #loading.is-finishing #spiderLoaderCanvas{filter:brightness(1.18);transition:filter .32s ease}
     #chapter{position:fixed;left:50%;top:max(20px,env(safe-area-inset-top));transform:translateX(-50%);width:min(86vw,680px);text-align:center;color:#f4ffe7;font-size:clamp(16px,3.2vw,24px);font-weight:bold;line-height:1.3;text-shadow:0 3px 0 #04100d,0 0 14px #8dffbd;opacity:0;z-index:6;pointer-events:none}
     #landing{position:fixed;inset:0;display:none;align-items:flex-end;justify-content:center;padding:24px 18px calc(24px + env(safe-area-inset-bottom));background:linear-gradient(transparent 45%,rgba(1,8,10,.72));z-index:10;box-sizing:border-box}
     #landing.is-visible{display:flex}
@@ -19,12 +33,28 @@
     .landing-card button{margin:5px;padding:11px 16px;border:2px solid #bcefa8;border-radius:10px;background:#173a32;color:#f5ffd9;font:700 15px monospace;cursor:pointer}
     .landing-card button.secondary{background:#181d1d;border-color:#81aaa1;color:#d6ece7}
     #sceneStatus{position:fixed;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
-    @media (prefers-reduced-motion:reduce){#loading{transition:none}}
+    @media (max-width:480px){
+      .loader-progress{width:84vw}
+    }
+    @media (prefers-reduced-motion:reduce){#loading{transition:none}.loader-web-fill,.loader-web-knot{transition:none}}
   </style>
 </head>
 <body>
   <canvas id="game" aria-label="Ashton and Tanima automatically web-swinging together through eight forest clearings"></canvas>
-  <div id="loading">Growing the forest…</div>
+  <div id="loading" role="status" aria-live="polite" style="--loader-progress:0">
+    <canvas id="spiderLoaderCanvas" aria-hidden="true"></canvas>
+    <div class="loader-frame" aria-hidden="true"></div>
+    <div class="loader-progress">
+      <div class="loader-progress-copy">
+        <span id="loaderMessage">WEB-SLINGING INTO THE FOREST…</span>
+        <span id="loaderPercent">0%</span>
+      </div>
+      <div class="loader-web-track" aria-hidden="true">
+        <div class="loader-web-fill"></div>
+        <div class="loader-web-knot"></div>
+      </div>
+    </div>
+  </div>
   <div id="chapter" aria-hidden="true"></div>
   <div id="sceneStatus" aria-live="polite">Loading the forest swing.</div>
   <section id="landing" aria-label="Forest landing complete">
@@ -37,6 +67,7 @@
   </section>
   <script src="js/music.js"></script>
   <script src="js/outfit-loader.js"></script>
+  <script src="js/forest-swing-loader.js?v=20260809-3"></script>
   <script src="js/forest-swing-polish.js?v=20260809-2"></script>
   <script src="js/forest-swing.js?v=20260809-2"></script>
 </body>
