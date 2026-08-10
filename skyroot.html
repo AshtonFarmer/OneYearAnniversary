@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Skyroot Grounds & Treehouse</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preload" as="image" href="assets/maps/skyroot-grounds.png">
+  <style>
+    html,body{margin:0;height:100%;overflow:hidden;background:#07100c;color:#fff;font-family:monospace}
+    body{overscroll-behavior:none}
+    #game{display:block;width:100vw;height:100vh;image-rendering:pixelated;touch-action:none}
+    #loading{position:fixed;inset:0;z-index:40;display:grid;place-items:center;background:radial-gradient(circle at 50% 42%,#21371f,#07100c 68%);transition:opacity .5s ease}
+    #loading.is-hidden{opacity:0;pointer-events:none}
+    .loading-card{width:min(78vw,430px);padding:22px 24px;border:3px solid #e2bd66;border-radius:15px;background:rgba(9,17,12,.92);text-align:center;box-shadow:0 15px 50px #000b}
+    .loading-card strong{display:block;color:#ffe8a2;font-size:clamp(18px,4.8vw,27px);margin-bottom:9px}
+    .loading-card span{color:#d4e8cf;font-size:14px}
+    .loading-root{height:4px;margin-top:17px;border-radius:99px;background:#2c402b;overflow:hidden}
+    .loading-root:after{content:"";display:block;width:42%;height:100%;background:linear-gradient(90deg,#a36c25,#ffe09a,#a36c25);animation:rootLoad 1.25s ease-in-out infinite}
+    @keyframes rootLoad{0%{transform:translateX(-105%)}100%{transform:translateX(345%)}}
+    #mapTitle{position:fixed;z-index:8;top:max(15px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);max-width:58vw;padding:8px 16px;border:2px solid rgba(255,224,154,.72);border-radius:999px;background:rgba(7,16,12,.84);color:#ffe6a3;font-weight:900;font-size:clamp(13px,3.3vw,18px);letter-spacing:.05em;text-align:center;box-shadow:0 7px 20px #0007;pointer-events:none}
+    #backFarm{position:fixed;z-index:9;left:max(12px,env(safe-area-inset-left));top:max(12px,env(safe-area-inset-top));padding:9px 12px;border:2px solid rgba(255,224,154,.68);border-radius:10px;background:rgba(7,16,12,.9);color:#fff0bc;font-weight:800;text-decoration:none;box-shadow:0 7px 20px #0007}
+    #prompt{position:fixed;z-index:10;left:50%;bottom:max(24px,calc(env(safe-area-inset-bottom) + 14px));transform:translateX(-50%);display:none;width:max-content;max-width:min(88vw,720px);box-sizing:border-box;padding:11px 17px;border:3px solid #e2bd66;border-radius:12px;background:rgba(9,17,12,.95);color:#fff2c2;font-size:clamp(13px,3.5vw,18px);font-weight:800;text-align:center;box-shadow:0 9px 26px #000b}
+    #toast{position:fixed;z-index:13;top:max(66px,calc(env(safe-area-inset-top) + 54px));left:50%;transform:translate(-50%,-16px);width:min(84vw,560px);box-sizing:border-box;padding:13px 17px;border:2px solid rgba(255,224,154,.7);border-radius:13px;background:rgba(8,18,14,.96);opacity:0;pointer-events:none;transition:opacity .25s ease,transform .25s ease;text-align:center;box-shadow:0 12px 38px #000b}
+    #toast.is-visible{opacity:1;transform:translate(-50%,0)}
+    #toast strong{display:block;color:#ffe8a2;font-size:17px;margin-bottom:5px}
+    #toast span{color:#deedde;line-height:1.35}
+    #faithMoment{position:fixed;inset:0;z-index:25;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(2,8,7,.7);box-sizing:border-box}
+    #faithMoment.is-visible{display:flex}
+    .faith-card{width:min(88vw,480px);padding:25px;border:3px solid #e2bd66;border-radius:18px;background:rgba(9,18,14,.98);text-align:center;box-shadow:0 18px 60px #000}
+    .faith-card h2{margin:0 0 10px;color:#ffe5a0;font-size:24px}
+    .faith-card p{margin:0 0 18px;color:#e4eee2;font-size:16px;line-height:1.5}
+    .faith-card button{padding:10px 16px;border:2px solid #e2bd66;border-radius:10px;background:#233722;color:#fff4ca;font:800 15px monospace}
+    #transition{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:radial-gradient(circle,#6d4d20,#0a130f 62%);color:#ffe7a3;font-size:clamp(20px,5vw,34px);font-weight:900;letter-spacing:.07em;text-align:center;opacity:0;pointer-events:none;transition:opacity .38s ease}
+    #transition.is-visible{opacity:1}
+    .touch-pad,#interactButton{display:none}
+    @media (pointer:coarse){
+      #prompt{bottom:max(140px,calc(env(safe-area-inset-bottom) + 130px));font-size:13px;padding:9px 12px}
+      .touch-pad{position:fixed;z-index:15;bottom:max(13px,env(safe-area-inset-bottom));display:grid;width:118px;height:118px;grid-template:repeat(3,1fr)/repeat(3,1fr);gap:3px;opacity:.6;touch-action:none}
+      .touch-pad.left{left:max(10px,env(safe-area-inset-left))}.touch-pad.right{right:max(10px,env(safe-area-inset-right))}
+      .touch-pad button{border:2px solid rgba(255,255,255,.62);border-radius:11px;background:rgba(12,25,20,.84);color:#fff;font:900 20px monospace;touch-action:none}
+      .touch-pad .up{grid-column:2;grid-row:1}.touch-pad .leftward{grid-column:1;grid-row:2}.touch-pad .down{grid-column:2;grid-row:3}.touch-pad .rightward{grid-column:3;grid-row:2}
+      #interactButton{position:fixed;z-index:16;display:block;left:50%;bottom:max(25px,calc(env(safe-area-inset-bottom) + 10px));transform:translateX(-50%);width:66px;height:66px;border:3px solid #e2bd66;border-radius:50%;background:rgba(37,55,34,.92);color:#fff0b4;font:900 15px monospace;box-shadow:0 8px 23px #000a;touch-action:none}
+    }
+    @media (max-width:560px){#backFarm{font-size:0}#backFarm:after{content:"←";font-size:19px}.faith-card{padding:20px}}
+    @media (prefers-reduced-motion:reduce){#loading,#transition,#toast{transition:none}.loading-root:after{animation:none;width:100%}}
+  </style>
+</head>
+<body>
+  <canvas id="game" aria-label="Two-player exploration of Skyroot Grounds and the connected Skyroot Treehouse"></canvas>
+  <div id="loading" role="status" aria-live="polite"><div class="loading-card"><strong>ENTERING SKYROOT…</strong><span>Preparing the grounds and canopy paths</span><div class="loading-root" aria-hidden="true"></div></div></div>
+  <div id="mapTitle">SKYROOT GROUNDS</div>
+  <a id="backFarm" href="index.html">← Back to Farm</a>
+  <div id="prompt" role="status" aria-live="polite"></div>
+  <div id="toast" role="status" aria-live="polite"><strong></strong><span></span></div>
+  <div id="faithMoment" role="dialog" aria-modal="true" aria-labelledby="faithTitle"><div class="faith-card"><h2 id="faithTitle"></h2><p id="faithText"></p><button id="closeFaith" type="button">Finish quiet time</button></div></div>
+  <div id="transition" aria-live="polite">RIDING INTO THE CANOPY…</div>
+  <div class="touch-pad left" data-player="him" aria-label="Blue player movement controls">
+    <button class="up" data-direction="up" aria-label="Move up">▲</button><button class="leftward" data-direction="left" aria-label="Move left">◀</button><button class="down" data-direction="down" aria-label="Move down">▼</button><button class="rightward" data-direction="right" aria-label="Move right">▶</button>
+  </div>
+  <div class="touch-pad right" data-player="her" aria-label="Pink player movement controls">
+    <button class="up" data-direction="up" aria-label="Move up">▲</button><button class="leftward" data-direction="left" aria-label="Move left">◀</button><button class="down" data-direction="down" aria-label="Move down">▼</button><button class="rightward" data-direction="right" aria-label="Move right">▶</button>
+  </div>
+  <button id="interactButton" type="button" aria-label="Interact">E</button>
+  <script src="js/music.js"></script>
+  <script src="js/outfit-loader.js"></script>
+  <script src="js/skyroot.js?v=20260810-1"></script>
+</body>
+</html>
