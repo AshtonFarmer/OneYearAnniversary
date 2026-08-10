@@ -934,6 +934,10 @@
     window.location.href='index.html';
   }
 
+  document.getElementById('continueSkyroot').addEventListener('click',function(){
+    try{ sessionStorage.removeItem('skyrootState'); }catch(error){}
+    window.location.href='skyroot.html?from=forest';
+  });
   document.getElementById('replaySwing').addEventListener('click',resetScene);
   document.getElementById('returnHome').addEventListener('click',returnHome);
   window.addEventListener('keydown',event => {
