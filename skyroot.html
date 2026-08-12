@@ -34,6 +34,9 @@
     #transition{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:radial-gradient(circle,#6d4d20,#0a130f 62%);color:#ffe7a3;font-size:clamp(20px,5vw,34px);font-weight:900;letter-spacing:.07em;text-align:center;opacity:0;pointer-events:none;transition:opacity .38s ease}
     #transition.is-visible{opacity:1}
     .touch-pad,#interactButton{display:none}
+    #mapTitle,#backFarm,#prompt,#toast,.touch-pad,#interactButton{transition:opacity .28s ease,transform .28s ease}
+    body.skyroot-cinematic #mapTitle,body.skyroot-cinematic #backFarm,body.skyroot-cinematic #prompt,body.skyroot-cinematic #toast,body.skyroot-cinematic .touch-pad,body.skyroot-cinematic #interactButton{opacity:0!important;pointer-events:none!important}
+    body.skyroot-cinematic #musicNote{display:none!important}
     @media (pointer:coarse){
       #prompt{bottom:max(140px,calc(env(safe-area-inset-bottom) + 130px));font-size:13px;padding:9px 12px}
       .touch-pad{position:fixed;z-index:15;bottom:max(13px,env(safe-area-inset-bottom));display:grid;width:118px;height:118px;grid-template:repeat(3,1fr)/repeat(3,1fr);gap:3px;opacity:.6;touch-action:none}
@@ -64,6 +67,6 @@
   <button id="interactButton" type="button" aria-label="Interact">E</button>
   <script src="js/music.js"></script>
   <script src="js/outfit-loader.js"></script>
-  <script src="js/skyroot.js?v=20260811-1"></script>
+  <script src="js/skyroot.js?v=20260812-1"></script>
 </body>
 </html>
