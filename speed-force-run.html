@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Speed Force Forest Run</title>
+  <style>
+    :root{color-scheme:dark;--gold:#ffd84f;--cyan:#bdf9ff;--panel:rgba(3,11,19,.88)}
+    *{box-sizing:border-box}
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#02080d;color:#fff;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    button{font:inherit}
+    #game{display:block;width:100vw;height:100vh;touch-action:none;image-rendering:pixelated;background:#02080d}
+    #vignette{position:fixed;inset:0;pointer-events:none;z-index:4;background:radial-gradient(circle at center,transparent 43%,rgba(0,3,8,.15) 72%,rgba(0,2,7,.72) 118%);mix-blend-mode:multiply}
+    #speedFlash{position:fixed;inset:0;pointer-events:none;z-index:5;opacity:0;background:linear-gradient(110deg,rgba(255,212,54,.42),rgba(255,255,255,.1) 42%,rgba(94,230,255,.42));mix-blend-mode:screen}
+    #hud{position:fixed;inset:0;z-index:6;pointer-events:none;padding:max(14px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));display:flex;flex-direction:column;justify-content:space-between}
+    .hud-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+    #chapter{max-width:min(72vw,560px);padding:9px 13px;border:1px solid rgba(210,246,255,.42);border-radius:11px;background:linear-gradient(110deg,rgba(5,15,25,.9),rgba(5,18,27,.62));box-shadow:0 8px 30px #0008,0 0 18px rgba(84,215,255,.13);opacity:0;transform:translateY(-10px);transition:opacity .28s ease,transform .28s ease}
+    #chapter.is-visible{opacity:1;transform:none}
+    #chapter small{display:block;color:#8cddea;font-size:10px;letter-spacing:.15em;text-transform:uppercase}
+    #chapter strong{display:block;margin-top:2px;color:#fff7d2;font-size:clamp(13px,2.5vw,18px);letter-spacing:.05em;text-shadow:0 0 12px rgba(255,220,92,.35)}
+    #backButton{pointer-events:auto;border:1px solid rgba(255,255,255,.42);border-radius:10px;padding:8px 11px;background:rgba(4,11,18,.78);color:#effaff;cursor:pointer;box-shadow:0 7px 22px #0007}
+    #progressWrap{width:min(760px,88vw);align-self:center;padding:10px 13px 11px;border:1px solid rgba(255,255,255,.22);border-radius:13px;background:rgba(2,8,14,.72);box-shadow:0 8px 30px #0008;opacity:.9}
+    .progress-copy{display:flex;justify-content:space-between;gap:14px;margin-bottom:7px;font-size:10px;font-weight:900;letter-spacing:.12em;color:#e7f9ff}
+    #progressTrack{height:5px;border-radius:999px;background:rgba(255,255,255,.12);overflow:hidden}
+    #progressFill{height:100%;width:0;background:linear-gradient(90deg,#ff9d20,#fff6a5 43%,#fff 53%,#a8f8ff 67%,#37d7ff);box-shadow:0 0 11px #fff;transition:width .08s linear}
+    #loader,#finish{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:22px;background:radial-gradient(circle at 50% 42%,rgba(11,36,49,.87),rgba(1,6,11,.98) 70%);transition:opacity .45s ease}
+    #loader.is-hidden,#finish.is-hidden{opacity:0;pointer-events:none}
+    .panel{position:relative;width:min(670px,94vw);padding:clamp(23px,5vw,42px);overflow:hidden;text-align:center;border:1px solid rgba(220,248,255,.42);border-radius:20px;background:var(--panel);box-shadow:0 24px 80px #000,0 0 50px rgba(58,212,255,.1)}
+    .panel::before,.panel::after{content:"";position:absolute;inset:-35%;pointer-events:none;opacity:.42;filter:blur(2px)}
+    .panel::before{background:conic-gradient(from 20deg,transparent,#ffb21d,transparent 24%,transparent 68%,#ffd95e,transparent);animation:charge 4s linear infinite}
+    .panel::after{background:conic-gradient(from 200deg,transparent,#5eeaff,transparent 22%,transparent 66%,#d7fdff,transparent);animation:charge 5s linear infinite reverse}
+    .panel>*{position:relative;z-index:1}
+    @keyframes charge{to{transform:rotate(1turn)}}
+    .eyebrow{margin:0 0 8px;color:#99e9f6;font-size:11px;font-weight:900;letter-spacing:.18em;text-transform:uppercase}
+    h1{margin:0;color:#fff6c8;font-size:clamp(27px,7vw,52px);line-height:1;text-shadow:0 0 22px rgba(255,214,72,.34)}
+    .panel p{max-width:540px;margin:16px auto 22px;color:#d8ebef;font-size:clamp(13px,3.4vw,17px);line-height:1.5}
+    .runner-colors{display:flex;justify-content:center;gap:24px;margin:0 0 23px;color:#fff;font-size:11px;font-weight:900;letter-spacing:.08em}
+    .runner-colors span{display:flex;align-items:center;gap:8px}
+    .runner-colors i{display:block;width:30px;height:3px;border-radius:999px}
+    .runner-colors .gold i{background:var(--gold);box-shadow:0 0 10px var(--gold)}
+    .runner-colors .cyan i{background:var(--cyan);box-shadow:0 0 10px var(--cyan)}
+    .primary,.secondary{min-width:150px;margin:5px;padding:11px 17px;border-radius:11px;cursor:pointer;font-weight:900;letter-spacing:.06em}
+    .primary{border:1px solid #fff1a5;background:linear-gradient(135deg,#9d330e,#e67c13);color:#fff9d6;box-shadow:0 0 22px rgba(255,174,42,.23)}
+    .secondary{border:1px solid rgba(188,247,255,.62);background:#09212a;color:#dffcff}
+    #loadText{margin-top:17px;color:#b7dce2;font-size:11px;letter-spacing:.1em}
+    #finish{background:linear-gradient(rgba(1,7,12,.3),rgba(1,7,12,.88))}
+    #finish .panel{backdrop-filter:blur(7px)}
+    #finish h2{margin:0;color:#fff6c8;font-size:clamp(25px,6vw,44px)}
+    #status{position:fixed;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+    @media (max-width:520px){#hud{padding:10px}.hud-top{gap:7px}#chapter{padding:7px 9px}#backButton{padding:7px 9px}#progressWrap{width:94vw;padding:8px 10px}.panel{padding:26px 19px}.runner-colors{gap:14px;flex-wrap:wrap}}
+    @media (prefers-reduced-motion:reduce){.panel::before,.panel::after{animation:none}#chapter,#loader,#finish{transition:none}}
+  </style>
+</head>
+<body>
+  <canvas id="game" aria-label="Ashton and Tanima racing through the connected Speed Force forest"></canvas>
+  <div id="vignette" aria-hidden="true"></div>
+  <div id="speedFlash" aria-hidden="true"></div>
+
+  <div id="hud">
+    <div class="hud-top">
+      <div id="chapter"><small>Speed Force Forest</small><strong id="sectorName">Moonpath Gate</strong></div>
+      <button id="backButton" type="button">Back home</button>
+    </div>
+    <div id="progressWrap">
+      <div class="progress-copy"><span>FOREST CIRCUIT</span><span id="progressPercent">0%</span></div>
+      <div id="progressTrack"><div id="progressFill"></div></div>
+    </div>
+  </div>
+
+  <section id="loader" aria-label="Load the Speed Force forest run">
+    <div class="panel">
+      <p class="eyebrow">A new path is waking up</p>
+      <h1>Speed Force Forest</h1>
+      <p>Nine connected clearings. Two kinds of lightning. One entrance, one exit, and one very fast trip through the forest.</p>
+      <div class="runner-colors" aria-hidden="true">
+        <span class="gold"><i></i>ASHTON — GOLD</span>
+        <span class="cyan"><i></i>TANIMA — CYAN</span>
+      </div>
+      <button id="startButton" class="primary" type="button" disabled>Loading…</button>
+      <div id="loadText">Preparing the forest… 0%</div>
+    </div>
+  </section>
+
+  <section id="finish" class="is-hidden" aria-label="Speed Force run complete">
+    <div class="panel">
+      <p class="eyebrow">Circuit complete</p>
+      <h2>You outran the whole forest.</h2>
+      <p>The north entrance and south exit are ready to connect to the main forest whenever their final doorway belongs.</p>
+      <button id="replayButton" class="primary" type="button">Run it again</button>
+      <button id="finishHome" class="secondary" type="button">Back home</button>
+    </div>
+  </section>
+
+  <div id="status" role="status" aria-live="polite">Loading the Speed Force forest.</div>
+  <script src="js/speed-force-run.js?v=20260819-2"></script>
+  <script>
+    // A raw file preview cannot always request sibling game assets. Make that
+    // failure explicit instead of leaving the user on an endless loading UI.
+    window.setTimeout(function(){
+      var button=document.getElementById('startButton');
+      var copy=document.getElementById('loadText');
+      if(button&&button.disabled&&!window.speedForceRun){
+        button.disabled=false;
+        button.textContent='Open from the game site';
+        copy.textContent='This file viewer cannot run the game assets. Open the hosted game page to play it.';
+        button.addEventListener('click',function(){window.location.href='index.html';},{once:true});
+      }
+    },4000);
+  </script>
+</body>
+</html>
