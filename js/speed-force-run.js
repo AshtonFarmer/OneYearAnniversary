@@ -481,6 +481,10 @@
     ctx.fillStyle='#041018';
     ctx.fillRect(0,0,WORLD,WORLD);
     ctx.drawImage(worldImage,0,0,WORLD,WORLD);
+    // The render loop may begin before slower browsers finish loading every
+    // asset and resetScene creates the first poses. Keep drawing the forest,
+    // but wait to sort/draw racers until those poses exist.
+    if(!racers.every(racer=>racer.pose))return;
     drawWakeParticles();
     racers.forEach(drawTrail);
     racers.forEach(drawAfterimages);
