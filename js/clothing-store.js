@@ -59,7 +59,7 @@ const solid = [
   {x:-60,y:WORLD_H,w:WORLD_W+120,h:60}
 ];
 
-const outfitNames = [
+const sharedOutfitNames = [
   'Default',
   'Outfit 2',
   'Outfit 3',
@@ -70,6 +70,11 @@ const outfitNames = [
   'Outfit 8',
   'Outfit 9'
 ];
+
+const outfitNames = {
+  her: [...sharedOutfitNames, 'Meena Dhawan Suit', 'Spider-Man Suit'],
+  him: [...sharedOutfitNames, 'New 52 Flash Suit', 'Spider-Man Suit']
+};
 
 function outfitPath(who, outfit){
   return outfit === 1 ? `assets/sprites/${who}_atlas.png` : `assets/sprites/${who}_outfit${outfit}.png`;
@@ -158,7 +163,7 @@ function buildOutfitButtons(who){
   box.innerHTML = '';
   const current = Number(localStorage.getItem(`${who}Outfit`) || 1);
 
-  outfitNames.forEach((name, index) => {
+  outfitNames[who].forEach((name, index) => {
     const outfit = index + 1;
     const btn = document.createElement('button');
     btn.className = 'outfit-card' + (current === outfit ? ' active' : '');

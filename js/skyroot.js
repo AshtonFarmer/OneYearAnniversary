@@ -18,7 +18,8 @@
   function selectedOutfit(who){
     try{
       var outfit=Number(localStorage.getItem(who+'Outfit')||1);
-      return Number.isInteger(outfit)&&outfit>=1&&outfit<=9?outfit:1;
+      var maxOutfit=11;
+      return Number.isInteger(outfit)&&outfit>=1&&outfit<=maxOutfit?outfit:1;
     }catch(error){return 1;}
   }
 

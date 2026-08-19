@@ -1,7 +1,7 @@
 // Global outfit loader.
 // Outfit 1 is the current/default sprite sheet.
-// Supports assets/sprites/her_outfit2.png through her_outfit9.png
-// and assets/sprites/him_outfit2.png through him_outfit9.png.
+// Supports assets/sprites/her_outfit2.png through her_outfit11.png
+// and assets/sprites/him_outfit2.png through him_outfit11.png.
 (function(){
   const originalSrc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
   const originalDrawImage = CanvasRenderingContext2D.prototype.drawImage;
