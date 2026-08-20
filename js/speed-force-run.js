@@ -25,9 +25,11 @@
   const WORLD=TILE*3;
   const CELL=256;
   const SPRITE_SIZE=164;
-  const PURSUIT_SIZE=232;
+  const PURSUIT_SIZE=216;
   const RUN_DURATION=37;
-  const PURSUIT_DURATION=6.4;
+  const BREACH_DURATION=2.2;
+  const BREACH_FRAME_COUNT=16;
+  const PURSUIT_LAUNCH_DELAY=.42;
   const REDUCED=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   const tileDefinitions=[
@@ -57,6 +59,8 @@
   herImage.src='assets/sprites/her_outfit10_run.png';
   const pursuitImage=new Image();
   pursuitImage.src='assets/sprites/him_hot_pursuit_run.png';
+  const breachImage=new Image();
+  breachImage.src='assets/sprites/speed_force_breach.png';
 
   const racers=[
     {
@@ -129,7 +133,7 @@
   let loadFailed=false;
   let runNumber=0;
   let pursuitAlertTimer=0;
-  const hotPursuit={scheduled:false,active:false,triggerAt:0,startedAt:0,mix:0};
+  const hotPursuit={scheduled:false,active:false,startedAt:0,mix:0};
 
   function clamp(value,min,max){return Math.max(min,Math.min(max,value));}
   function mix(a,b,t){return a+(b-a)*t;}
@@ -149,6 +153,11 @@
 
   function spriteSizeFor(racer){
     return racer.key==='him'?mix(SPRITE_SIZE,PURSUIT_SIZE,hotPursuit.mix):SPRITE_SIZE;
+  }
+
+  function racerEntryAlpha(racer){
+    if(racer.key!=='him'||!hotPursuit.active)return 1;
+    return easeInOut((sceneElapsed-.12)/.42);
   }
 
   function catmullRom(p0,p1,p2,p3,t){
@@ -243,7 +252,8 @@
       {image:worldImage,label:'forest'},
       {image:himImage,label:'Ashton'},
       {image:herImage,label:'Tanima'},
-      {image:pursuitImage,label:'Hot Pursuit'}
+      {image:pursuitImage,label:'Hot Pursuit'},
+      {image:breachImage,label:'dimensional breach'}
     ];
     let complete=0;
     let failures=0;
@@ -311,14 +321,19 @@
     pursuitAlertTimer=0;
     hotPursuit.scheduled=false;
     hotPursuit.active=false;
-    hotPursuit.triggerAt=0;
     hotPursuit.startedAt=0;
     hotPursuit.mix=0;
     pursuitAlert.classList.remove('is-visible');
     paused=false;
     racers.forEach(racer=>{racer.history=[];racer.pose=null;});
     const start=routeAt(0);
-    camera={x:start.x,y:start.y};
+    const initialZoom=zoom||baseZoom||1;
+    const halfWidth=cssWidth/(2*initialZoom);
+    const halfHeight=cssHeight/(2*initialZoom);
+    camera={
+      x:clamp(start.x,halfWidth,WORLD-halfWidth),
+      y:clamp(start.y,halfHeight,WORLD-halfHeight)
+    };
     updateRacers(0,true);
     updateSector(true);
     progressFill.style.width='0%';
@@ -329,56 +344,54 @@
     resetScene();
     runNumber++;
     scheduleHotPursuit();
+    // resetScene prepares the ordinary Flash pose for the ready screen. Build
+    // the first playable pose again after selecting this run's mode so a Hot
+    // Pursuit replay never exposes even one normal-suit frame.
+    racers.forEach(racer=>{racer.history=[];racer.pose=null;});
+    updateRacers(0,true);
     sceneState='running';
     loader.classList.add('is-hidden');
     finish.classList.add('is-hidden');
     flashStrength=1;
-    status.textContent='Ashton and Tanima launch into the Speed Force forest.';
     createAudio();
     playCharge();
+    if(hotPursuit.active){
+      announceHotPursuit();
+    }else{
+      status.textContent='Ashton and Tanima launch into the Speed Force forest.';
+    }
   }
 
   function scheduleHotPursuit(){
-    // Let the original suits own the first trip. The first replay always
-    // reveals Hot Pursuit; later replays return to a 46% anomaly chance.
+    // The original suits own the first trip. The first replay always begins
+    // in Hot Pursuit mode; later anomalies are also full runs, never mid-run
+    // transformations that expire before the finish.
     hotPursuit.scheduled=runNumber===2||(runNumber>2&&Math.random()<.46);
-    hotPursuit.triggerAt=mix(10.5,23.5,Math.random());
     hotPursuit.startedAt=0;
-    hotPursuit.active=false;
-    hotPursuit.mix=0;
+    hotPursuit.active=hotPursuit.scheduled;
+    hotPursuit.mix=hotPursuit.active?1:0;
   }
 
-  function triggerHotPursuit(){
-    if(sceneState!=='running'||hotPursuit.active)return;
-    hotPursuit.scheduled=true;
-    hotPursuit.active=true;
-    hotPursuit.startedAt=sceneElapsed;
-    pursuitAlertTimer=2.75;
+  function announceHotPursuit(){
+    pursuitAlertTimer=2.9;
     pursuitAlert.classList.add('is-visible');
     flashStrength=1.35;
-    status.textContent='Dimensional breach detected. Hot Pursuit protocol engaged for Ashton.';
+    status.textContent='Dimensional breach detected. Ashton launches in Hot Pursuit mode.';
     playPursuitSiren();
   }
 
+  function triggerHotPursuit(){
+    if(sceneState!=='running')return;
+    hotPursuit.scheduled=true;
+    hotPursuit.active=true;
+    hotPursuit.startedAt=sceneElapsed;
+    hotPursuit.mix=1;
+    announceHotPursuit();
+  }
+
   function updateHotPursuit(){
-    if(hotPursuit.scheduled&&!hotPursuit.active&&sceneElapsed>=hotPursuit.triggerAt){
-      triggerHotPursuit();
-    }
     if(!hotPursuit.active){hotPursuit.mix=0;return;}
-    const elapsed=sceneElapsed-hotPursuit.startedAt;
-    const enter=easeInOut((elapsed-.32)/.55);
-    const exit=easeInOut((PURSUIT_DURATION-elapsed-.12)/.62);
-    hotPursuit.mix=Math.min(enter,exit);
-    if(elapsed>=PURSUIT_DURATION){
-      hotPursuit.active=false;
-      hotPursuit.scheduled=false;
-      hotPursuit.mix=0;
-      pursuitAlertTimer=0;
-      pursuitAlert.classList.remove('is-visible');
-      flashStrength=Math.max(flashStrength,.92);
-      status.textContent='Hot Pursuit protocol released. Ashton is back in Flash form.';
-      playCrackle('him');
-    }
+    hotPursuit.mix=1;
   }
 
   function finishRun(){
@@ -386,7 +399,7 @@
     sceneState='finishing';
     finishElapsed=0;
     flashStrength=1;
-    status.textContent='The Speed Force forest circuit is complete.';
+    status.textContent=hotPursuit.active?'Hot Pursuit completed the Speed Force forest circuit.':'The Speed Force forest circuit is complete.';
     fadeAudio();
   }
 
@@ -399,7 +412,7 @@
   function racerDistance(racer,baseDistance,progress){
     const rivalry=Math.sin(progress*Math.PI*6+(racer.key==='her'?.7:3.84))*34;
     const straightBoost=Math.sin(progress*Math.PI*14+(racer.key==='her'?1.2:4.34))*11;
-    const pursuitBoost=racer.key==='him'?hotPursuit.mix*235:0;
+    const pursuitBoost=racer.key==='him'?hotPursuit.mix*88:0;
     return clamp(baseDistance+rivalry+straightBoost+pursuitBoost,0,routeLength);
   }
 
@@ -441,7 +454,7 @@
     const next=routeAt(currentDistance+130);
     const dot=clamp(ahead.tx*next.tx+ahead.ty*next.ty,-1,1);
     turnStrength=clamp((1-dot)*8,0,1);
-    const desiredZoom=baseZoom*(1-.075*speedStrength-.045*turnStrength-.07*hotPursuit.mix);
+    const desiredZoom=baseZoom*(1-.075*speedStrength-.045*turnStrength-.035*hotPursuit.mix);
     zoom=mix(zoom||desiredZoom,desiredZoom,smoothFollow(.055,dt));
 
     const halfWidth=cssWidth/(2*zoom);
@@ -526,7 +539,8 @@
 
     if(sceneState==='running'&&!paused){
       sceneElapsed+=dt;
-      const raw=clamp(sceneElapsed/RUN_DURATION,0,1);
+      const raceElapsed=Math.max(0,sceneElapsed-(hotPursuit.active?PURSUIT_LAUNCH_DELAY:0));
+      const raw=clamp(raceElapsed/RUN_DURATION,0,1);
       currentProgress=runProgress(raw);
       currentDistance=currentProgress*routeLength;
       speedStrength=clamp(Math.min(raw/.08,(1-raw)/.08),0,1);
@@ -621,7 +635,7 @@
     ctx.globalCompositeOperation='lighter';
     ctx.lineCap='round';ctx.lineJoin='round';
     ctx.globalAlpha=.16*speedStrength;
-    ctx.strokeStyle=gradient;ctx.lineWidth=54+hotPursuit.mix*(racer.key==='him'?24:0);ctx.shadowColor=palette.shadow;ctx.shadowBlur=34;
+    ctx.strokeStyle=gradient;ctx.lineWidth=54+hotPursuit.mix*(racer.key==='him'?16:0);ctx.shadowColor=palette.shadow;ctx.shadowBlur=34;
     if(trailPath(history))ctx.stroke();
     ctx.globalAlpha=.44*speedStrength;
     ctx.lineWidth=19;ctx.shadowBlur=20;
@@ -651,119 +665,31 @@
     }
   }
 
-  function breachBlobPath(radiusX,radiusY,phase,layer){
-    const points=54;
-    ctx.beginPath();
-    for(let index=0;index<=points;index++){
-      const angle=index/points*Math.PI*2;
-      const staticGrain=(randomish(index*17.31+layer*91.7)-.5)*.12;
-      const ripple=Math.sin(angle*(5+layer)+phase*(1.1+layer*.12))*.075;
-      const chatter=Math.sin(angle*(13-layer)+phase*(layer%2?-1.8:1.55))*.035;
-      const amount=1+staticGrain+ripple+chatter;
-      const x=Math.cos(angle)*radiusX*amount;
-      const y=Math.sin(angle)*radiusY*(1+ripple*.72+chatter)*amount;
-      if(index===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
-    }
-    ctx.closePath();
-  }
-
-  function drawBreachSpirals(radiusX,radiusY,phase,visibility){
-    for(let arm=0;arm<7;arm++){
-      ctx.beginPath();
-      const direction=arm%2?1:-1;
-      for(let step=0;step<=28;step++){
-        const amount=step/28;
-        const angle=arm/7*Math.PI*2+amount*Math.PI*1.42+phase*direction*(.65+arm*.025);
-        const pulse=1+Math.sin(amount*Math.PI*7+phase*2+arm)*.07;
-        const radius=mix(12,radiusX*.92,amount)*pulse;
-        const x=Math.cos(angle)*radius;
-        const y=Math.sin(angle)*mix(12,radiusY*.92,amount)*pulse;
-        if(step===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
-      }
-      ctx.globalAlpha=visibility*mix(.2,.58,arm/6);
-      ctx.strokeStyle=arm%3===0?'#ffffff':(arm%2?'#70f5ff':'#1686ff');
-      ctx.lineWidth=arm%3===0?2.6:1.4;
-      ctx.shadowColor=ctx.strokeStyle;
-      ctx.shadowBlur=arm%3===0?18:10;
-      ctx.stroke();
-    }
-  }
-
   function drawPursuitRift(){
-    if(REDUCED||!hotPursuit.active||!racers[0].pose)return;
+    if(REDUCED||!hotPursuit.active)return;
     const elapsed=sceneElapsed-hotPursuit.startedAt;
-    const transition=1.55;
-    let transitionProgress=-1;
-    if(elapsed<transition)transitionProgress=clamp(elapsed/transition,0,1);
-    else if(elapsed>PURSUIT_DURATION-transition)transitionProgress=clamp((PURSUIT_DURATION-elapsed)/transition,0,1);
-    if(transitionProgress<0)return;
-    const visibility=Math.sin(transitionProgress*Math.PI);
-    if(visibility<=.015)return;
+    if(elapsed<0||elapsed>=BREACH_DURATION)return;
+    const start=routeAt(0);
+    const ashtonStartX=start.x-start.ty*racers[0].lane;
+    const center={x:ashtonStartX-55,y:start.y-25};
+    const frameFloat=clamp(elapsed/BREACH_DURATION,0,.9999)*BREACH_FRAME_COUNT;
+    const firstFrame=Math.min(BREACH_FRAME_COUNT-1,Math.floor(frameFloat));
+    const secondFrame=Math.min(BREACH_FRAME_COUNT-1,firstFrame+1);
+    const blend=frameFloat-firstFrame;
 
-    const pose=racers[0].pose;
-    const phase=sceneElapsed*3.1;
-    const scale=mix(.24,1,easeInOut(Math.sin(transitionProgress*Math.PI)));
-    const radiusX=162*scale;
-    const radiusY=205*scale;
-    const center={x:pose.x-pose.tx*20,y:pose.y-PURSUIT_SIZE*.47};
+    function drawFrame(frame,alpha){
+      if(alpha<=.01)return;
+      const col=frame%4,row=Math.floor(frame/4);
+      ctx.globalAlpha=alpha;
+      ctx.drawImage(breachImage,col*CELL,row*CELL,CELL,CELL,center.x-140,center.y-170,280,340);
+    }
 
     ctx.save();
-    ctx.globalCompositeOperation='lighter';
-    ctx.translate(center.x,center.y);
-
-    // Broad blue bloom and the nearly white opening at the breach's center.
-    const bloom=ctx.createRadialGradient(0,0,4,0,0,radiusY*1.18);
-    bloom.addColorStop(0,'rgba(255,255,255,.98)');
-    bloom.addColorStop(.14,'rgba(183,249,255,.9)');
-    bloom.addColorStop(.42,'rgba(41,178,255,.56)');
-    bloom.addColorStop(.76,'rgba(15,71,176,.28)');
-    bloom.addColorStop(1,'rgba(4,20,88,0)');
-    ctx.globalAlpha=visibility*.88;
-    ctx.fillStyle=bloom;
-    ctx.beginPath();ctx.ellipse(0,0,radiusX*1.16,radiusY*1.13,0,0,Math.PI*2);ctx.fill();
-
-    // Layered irregular membranes make the edge feel like churning liquid ice.
-    for(let layer=0;layer<5;layer++){
-      const inset=layer*13;
-      ctx.save();
-      ctx.rotate(phase*(layer%2?.025:-.018)+layer*.15);
-      breachBlobPath(Math.max(8,radiusX-inset),Math.max(10,radiusY-inset*1.12),phase,layer);
-      ctx.globalAlpha=visibility*mix(.18,.62,layer/4);
-      ctx.strokeStyle=layer===4?'#eaffff':(layer%2?'#55ddff':'#176dcb');
-      ctx.lineWidth=mix(9,2.2,layer/4);
-      ctx.shadowColor=layer===4?'#dfffff':'#37bfff';
-      ctx.shadowBlur=mix(26,12,layer/4);
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    drawBreachSpirals(radiusX,radiusY,phase,visibility);
-
-    // Ice-like fragments orbit the ragged edge in opposite directions.
-    for(let shard=0;shard<26;shard++){
-      const direction=shard%2?1:-1;
-      const angle=shard/26*Math.PI*2+phase*.12*direction;
-      const wobble=1+Math.sin(phase*1.7+shard)*.08;
-      const x=Math.cos(angle)*radiusX*1.04*wobble;
-      const y=Math.sin(angle)*radiusY*1.04*wobble;
-      const tangentX=-Math.sin(angle),tangentY=Math.cos(angle);
-      const length=mix(5,18,randomish(shard*29.2));
-      ctx.globalAlpha=visibility*mix(.18,.7,randomish(shard*7.4));
-      ctx.strokeStyle=shard%4===0?'#ffffff':'#70dcff';
-      ctx.lineWidth=shard%4===0?2.4:1.2;
-      ctx.beginPath();ctx.moveTo(x-tangentX*length*.5,y-tangentY*length*.5);ctx.lineTo(x+tangentX*length*.5,y+tangentY*length*.5);ctx.stroke();
-    }
-
-    // The show's breach throws a horizontal blue flare through its white core.
-    const flare=ctx.createLinearGradient(-radiusX*1.55,0,radiusX*1.55,0);
-    flare.addColorStop(0,'rgba(31,116,255,0)');
-    flare.addColorStop(.38,'rgba(52,167,255,.24)');
-    flare.addColorStop(.5,'rgba(224,254,255,.96)');
-    flare.addColorStop(.62,'rgba(52,167,255,.24)');
-    flare.addColorStop(1,'rgba(31,116,255,0)');
-    ctx.globalAlpha=visibility*.9;
-    ctx.strokeStyle=flare;ctx.lineWidth=2.4;ctx.shadowColor='#55cfff';ctx.shadowBlur=16;
-    ctx.beginPath();ctx.moveTo(-radiusX*1.55,0);ctx.lineTo(radiusX*1.55,0);ctx.stroke();
+    ctx.globalCompositeOperation='source-over';
+    ctx.shadowColor='#64ddff';
+    ctx.shadowBlur=18;
+    drawFrame(firstFrame,1-blend);
+    drawFrame(secondFrame,blend);
     ctx.restore();
   }
 
@@ -811,23 +737,24 @@
     const pose=racer.pose;
     if(!pose)return;
     const size=spriteSizeFor(racer);
+    const entryAlpha=racerEntryAlpha(racer);
     ctx.save();
-    ctx.globalAlpha=.28;
+    ctx.globalAlpha=.28*entryAlpha;
     ctx.fillStyle='#02070a';
     ctx.beginPath();ctx.ellipse(pose.x,pose.y-4,size*.34,size*.105,0,0,Math.PI*2);ctx.fill();
     ctx.restore();
 
     ctx.save();ctx.globalCompositeOperation='lighter';
     if(racer.key==='him'&&hotPursuit.mix>0){
-      drawSpriteFrame(racer,pose,SPRITE_SIZE,.42*speedStrength*(1-hotPursuit.mix),true,racer.image);
-      drawSpriteFrame(racer,pose,PURSUIT_SIZE,.48*speedStrength*hotPursuit.mix,true,pursuitImage);
+      drawSpriteFrame(racer,pose,SPRITE_SIZE,.42*speedStrength*(1-hotPursuit.mix)*entryAlpha,true,racer.image);
+      drawSpriteFrame(racer,pose,PURSUIT_SIZE,.48*speedStrength*hotPursuit.mix*entryAlpha,true,pursuitImage);
     }else{
       drawSpriteFrame(racer,pose,SPRITE_SIZE,.42*speedStrength,true,racer.image);
     }
     ctx.restore();
     if(racer.key==='him'&&hotPursuit.mix>0){
-      drawSpriteFrame(racer,pose,SPRITE_SIZE,1-hotPursuit.mix,false,racer.image);
-      drawSpriteFrame(racer,pose,PURSUIT_SIZE,hotPursuit.mix,false,pursuitImage);
+      drawSpriteFrame(racer,pose,SPRITE_SIZE,(1-hotPursuit.mix)*entryAlpha,false,racer.image);
+      drawSpriteFrame(racer,pose,PURSUIT_SIZE,hotPursuit.mix*entryAlpha,false,pursuitImage);
     }else{
       drawSpriteFrame(racer,pose,SPRITE_SIZE,1,false,racer.image);
     }
@@ -839,6 +766,7 @@
     const pose=racer.pose;
     const palette=pursuitPalette(racer);
     const spriteSize=spriteSizeFor(racer);
+    const entryAlpha=racerEntryAlpha(racer);
     const tick=Math.floor(sceneElapsed*22);
     ctx.save();ctx.globalCompositeOperation='lighter';
     for(let index=0;index<4;index++){
@@ -847,7 +775,7 @@
       const radius=spriteSize*mix(.23,.42,randomish(racer.seed+index*3+tick));
       const start={x:pose.x+Math.cos(startAngle)*radius,y:pose.y-spriteSize*.52+Math.sin(startAngle)*radius*.72};
       const end={x:pose.x+Math.cos(endAngle)*radius,y:pose.y-spriteSize*.52+Math.sin(endAngle)*radius*.72};
-      ctx.globalAlpha=mix(.45,.9,randomish(racer.seed+index+tick))*speedStrength;
+      ctx.globalAlpha=mix(.45,.9,randomish(racer.seed+index+tick))*speedStrength*entryAlpha;
       drawBolt(start,end,4,palette.core,index===0?2.4:1.5,racer.seed+index+tick);
     }
     ctx.restore();
@@ -1028,9 +956,10 @@
     getState:()=>({
       state:sceneState,
       paused,
+      runNumber,
       progress:currentProgress,
       sector:tileDefinitions[currentSector]&&tileDefinitions[currentSector].name,
-      hotPursuit:{scheduled:hotPursuit.scheduled,active:hotPursuit.active,mix:hotPursuit.mix,triggerAt:hotPursuit.triggerAt},
+      hotPursuit:{scheduled:hotPursuit.scheduled,active:hotPursuit.active,mix:hotPursuit.mix,mode:hotPursuit.active?'full-run':'flash'},
       routeLength,
       racers:racers.map(racer=>({name:racer.name,direction:racer.pose&&racer.pose.direction,frame:racer.pose&&racer.pose.frame,x:racer.pose&&Math.round(racer.pose.x),y:racer.pose&&Math.round(racer.pose.y)}))
     }),
