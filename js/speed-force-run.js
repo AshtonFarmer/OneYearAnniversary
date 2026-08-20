@@ -19,12 +19,15 @@
   const progressFill=document.getElementById('progressFill');
   const progressPercent=document.getElementById('progressPercent');
   const speedFlash=document.getElementById('speedFlash');
+  const pursuitAlert=document.getElementById('pursuitAlert');
 
   const TILE=1254;
   const WORLD=TILE*3;
   const CELL=256;
   const SPRITE_SIZE=164;
+  const PURSUIT_SIZE=232;
   const RUN_DURATION=37;
+  const PURSUIT_DURATION=6.4;
   const REDUCED=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   const tileDefinitions=[
@@ -52,6 +55,8 @@
   himImage.src='assets/sprites/him_outfit10_run.png';
   const herImage=new Image();
   herImage.src='assets/sprites/her_outfit10_run.png';
+  const pursuitImage=new Image();
+  pursuitImage.src='assets/sprites/him_hot_pursuit_run.png';
 
   const racers=[
     {
@@ -122,6 +127,9 @@
   let audio=null;
   let lastCrackleAt=0;
   let loadFailed=false;
+  let runNumber=0;
+  let pursuitAlertTimer=0;
+  const hotPursuit={scheduled:false,active:false,triggerAt:0,startedAt:0,mix:0};
 
   function clamp(value,min,max){return Math.max(min,Math.min(max,value));}
   function mix(a,b,t){return a+(b-a)*t;}
@@ -130,6 +138,18 @@
   function smoothFollow(rate,dt){return 1-Math.pow(1-rate,dt*60);}
   function seeded(value){return (Math.sin(value*12.9898+78.233)*43758.5453)%1;}
   function randomish(value){const result=seeded(value);return result<0?result+1:result;}
+  function easeInOut(value){const t=clamp(value,0,1);return t*t*(3-2*t);}
+
+  function pursuitPalette(racer){
+    if(racer.key==='him'&&hotPursuit.mix>.08){
+      return {core:'#eaffff',bright:'#60efff',outer:'#ff7d0b',shadow:'rgba(87,235,255,.96)'};
+    }
+    return racer;
+  }
+
+  function spriteSizeFor(racer){
+    return racer.key==='him'?mix(SPRITE_SIZE,PURSUIT_SIZE,hotPursuit.mix):SPRITE_SIZE;
+  }
 
   function catmullRom(p0,p1,p2,p3,t){
     const t2=t*t,t3=t2*t;
@@ -222,7 +242,8 @@
     const images=[
       {image:worldImage,label:'forest'},
       {image:himImage,label:'Ashton'},
-      {image:herImage,label:'Tanima'}
+      {image:herImage,label:'Tanima'},
+      {image:pursuitImage,label:'Hot Pursuit'}
     ];
     let complete=0;
     let failures=0;
@@ -244,7 +265,7 @@
         sceneState='ready';
         startButton.disabled=false;
         startButton.textContent='Start the run';
-        loadText.textContent='One entrance. One exit. The circuit is ready.';
+        loadText.textContent='First run: Flash. First replay: Hot Pursuit. The circuit is ready.';
         status.textContent='The Speed Force forest is ready.';
         resetScene();
       }
@@ -287,6 +308,13 @@
     speedStrength=0;
     wakeParticles=[];
     particleCarry=0;
+    pursuitAlertTimer=0;
+    hotPursuit.scheduled=false;
+    hotPursuit.active=false;
+    hotPursuit.triggerAt=0;
+    hotPursuit.startedAt=0;
+    hotPursuit.mix=0;
+    pursuitAlert.classList.remove('is-visible');
     paused=false;
     racers.forEach(racer=>{racer.history=[];racer.pose=null;});
     const start=routeAt(0);
@@ -299,6 +327,8 @@
 
   function startRun(){
     resetScene();
+    runNumber++;
+    scheduleHotPursuit();
     sceneState='running';
     loader.classList.add('is-hidden');
     finish.classList.add('is-hidden');
@@ -306,6 +336,49 @@
     status.textContent='Ashton and Tanima launch into the Speed Force forest.';
     createAudio();
     playCharge();
+  }
+
+  function scheduleHotPursuit(){
+    // Let the original suits own the first trip. The first replay always
+    // reveals Hot Pursuit; later replays return to a 46% anomaly chance.
+    hotPursuit.scheduled=runNumber===2||(runNumber>2&&Math.random()<.46);
+    hotPursuit.triggerAt=mix(10.5,23.5,Math.random());
+    hotPursuit.startedAt=0;
+    hotPursuit.active=false;
+    hotPursuit.mix=0;
+  }
+
+  function triggerHotPursuit(){
+    if(sceneState!=='running'||hotPursuit.active)return;
+    hotPursuit.scheduled=true;
+    hotPursuit.active=true;
+    hotPursuit.startedAt=sceneElapsed;
+    pursuitAlertTimer=2.75;
+    pursuitAlert.classList.add('is-visible');
+    flashStrength=1.35;
+    status.textContent='Dimensional breach detected. Hot Pursuit protocol engaged for Ashton.';
+    playPursuitSiren();
+  }
+
+  function updateHotPursuit(){
+    if(hotPursuit.scheduled&&!hotPursuit.active&&sceneElapsed>=hotPursuit.triggerAt){
+      triggerHotPursuit();
+    }
+    if(!hotPursuit.active){hotPursuit.mix=0;return;}
+    const elapsed=sceneElapsed-hotPursuit.startedAt;
+    const enter=easeInOut((elapsed-.32)/.55);
+    const exit=easeInOut((PURSUIT_DURATION-elapsed-.12)/.62);
+    hotPursuit.mix=Math.min(enter,exit);
+    if(elapsed>=PURSUIT_DURATION){
+      hotPursuit.active=false;
+      hotPursuit.scheduled=false;
+      hotPursuit.mix=0;
+      pursuitAlertTimer=0;
+      pursuitAlert.classList.remove('is-visible');
+      flashStrength=Math.max(flashStrength,.92);
+      status.textContent='Hot Pursuit protocol released. Ashton is back in Flash form.';
+      playCrackle('him');
+    }
   }
 
   function finishRun(){
@@ -319,13 +392,15 @@
 
   function showFinish(){
     sceneState='finished';
+    replayButton.textContent=runNumber===1?'Replay — Hot Pursuit':'Run it again';
     finish.classList.remove('is-hidden');
   }
 
   function racerDistance(racer,baseDistance,progress){
     const rivalry=Math.sin(progress*Math.PI*6+(racer.key==='her'?.7:3.84))*34;
     const straightBoost=Math.sin(progress*Math.PI*14+(racer.key==='her'?1.2:4.34))*11;
-    return clamp(baseDistance+rivalry+straightBoost,0,routeLength);
+    const pursuitBoost=racer.key==='him'?hotPursuit.mix*235:0;
+    return clamp(baseDistance+rivalry+straightBoost+pursuitBoost,0,routeLength);
   }
 
   function updateRacers(dt,force){
@@ -343,9 +418,10 @@
       racer.pose={x,y,tx:sampled.tx,ty:sampled.ty,direction,frame,turn:clamp(normalizedTurn*2,-.18,.18)};
 
       if(force||!previous||distance(previous,racer.pose)>5){
+        const spriteSize=spriteSizeFor(racer);
         racer.history.push({
           x,y,tx:sampled.tx,ty:sampled.ty,direction,frame,
-          centerX:x,centerY:y-SPRITE_SIZE*.52
+          centerX:x,centerY:y-spriteSize*.48
         });
         const historyLimit=REDUCED?11:42;
         if(racer.history.length>historyLimit)racer.history.splice(0,racer.history.length-historyLimit);
@@ -365,7 +441,7 @@
     const next=routeAt(currentDistance+130);
     const dot=clamp(ahead.tx*next.tx+ahead.ty*next.ty,-1,1);
     turnStrength=clamp((1-dot)*8,0,1);
-    const desiredZoom=baseZoom*(1-.075*speedStrength-.045*turnStrength);
+    const desiredZoom=baseZoom*(1-.075*speedStrength-.045*turnStrength-.07*hotPursuit.mix);
     zoom=mix(zoom||desiredZoom,desiredZoom,smoothFollow(.055,dt));
 
     const halfWidth=cssWidth/(2*zoom);
@@ -384,6 +460,7 @@
       particleCarry--;
       racers.forEach(racer=>{
         const pose=racer.pose;
+        const palette=pursuitPalette(racer);
         const spark=Math.random()>.42;
         const side=(Math.random()-.5)*60;
         const life=spark?mix(.22,.48,Math.random()):mix(.55,1.05,Math.random());
@@ -394,7 +471,7 @@
           vx:-pose.tx*mix(180,410,Math.random())+(-pose.ty)*(Math.random()-.5)*90,
           vy:-pose.ty*mix(180,410,Math.random())+(pose.tx)*(Math.random()-.5)*90,
           life,maxLife:life,size:spark?mix(2,4,Math.random()):mix(3,7,Math.random()),
-          color:spark?racer.bright:(Math.random()>.5?'#7da556':'#b27e42'),
+          color:spark?palette.bright:(Math.random()>.5?'#7da556':'#b27e42'),
           angle:Math.random()*Math.PI*2,spin:(Math.random()-.5)*9
         });
       });
@@ -442,6 +519,10 @@
     }
     flashStrength=Math.max(0,flashStrength-dt*2.7);
     speedFlash.style.opacity=REDUCED?'0':String(flashStrength*.46);
+    if(pursuitAlertTimer>0){
+      pursuitAlertTimer-=dt;
+      if(pursuitAlertTimer<=0)pursuitAlert.classList.remove('is-visible');
+    }
 
     if(sceneState==='running'&&!paused){
       sceneElapsed+=dt;
@@ -449,6 +530,7 @@
       currentProgress=runProgress(raw);
       currentDistance=currentProgress*routeLength;
       speedStrength=clamp(Math.min(raw/.08,(1-raw)/.08),0,1);
+      updateHotPursuit();
       updateRacers(dt,false);
       updateParticles(dt);
       updateCamera(dt);
@@ -473,7 +555,7 @@
   }
 
   function drawWorld(){
-    const shake=REDUCED?0:(speedStrength*(1.2+turnStrength*2.4));
+    const shake=REDUCED?0:(speedStrength*(1.2+turnStrength*2.4+hotPursuit.mix*1.8));
     const shakeX=Math.sin(sceneElapsed*71)*shake;
     const shakeY=Math.cos(sceneElapsed*83)*shake*.72;
     setWorldTransform(shakeX,shakeY);
@@ -486,6 +568,7 @@
     // but wait to sort/draw racers until those poses exist.
     if(!racers.every(racer=>racer.pose))return;
     drawWakeParticles();
+    drawPursuitRift();
     racers.forEach(drawTrail);
     racers.forEach(drawAfterimages);
     [...racers].sort((a,b)=>a.pose.y-b.pose.y).forEach(drawRacer);
@@ -528,22 +611,23 @@
   function drawTrail(racer){
     const history=racer.history;
     if(history.length<2)return;
+    const palette=pursuitPalette(racer);
     const oldest=history[0],newest=history[history.length-1];
     const gradient=ctx.createLinearGradient(oldest.centerX,oldest.centerY,newest.centerX,newest.centerY);
     gradient.addColorStop(0,'rgba(0,0,0,0)');
-    gradient.addColorStop(.28,racer.outer);
-    gradient.addColorStop(1,racer.bright);
+    gradient.addColorStop(.28,palette.outer);
+    gradient.addColorStop(1,palette.bright);
     ctx.save();
     ctx.globalCompositeOperation='lighter';
     ctx.lineCap='round';ctx.lineJoin='round';
     ctx.globalAlpha=.16*speedStrength;
-    ctx.strokeStyle=gradient;ctx.lineWidth=54;ctx.shadowColor=racer.shadow;ctx.shadowBlur=34;
+    ctx.strokeStyle=gradient;ctx.lineWidth=54+hotPursuit.mix*(racer.key==='him'?24:0);ctx.shadowColor=palette.shadow;ctx.shadowBlur=34;
     if(trailPath(history))ctx.stroke();
     ctx.globalAlpha=.44*speedStrength;
     ctx.lineWidth=19;ctx.shadowBlur=20;
     if(trailPath(history))ctx.stroke();
     ctx.globalAlpha=.93*speedStrength;
-    ctx.strokeStyle=racer.core;ctx.lineWidth=3.2;ctx.shadowBlur=9;
+    ctx.strokeStyle=palette.core;ctx.lineWidth=3.2+hotPursuit.mix*(racer.key==='him'?1.8:0);ctx.shadowBlur=9;
     if(trailPath(history))ctx.stroke();
     drawTrailBranches(racer);
     ctx.restore();
@@ -552,6 +636,7 @@
   function drawTrailBranches(racer){
     if(REDUCED)return;
     const history=racer.history;
+    const palette=pursuitPalette(racer);
     const tick=Math.floor(sceneElapsed*18);
     for(let index=5;index<history.length-2;index+=7){
       const point=history[index];
@@ -562,8 +647,124 @@
         y:point.centerY+point.tx*branchSize*side-point.ty*branchSize*.35
       };
       ctx.globalAlpha=.42*(index/history.length)*speedStrength;
-      drawBolt({x:point.centerX,y:point.centerY},end,4,racer.bright,1.8,racer.seed+index+tick);
+      drawBolt({x:point.centerX,y:point.centerY},end,4,palette.bright,1.8,racer.seed+index+tick);
     }
+  }
+
+  function breachBlobPath(radiusX,radiusY,phase,layer){
+    const points=54;
+    ctx.beginPath();
+    for(let index=0;index<=points;index++){
+      const angle=index/points*Math.PI*2;
+      const staticGrain=(randomish(index*17.31+layer*91.7)-.5)*.12;
+      const ripple=Math.sin(angle*(5+layer)+phase*(1.1+layer*.12))*.075;
+      const chatter=Math.sin(angle*(13-layer)+phase*(layer%2?-1.8:1.55))*.035;
+      const amount=1+staticGrain+ripple+chatter;
+      const x=Math.cos(angle)*radiusX*amount;
+      const y=Math.sin(angle)*radiusY*(1+ripple*.72+chatter)*amount;
+      if(index===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    }
+    ctx.closePath();
+  }
+
+  function drawBreachSpirals(radiusX,radiusY,phase,visibility){
+    for(let arm=0;arm<7;arm++){
+      ctx.beginPath();
+      const direction=arm%2?1:-1;
+      for(let step=0;step<=28;step++){
+        const amount=step/28;
+        const angle=arm/7*Math.PI*2+amount*Math.PI*1.42+phase*direction*(.65+arm*.025);
+        const pulse=1+Math.sin(amount*Math.PI*7+phase*2+arm)*.07;
+        const radius=mix(12,radiusX*.92,amount)*pulse;
+        const x=Math.cos(angle)*radius;
+        const y=Math.sin(angle)*mix(12,radiusY*.92,amount)*pulse;
+        if(step===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+      }
+      ctx.globalAlpha=visibility*mix(.2,.58,arm/6);
+      ctx.strokeStyle=arm%3===0?'#ffffff':(arm%2?'#70f5ff':'#1686ff');
+      ctx.lineWidth=arm%3===0?2.6:1.4;
+      ctx.shadowColor=ctx.strokeStyle;
+      ctx.shadowBlur=arm%3===0?18:10;
+      ctx.stroke();
+    }
+  }
+
+  function drawPursuitRift(){
+    if(REDUCED||!hotPursuit.active||!racers[0].pose)return;
+    const elapsed=sceneElapsed-hotPursuit.startedAt;
+    const transition=1.55;
+    let transitionProgress=-1;
+    if(elapsed<transition)transitionProgress=clamp(elapsed/transition,0,1);
+    else if(elapsed>PURSUIT_DURATION-transition)transitionProgress=clamp((PURSUIT_DURATION-elapsed)/transition,0,1);
+    if(transitionProgress<0)return;
+    const visibility=Math.sin(transitionProgress*Math.PI);
+    if(visibility<=.015)return;
+
+    const pose=racers[0].pose;
+    const phase=sceneElapsed*3.1;
+    const scale=mix(.24,1,easeInOut(Math.sin(transitionProgress*Math.PI)));
+    const radiusX=162*scale;
+    const radiusY=205*scale;
+    const center={x:pose.x-pose.tx*20,y:pose.y-PURSUIT_SIZE*.47};
+
+    ctx.save();
+    ctx.globalCompositeOperation='lighter';
+    ctx.translate(center.x,center.y);
+
+    // Broad blue bloom and the nearly white opening at the breach's center.
+    const bloom=ctx.createRadialGradient(0,0,4,0,0,radiusY*1.18);
+    bloom.addColorStop(0,'rgba(255,255,255,.98)');
+    bloom.addColorStop(.14,'rgba(183,249,255,.9)');
+    bloom.addColorStop(.42,'rgba(41,178,255,.56)');
+    bloom.addColorStop(.76,'rgba(15,71,176,.28)');
+    bloom.addColorStop(1,'rgba(4,20,88,0)');
+    ctx.globalAlpha=visibility*.88;
+    ctx.fillStyle=bloom;
+    ctx.beginPath();ctx.ellipse(0,0,radiusX*1.16,radiusY*1.13,0,0,Math.PI*2);ctx.fill();
+
+    // Layered irregular membranes make the edge feel like churning liquid ice.
+    for(let layer=0;layer<5;layer++){
+      const inset=layer*13;
+      ctx.save();
+      ctx.rotate(phase*(layer%2?.025:-.018)+layer*.15);
+      breachBlobPath(Math.max(8,radiusX-inset),Math.max(10,radiusY-inset*1.12),phase,layer);
+      ctx.globalAlpha=visibility*mix(.18,.62,layer/4);
+      ctx.strokeStyle=layer===4?'#eaffff':(layer%2?'#55ddff':'#176dcb');
+      ctx.lineWidth=mix(9,2.2,layer/4);
+      ctx.shadowColor=layer===4?'#dfffff':'#37bfff';
+      ctx.shadowBlur=mix(26,12,layer/4);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    drawBreachSpirals(radiusX,radiusY,phase,visibility);
+
+    // Ice-like fragments orbit the ragged edge in opposite directions.
+    for(let shard=0;shard<26;shard++){
+      const direction=shard%2?1:-1;
+      const angle=shard/26*Math.PI*2+phase*.12*direction;
+      const wobble=1+Math.sin(phase*1.7+shard)*.08;
+      const x=Math.cos(angle)*radiusX*1.04*wobble;
+      const y=Math.sin(angle)*radiusY*1.04*wobble;
+      const tangentX=-Math.sin(angle),tangentY=Math.cos(angle);
+      const length=mix(5,18,randomish(shard*29.2));
+      ctx.globalAlpha=visibility*mix(.18,.7,randomish(shard*7.4));
+      ctx.strokeStyle=shard%4===0?'#ffffff':'#70dcff';
+      ctx.lineWidth=shard%4===0?2.4:1.2;
+      ctx.beginPath();ctx.moveTo(x-tangentX*length*.5,y-tangentY*length*.5);ctx.lineTo(x+tangentX*length*.5,y+tangentY*length*.5);ctx.stroke();
+    }
+
+    // The show's breach throws a horizontal blue flare through its white core.
+    const flare=ctx.createLinearGradient(-radiusX*1.55,0,radiusX*1.55,0);
+    flare.addColorStop(0,'rgba(31,116,255,0)');
+    flare.addColorStop(.38,'rgba(52,167,255,.24)');
+    flare.addColorStop(.5,'rgba(224,254,255,.96)');
+    flare.addColorStop(.62,'rgba(52,167,255,.24)');
+    flare.addColorStop(1,'rgba(31,116,255,0)');
+    ctx.globalAlpha=visibility*.9;
+    ctx.strokeStyle=flare;ctx.lineWidth=2.4;ctx.shadowColor='#55cfff';ctx.shadowBlur=16;
+    ctx.beginPath();ctx.moveTo(-radiusX*1.55,0);ctx.lineTo(radiusX*1.55,0);ctx.stroke();
+    ctx.restore();
   }
 
   function drawBolt(start,end,segments,color,width,seed){
@@ -580,15 +781,16 @@
     ctx.strokeStyle=color;ctx.lineWidth=width;ctx.shadowColor=color;ctx.shadowBlur=8;ctx.stroke();
   }
 
-  function drawSpriteFrame(racer,pose,size,alpha,glow){
+  function drawSpriteFrame(racer,pose,size,alpha,glow,imageOverride){
     if(!pose)return;
     const row=rowFor(pose.direction);
     ctx.save();
     ctx.globalAlpha=alpha;
     ctx.translate(pose.x,pose.y);
     ctx.rotate(pose.turn||0);
-    if(glow){ctx.shadowColor=racer.shadow;ctx.shadowBlur=26;}
-    ctx.drawImage(racer.image,pose.frame*CELL,row*CELL,CELL,CELL,-size/2,-size,size,size);
+    const palette=pursuitPalette(racer);
+    if(glow){ctx.shadowColor=palette.shadow;ctx.shadowBlur=26;}
+    ctx.drawImage(imageOverride||racer.image,pose.frame*CELL,row*CELL,CELL,CELL,-size/2,-size,size,size);
     ctx.restore();
   }
 
@@ -598,7 +800,9 @@
     [10,19,28].forEach((behind,index)=>{
       const point=racer.history[Math.max(0,racer.history.length-1-behind)];
       if(!point)return;
-      drawSpriteFrame(racer,{...point,turn:0},SPRITE_SIZE*(1-index*.025),(.13-index*.025)*speedStrength,true);
+      const size=spriteSizeFor(racer)*(1-index*.025);
+      const image=racer.key==='him'&&hotPursuit.mix>.35?pursuitImage:racer.image;
+      drawSpriteFrame(racer,{...point,turn:0},size,(.13-index*.025)*speedStrength,true,image);
     });
     ctx.restore();
   }
@@ -606,32 +810,45 @@
   function drawRacer(racer){
     const pose=racer.pose;
     if(!pose)return;
+    const size=spriteSizeFor(racer);
     ctx.save();
     ctx.globalAlpha=.28;
     ctx.fillStyle='#02070a';
-    ctx.beginPath();ctx.ellipse(pose.x,pose.y-4,SPRITE_SIZE*.31,SPRITE_SIZE*.105,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(pose.x,pose.y-4,size*.34,size*.105,0,0,Math.PI*2);ctx.fill();
     ctx.restore();
 
     ctx.save();ctx.globalCompositeOperation='lighter';
-    drawSpriteFrame(racer,pose,SPRITE_SIZE,.42*speedStrength,true);
+    if(racer.key==='him'&&hotPursuit.mix>0){
+      drawSpriteFrame(racer,pose,SPRITE_SIZE,.42*speedStrength*(1-hotPursuit.mix),true,racer.image);
+      drawSpriteFrame(racer,pose,PURSUIT_SIZE,.48*speedStrength*hotPursuit.mix,true,pursuitImage);
+    }else{
+      drawSpriteFrame(racer,pose,SPRITE_SIZE,.42*speedStrength,true,racer.image);
+    }
     ctx.restore();
-    drawSpriteFrame(racer,pose,SPRITE_SIZE,1,false);
+    if(racer.key==='him'&&hotPursuit.mix>0){
+      drawSpriteFrame(racer,pose,SPRITE_SIZE,1-hotPursuit.mix,false,racer.image);
+      drawSpriteFrame(racer,pose,PURSUIT_SIZE,hotPursuit.mix,false,pursuitImage);
+    }else{
+      drawSpriteFrame(racer,pose,SPRITE_SIZE,1,false,racer.image);
+    }
     drawBodyLightning(racer);
   }
 
   function drawBodyLightning(racer){
     if(REDUCED)return;
     const pose=racer.pose;
+    const palette=pursuitPalette(racer);
+    const spriteSize=spriteSizeFor(racer);
     const tick=Math.floor(sceneElapsed*22);
     ctx.save();ctx.globalCompositeOperation='lighter';
     for(let index=0;index<4;index++){
       const startAngle=randomish(racer.seed+index*9+tick)*Math.PI*2;
       const endAngle=startAngle+mix(.8,1.8,randomish(racer.seed+index*5+tick));
-      const radius=SPRITE_SIZE*mix(.23,.42,randomish(racer.seed+index*3+tick));
-      const start={x:pose.x+Math.cos(startAngle)*radius,y:pose.y-SPRITE_SIZE*.52+Math.sin(startAngle)*radius*.72};
-      const end={x:pose.x+Math.cos(endAngle)*radius,y:pose.y-SPRITE_SIZE*.52+Math.sin(endAngle)*radius*.72};
+      const radius=spriteSize*mix(.23,.42,randomish(racer.seed+index*3+tick));
+      const start={x:pose.x+Math.cos(startAngle)*radius,y:pose.y-spriteSize*.52+Math.sin(startAngle)*radius*.72};
+      const end={x:pose.x+Math.cos(endAngle)*radius,y:pose.y-spriteSize*.52+Math.sin(endAngle)*radius*.72};
       ctx.globalAlpha=mix(.45,.9,randomish(racer.seed+index+tick))*speedStrength;
-      drawBolt(start,end,4,racer.core,index===0?2.4:1.5,racer.seed+index+tick);
+      drawBolt(start,end,4,palette.core,index===0?2.4:1.5,racer.seed+index+tick);
     }
     ctx.restore();
   }
@@ -649,7 +866,7 @@
       const x=centerX+Math.cos(angle)*startRadius;
       const y=centerY+Math.sin(angle)*startRadius;
       ctx.globalAlpha=mix(.02,.12,phase)*speedStrength;
-      ctx.strokeStyle=index%2?'#d9fdff':'#ffe682';
+      ctx.strokeStyle=hotPursuit.mix>.08?(index%3?'#7cf4ff':'#ff8b16'):(index%2?'#d9fdff':'#ffe682');
       ctx.lineWidth=mix(.5,1.6,phase);
       ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(angle)*length,y+Math.sin(angle)*length);ctx.stroke();
     }
@@ -741,13 +958,31 @@
     flashStrength=Math.max(flashStrength,racer.key==='her'?.26:.22);
   }
 
+  function playPursuitSiren(){
+    if(!audio||audio.context.state!=='running')return;
+    const context=audio.context;
+    const now=context.currentTime+.02;
+    [0,.18,.36,.54,.72].forEach((offset,index)=>{
+      const oscillator=context.createOscillator();
+      const gain=context.createGain();
+      oscillator.type=index%2?'triangle':'sawtooth';
+      oscillator.frequency.setValueAtTime(index%2?1180:720,now+offset);
+      oscillator.frequency.exponentialRampToValueAtTime(index%2?720:1180,now+offset+.16);
+      gain.gain.setValueAtTime(.0001,now+offset);
+      gain.gain.exponentialRampToValueAtTime(.065,now+offset+.025);
+      gain.gain.exponentialRampToValueAtTime(.0001,now+offset+.17);
+      oscillator.connect(gain);gain.connect(audio.master);
+      oscillator.start(now+offset);oscillator.stop(now+offset+.18);
+    });
+  }
+
   function updateAudio(){
     if(!audio||audio.context.state!=='running')return;
     const now=audio.context.currentTime;
-    audio.hum.frequency.setTargetAtTime(47+speedStrength*22,now,.08);
-    audio.pulse.frequency.setTargetAtTime(94+turnStrength*34,now,.06);
-    audio.noiseGain.gain.setTargetAtTime(.035+speedStrength*.11+turnStrength*.045,now,.09);
-    audio.filter.frequency.setTargetAtTime(620+speedStrength*1550+turnStrength*480,now,.08);
+    audio.hum.frequency.setTargetAtTime(47+speedStrength*22+hotPursuit.mix*18,now,.08);
+    audio.pulse.frequency.setTargetAtTime(94+turnStrength*34+hotPursuit.mix*46,now,.06);
+    audio.noiseGain.gain.setTargetAtTime(.035+speedStrength*.11+turnStrength*.045+hotPursuit.mix*.05,now,.09);
+    audio.filter.frequency.setTargetAtTime(620+speedStrength*1550+turnStrength*480+hotPursuit.mix*680,now,.08);
   }
 
   function fadeAudio(){
@@ -789,11 +1024,13 @@
   window.speedForceRun={
     start:startRun,
     replay:startRun,
+    triggerHotPursuit,
     getState:()=>({
       state:sceneState,
       paused,
       progress:currentProgress,
       sector:tileDefinitions[currentSector]&&tileDefinitions[currentSector].name,
+      hotPursuit:{scheduled:hotPursuit.scheduled,active:hotPursuit.active,mix:hotPursuit.mix,triggerAt:hotPursuit.triggerAt},
       routeLength,
       racers:racers.map(racer=>({name:racer.name,direction:racer.pose&&racer.pose.direction,frame:racer.pose&&racer.pose.frame,x:racer.pose&&Math.round(racer.pose.x),y:racer.pose&&Math.round(racer.pose.y)}))
     }),
