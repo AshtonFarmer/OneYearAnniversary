@@ -1,7 +1,7 @@
 // Automatic two-runner circuit through the connected 3x3 Speed Force forest,
 // with a guaranteed Flash/Hot Pursuit opening and a comic-speedster pursuit bag.
-// The future entrance can point directly to speed-force-run.html; this scene is
-// intentionally self-contained until the final doorway location is chosen.
+// Every south-gate finish continues through the configured breach-linked worlds,
+// restores the saved site-wide outfits, and lands on the configured final map.
 (function(){
   'use strict';
 
@@ -16,7 +16,9 @@
   const loadText=document.getElementById('loadText');
   const status=document.getElementById('status');
   const chapter=document.getElementById('chapter');
+  const chapterLabel=chapter.querySelector('small');
   const sectorName=document.getElementById('sectorName');
+  const progressLabel=document.getElementById('progressLabel');
   const progressFill=document.getElementById('progressFill');
   const progressPercent=document.getElementById('progressPercent');
   const speedFlash=document.getElementById('speedFlash');
@@ -38,6 +40,12 @@
   const EXIT_BREACH_FINISH_DURATION=1.68;
   const EXIT_BREACH_WIDTH=360;
   const EXIT_BREACH_HEIGHT=410;
+  const multiverseConfig=window.SPEED_FORCE_MULTIVERSE||{worlds:[],destination:{name:'Dawn Nexus',url:'dawn-nexus.html?from=speed-force'}};
+  const TUNNEL_DURATION=Number(multiverseConfig.tunnelDuration)||1.55;
+  const WORLD_DURATION=Number(multiverseConfig.worldDuration)||1.72;
+  const FINAL_WORLD_DURATION=Number(multiverseConfig.finalDuration)||3.35;
+  const MULTIVERSE_LANDING_DURATION=Number(multiverseConfig.landingDuration)||1.12;
+  const FINAL_DESTINATION=multiverseConfig.destination||{name:'Dawn Nexus',url:'dawn-nexus.html?from=speed-force'};
   const CHASE_START_RUN=5; // Initial run + three replays must finish first.
   const MAX_PURSUERS=5;
   const REDUCED=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -100,6 +108,50 @@
   const pursuitImage=loadSpeedsterImage(pursuitSpeedster);
   const breachImage=new Image();
   breachImage.src='assets/sprites/speed_force_breach.png';
+
+  function selectedOutfitPath(who){
+    let outfit=1;
+    try{
+      const saved=Number(localStorage.getItem(who+'Outfit')||1);
+      if(Number.isInteger(saved)&&saved>=1&&saved<=11)outfit=saved;
+    }catch(error){}
+    return outfit===1?'assets/sprites/'+who+'_atlas.png':'assets/sprites/'+who+'_outfit'+outfit+'.png';
+  }
+
+  const normalOutfitImages={him:new Image(),her:new Image()};
+  normalOutfitImages.him.src=selectedOutfitPath('him');
+  normalOutfitImages.her.src=selectedOutfitPath('her');
+
+  const tunnelConfig=multiverseConfig.tunnel||{
+    id:'speed-force-corridor',name:'Speed Force Corridor',asset:'assets/multiverse/speed-force-tunnel.webp',
+    effect:'tunnel',tint:'rgba(0,40,120,.08)',glow:'#71efff'
+  };
+  const tunnelImage=new Image();
+  tunnelImage.src=tunnelConfig.asset;
+
+  const multiverseWorlds=(Array.isArray(multiverseConfig.worlds)?multiverseConfig.worlds:[]).map(world=>{
+    const image=new Image();
+    image.src=world.asset;
+    return {...world,image};
+  });
+  const multiverseStages=[];
+  multiverseWorlds.forEach((world,index)=>{
+    multiverseStages.push({
+      kind:'tunnel',
+      id:'corridor-'+(index+1),
+      targetWorldIndex:index,
+      duration:TUNNEL_DURATION,
+      image:tunnelImage,
+      ...tunnelConfig
+    });
+    multiverseStages.push({
+      kind:'world',
+      worldIndex:index,
+      duration:world.final?FINAL_WORLD_DURATION:WORLD_DURATION,
+      ...world
+    });
+  });
+  const MULTIVERSE_TOTAL_DURATION=multiverseStages.reduce((total,stage)=>total+stage.duration,0);
 
   const racers=[
     {
@@ -174,7 +226,7 @@
   let audio=null;
   let lastCrackleAt=0;
   let loadFailed=false;
-  let runNumber=0;
+  let runNumber=loadCompletedRunCount();
   let pursuitAlertTimer=0;
   let exitBreachOpened=false;
   let activeSpeedster=baseSpeedster;
@@ -184,6 +236,14 @@
   let queuedSpeedsterId='';
   let pursuers=[];
   let chaseActive=false;
+  let multiverseElapsed=0;
+  let multiverseStageIndex=-1;
+  let multiverseStageProgress=0;
+  let multiverseWorldIndex=-1;
+  let multiverseWorldProgress=0;
+  let multiverseBreachCount=0;
+  let landingElapsed=0;
+  let destinationStarted=false;
   const hotPursuit={scheduled:false,active:false,startedAt:0,mix:0};
 
   function clamp(value,min,max){return Math.max(min,Math.min(max,value));}
@@ -194,6 +254,28 @@
   function seeded(value){return (Math.sin(value*12.9898+78.233)*43758.5453)%1;}
   function randomish(value){const result=seeded(value);return result<0?result+1:result;}
   function easeInOut(value){const t=clamp(value,0,1);return t*t*(3-2*t);}
+  function easeOut(value){const t=clamp(value,0,1);return 1-Math.pow(1-t,3);}
+
+  function loadCompletedRunCount(){
+    try{
+      const saved=Number(sessionStorage.getItem('speedForceCompletedRuns')||0);
+      return Number.isInteger(saved)&&saved>=0?Math.min(saved,999):0;
+    }catch(error){return 0;}
+  }
+
+  function saveCompletedRunCount(){
+    try{sessionStorage.setItem('speedForceCompletedRuns',String(runNumber));}catch(error){}
+  }
+
+  function nextRunCopy(){
+    const next=runNumber+1;
+    if(next===1)return {button:'Start the run',detail:'Run 1: New 52 Flash. Every finish now crosses five worlds.'};
+    if(next===2)return {button:'Replay 1 — Hot Pursuit',detail:'Replay 1: Hot Pursuit and the cosmic bike cross all five worlds.'};
+    if(next===3)return {button:'Replay 2 — Flash',detail:'Replay 2: New 52 Flash returns. The pursuit remains sealed.'};
+    if(next===4)return {button:'Replay 3 — Flash',detail:'Replay 3: one last clear circuit before the pursuit wakes up.'};
+    if(next===5)return {button:'Replay 4 — Pursuit begins',detail:'Replay 4: comic speedsters will breach in behind you.'};
+    return {button:'Replay — New pursuers',detail:'Replay '+(next-1)+': a new no-repeat group is waiting beyond the first breach.'};
+  }
 
   function racerPalette(racer){
     if(racer.speedster)return racer.speedster.lightning||racer;
@@ -313,7 +395,11 @@
       {image:himImage,label:'Ashton'},
       {image:herImage,label:'Tanima'},
       {image:pursuitImage,label:'Hot Pursuit'},
-      {image:breachImage,label:'dimensional breach'}
+      {image:breachImage,label:'dimensional breach'},
+      {image:normalOutfitImages.him,label:'Ashton saved outfit'},
+      {image:normalOutfitImages.her,label:'Tanima saved outfit'},
+      {image:tunnelImage,label:'Speed Force corridor'},
+      ...multiverseWorlds.map(world=>({image:world.image,label:world.name}))
     ];
     let complete=0;
     let failures=0;
@@ -333,9 +419,10 @@
           return;
         }
         sceneState='ready';
+        const readyCopy=nextRunCopy();
         startButton.disabled=false;
-        startButton.textContent='Start the run';
-        loadText.textContent='Run 1: Flash. Replay 1: Hot Pursuit. The comic pursuit begins after replay 3.';
+        startButton.textContent=readyCopy.button;
+        loadText.textContent=readyCopy.detail;
         status.textContent='The Speed Force forest is ready.';
         resetScene();
         preloadRandomSpeedsters();
@@ -477,6 +564,14 @@
     hotPursuit.mix=0;
     pursuers=[];
     chaseActive=false;
+    multiverseElapsed=0;
+    multiverseStageIndex=-1;
+    multiverseStageProgress=0;
+    multiverseWorldIndex=-1;
+    multiverseWorldProgress=0;
+    multiverseBreachCount=0;
+    landingElapsed=0;
+    destinationStarted=false;
     pursuitAlert.classList.remove('is-visible');
     paused=false;
     racers.forEach(racer=>{racer.history=[];racer.pose=null;});
@@ -492,6 +587,8 @@
     updateSector(true);
     progressFill.style.width='0%';
     progressPercent.textContent='0%';
+    progressLabel.textContent='FOREST CIRCUIT';
+    chapterLabel.textContent='Speed Force Forest';
   }
 
   function startRun(){
@@ -572,11 +669,143 @@
     status.textContent=chaseActive
       ?'Ashton and Tanima are escaping '+pursuers.length+' comic speedsters through the exit breach.'
       :(hotPursuit.active?'Hot Pursuit is entering the exit breach.':'Ashton and Tanima are entering the exit breach.');
+  }
+
+  function announceMultiverseWorld(index){
+    const world=multiverseWorlds[index];
+    if(!world)return;
+    multiverseWorldIndex=index;
+    multiverseBreachCount=index+1;
+    chapterLabel.textContent=world.final?'Destination world':'Multiverse transit';
+    sectorName.textContent=world.name;
+    chapter.classList.add('is-visible');
+    chapterTimer=world.final?3.2:2.15;
+    flashStrength=1.35;
+    if(world.final){
+      alertEyebrow.textContent='Earth-Prime lock acquired';
+      alertTitle.textContent='FINAL WORLD';
+      alertSubtitle.textContent=chaseActive?'PURSUIT SEALED • OUTFITS RESTORING':'RESTORING SAVED OUTFITS';
+      status.textContent=chaseActive
+        ?'The final breach sealed the comic speedsters behind you. Restoring Ashton and Tanima’s saved outfits.'
+        :'Final breach locked on '+FINAL_DESTINATION.name+'. Restoring Ashton and Tanima’s saved outfits.';
+    }else{
+      alertEyebrow.textContent='Dimensional crossing '+(index+1)+' of '+multiverseWorlds.length;
+      alertTitle.textContent=world.name.toUpperCase();
+      alertSubtitle.textContent='NEXT BREACH OPENING';
+      status.textContent='Ashton and Tanima breached into '+world.name+'.';
+    }
+    pursuitAlert.style.borderColor=world.glow||'#8ff3ff';
+    pursuitAlert.style.boxShadow='0 10px 32px #000b, 0 0 38px '+(world.glow||'#8ff3ff');
+    alertEyebrow.style.color=world.glow||'#8ff3ff';
+    alertSubtitle.style.color=world.glow||'#8ff3ff';
+    pursuitAlertTimer=world.final?3.1:1.65;
+    pursuitAlert.classList.add('is-visible');
+    playWorldShift(world,index);
+  }
+
+  function announceTunnelStage(stage){
+    const target=multiverseWorlds[stage.targetWorldIndex];
+    chapterLabel.textContent='Inside the breach';
+    sectorName.textContent=tunnelConfig.name||'Speed Force Corridor';
+    chapter.classList.add('is-visible');
+    chapterTimer=1.45;
+    flashStrength=1.18;
+    alertEyebrow.textContent='Blue corridor locked';
+    alertTitle.textContent='SPEED FORCE TUNNEL';
+    alertSubtitle.textContent=target?'BREACHING TOWARD '+target.name.toUpperCase():'REALITY SHIFT IN PROGRESS';
+    const glow=tunnelConfig.glow||'#71efff';
+    pursuitAlert.style.borderColor=glow;
+    pursuitAlert.style.boxShadow='0 10px 32px #000b, 0 0 42px '+glow;
+    alertEyebrow.style.color=glow;
+    alertSubtitle.style.color=glow;
+    pursuitAlertTimer=1.25;
+    pursuitAlert.classList.add('is-visible');
+    status.textContent=target
+      ?'Ashton and Tanima are back inside the blue breach corridor, racing toward '+target.name+'.'
+      :'Ashton and Tanima are racing inside the Speed Force corridor.';
+    playWorldShift(tunnelConfig,stage.targetWorldIndex||0);
+  }
+
+  function activateMultiverseStage(index){
+    const stage=multiverseStages[index];
+    if(!stage)return;
+    multiverseStageIndex=index;
+    multiverseStageProgress=0;
+    multiverseWorldProgress=0;
+    if(stage.kind==='world')announceMultiverseWorld(stage.worldIndex);
+    else announceTunnelStage(stage);
+  }
+
+  function multiverseStageAt(elapsed){
+    let cursor=0;
+    for(let index=0;index<multiverseStages.length;index++){
+      const stage=multiverseStages[index];
+      const end=cursor+stage.duration;
+      if(elapsed<end||index===multiverseStages.length-1){
+        return {index,stage,elapsed:Math.max(0,elapsed-cursor)};
+      }
+      cursor=end;
+    }
+    return null;
+  }
+
+  function beginMultiverse(){
+    if(!multiverseStages.length){
+      showFinish();
+      return;
+    }
+    sceneState='multiverse';
+    multiverseElapsed=0;
+    multiverseStageIndex=-1;
+    multiverseStageProgress=0;
+    multiverseWorldProgress=0;
+    multiverseWorldIndex=-1;
+    multiverseBreachCount=0;
+    landingElapsed=0;
+    destinationStarted=false;
+    wakeParticles=[];
+    speedStrength=1;
+    progressLabel.textContent='MULTIVERSE TRANSIT';
+    progressFill.style.width='0%';
+    progressPercent.textContent='ENTERING CORRIDOR';
+    createAudio();
+    activateMultiverseStage(0);
+  }
+
+  function beginLanding(){
+    if(sceneState==='landing')return;
+    sceneState='landing';
+    landingElapsed=0;
+    speedStrength=.35;
+    progressLabel.textContent='EARTH-PRIME ARRIVAL';
+    progressFill.style.width='100%';
+    progressPercent.textContent='OUTFITS SYNCED';
+    chapterLabel.textContent='Destination world';
+    sectorName.textContent=FINAL_DESTINATION.name;
+    chapter.classList.add('is-visible');
+    chapterTimer=4;
+    status.textContent='Earth-Prime arrival complete. Saved everyday outfits restored.';
+    saveCompletedRunCount();
+    try{
+      sessionStorage.setItem('speedForceArrival',JSON.stringify({
+        runNumber,
+        chased:chaseActive,
+        worlds:multiverseWorlds.map(world=>world.id),
+        destination:FINAL_DESTINATION.id||'dawn-nexus'
+      }));
+    }catch(error){}
     fadeAudio();
+  }
+
+  function goToDestination(){
+    if(destinationStarted)return;
+    destinationStarted=true;
+    window.location.href=FINAL_DESTINATION.url;
   }
 
   function showFinish(){
     sceneState='finished';
+    fadeAudio();
     if(runNumber===1)replayButton.textContent='Replay 1 — Hot Pursuit';
     else if(runNumber===2)replayButton.textContent='Replay 2 — Flash';
     else if(runNumber===3)replayButton.textContent='Replay 3 — Flash';
@@ -792,7 +1021,28 @@
       speedStrength=Math.max(0,1-finishElapsed/.9);
       updateParticles(dt);
       updateCamera(dt);
-      if(finishElapsed>=EXIT_BREACH_FINISH_DURATION)showFinish();
+      if(finishElapsed>=EXIT_BREACH_FINISH_DURATION)beginMultiverse();
+    }else if(sceneState==='multiverse'&&!paused){
+      multiverseElapsed+=dt;
+      const location=multiverseStageAt(multiverseElapsed);
+      if(!location){beginLanding();return;}
+      if(location.index!==multiverseStageIndex)activateMultiverseStage(location.index);
+      multiverseStageProgress=clamp(location.elapsed/location.stage.duration,0,1);
+      multiverseWorldProgress=multiverseStageProgress;
+      speedStrength=location.stage.final
+        ?mix(1,.48,easeInOut((multiverseStageProgress-.72)/.28))
+        :(location.stage.kind==='tunnel'?1.12:1);
+      updateAudio();
+      const totalProgress=clamp(multiverseElapsed/MULTIVERSE_TOTAL_DURATION,0,1);
+      progressFill.style.width=Math.round(totalProgress*100)+'%';
+      progressPercent.textContent=location.stage.kind==='tunnel'
+        ?'BLUE TUNNEL → WORLD '+(location.stage.targetWorldIndex+1)
+        :'WORLD '+(location.stage.worldIndex+1)+' / '+multiverseWorlds.length;
+      if(multiverseElapsed>=MULTIVERSE_TOTAL_DURATION)beginLanding();
+    }else if(sceneState==='landing'){
+      landingElapsed+=dt;
+      speedStrength=Math.max(0,.35-landingElapsed*.34);
+      if(landingElapsed>=MULTIVERSE_LANDING_DURATION)goToDestination();
     }
   }
 
@@ -841,6 +1091,243 @@
     activeRunners.forEach(drawAfterimages);
     activeRunners.sort((a,b)=>a.pose.y-b.pose.y).forEach(drawRacer);
     drawExitBreachVeil();
+  }
+
+  function activeMultiverseStage(){
+    return multiverseStages[Math.max(0,multiverseStageIndex)]||multiverseStages[0]||null;
+  }
+
+  function drawCoverImage(image,progress,stage){
+    const naturalWidth=image.naturalWidth||cssWidth;
+    const naturalHeight=image.naturalHeight||cssHeight;
+    const cover=Math.max(cssWidth/naturalWidth,cssHeight/naturalHeight)*(stage&&stage.kind==='tunnel'?1.08:1.14);
+    const width=naturalWidth*cover;
+    const height=naturalHeight*cover;
+    const overflowX=Math.max(0,width-cssWidth);
+    const overflowY=Math.max(0,height-cssHeight);
+    const tunnelDrift=stage&&stage.kind==='tunnel'?Math.sin(multiverseElapsed*2.4)*.06:0;
+    const x=-overflowX*clamp(mix(.12,.88,progress)+tunnelDrift,0,1);
+    const y=-overflowY*.5+Math.sin(multiverseElapsed*.8)*Math.min(stage&&stage.kind==='tunnel'?5:10,overflowY*.12);
+    ctx.drawImage(image,x,y,width,height);
+  }
+
+  function drawMultiverseEffect(world,progress){
+    const time=multiverseElapsed;
+    ctx.save();
+    ctx.globalCompositeOperation='lighter';
+    if(world.effect==='tunnel'){
+      const count=compactViewport?28:52;
+      const vanishingX=cssWidth*.83,vanishingY=cssHeight*.47;
+      for(let index=0;index<count;index++){
+        const angle=randomish(index*31+4)*Math.PI*2;
+        const phase=(randomish(index*19+7)+time*(.48+randomish(index*5)*.62))%1;
+        const radius=mix(24,Math.max(cssWidth,cssHeight)*.82,phase);
+        const x=vanishingX+Math.cos(angle)*radius;
+        const y=vanishingY+Math.sin(angle)*radius*.58;
+        const length=mix(10,105,phase);
+        ctx.globalAlpha=.08+phase*.4;
+        ctx.strokeStyle=index%5===0?'#ffffff':(index%2?'#6ff4ff':'#278cff');
+        ctx.lineWidth=.7+phase*2.3;ctx.lineCap='round';
+        ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(angle)*length,y+Math.sin(angle)*length*.58);ctx.stroke();
+      }
+      const pulse=.04+.045*(Math.sin(time*7)+1);
+      ctx.globalAlpha=pulse;ctx.fillStyle='#7eefff';ctx.fillRect(0,0,cssWidth,cssHeight);
+    }else if(world.effect==='neon'){
+      const count=compactViewport?24:46;
+      for(let index=0;index<count;index++){
+        const lane=randomish(index*47+2);
+        const x=(randomish(index*13+8)*cssWidth-time*(90+lane*260)+cssWidth*9)%cssWidth;
+        const y=cssHeight*(.14+randomish(index*31+1)*.72);
+        ctx.globalAlpha=.1+lane*.34;ctx.strokeStyle=index%3===0?'#ffe398':'#68ecff';ctx.lineWidth=.8+lane*1.2;
+        ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-(12+lane*42),y);ctx.stroke();
+      }
+    }else if(world.effect==='embers'){
+      const count=compactViewport?34:66;
+      for(let index=0;index<count;index++){
+        const x=(randomish(index*37+3)*cssWidth-time*(18+index%5)+cssWidth*8)%cssWidth;
+        const y=(randomish(index*21+9)*cssHeight-time*(24+index%7)+cssHeight*8)%cssHeight;
+        const size=1+randomish(index*11)*3.1;
+        ctx.globalAlpha=.18+randomish(index*29)*.52;ctx.fillStyle=index%3?'#ff5b2a':'#ffd06b';
+        ctx.fillRect(x,y,size,size);
+      }
+    }else if(world.effect==='frost'){
+      const count=compactViewport?30:58;
+      for(let index=0;index<count;index++){
+        const x=(randomish(index*17+4)*cssWidth-time*(34+index%6)+cssWidth*7)%cssWidth;
+        const y=(randomish(index*31+9)*cssHeight+time*(28+index%7))%cssHeight;
+        const size=1.2+randomish(index*11)*3.4;
+        ctx.globalAlpha=.2+randomish(index*23)*.45;ctx.fillStyle=index%4===0?'#d8a8ff':'#d9fbff';
+        ctx.save();ctx.translate(x,y);ctx.rotate(time+index);ctx.fillRect(-size,-size*.25,size*2,size*.5);ctx.restore();
+      }
+    }else if(world.effect==='tempest'){
+      const count=compactViewport?38:74;
+      for(let index=0;index<count;index++){
+        const x=(randomish(index*19+3)*cssWidth-time*(58+index%5)+cssWidth*6)%cssWidth;
+        const y=(randomish(index*27+7)*cssHeight+time*(180+index%8))%cssHeight;
+        const length=14+randomish(index*13)*31;
+        ctx.globalAlpha=.1+randomish(index*29)*.3;ctx.strokeStyle='#d5b5ff';ctx.lineWidth=.7+randomish(index*5);
+        ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-length*.3,y+length);ctx.stroke();
+      }
+      const lightning=Math.max(0,1-Math.abs(((time*.7)%4)-.14)*22);
+      if(lightning>0){ctx.globalAlpha=lightning*.25;ctx.fillStyle='#e8d8ff';ctx.fillRect(0,0,cssWidth,cssHeight);}
+    }else if(world.effect==='dawn'){
+      const count=compactViewport?22:42;
+      for(let index=0;index<count;index++){
+        const x=(randomish(index*37+5)*cssWidth+time*(18+index%7))%cssWidth;
+        const y=(randomish(index*17+11)*cssHeight+time*(8+index%5))%cssHeight;
+        ctx.save();ctx.translate(x,y);ctx.rotate(time*(.35+index%3*.18)+index);
+        ctx.globalAlpha=.13+randomish(index*9)*.3;ctx.fillStyle=index%3===0?'#ffe6a2':(index%2?'#ffc4d7':'#c7f5ff');
+        ctx.fillRect(-3,-1.3,6,2.6);ctx.restore();
+      }
+    }
+    ctx.restore();
+  }
+
+  function multiverseRunnerState(racer,indexOffset){
+    const world=activeMultiverseStage();
+    const finalWorld=!!(world&&world.kind==='world'&&world.final);
+    const tunnel=!!(world&&world.kind==='tunnel');
+    const delayedProgress=clamp(multiverseStageProgress-(indexOffset||0),0,1);
+    const normalSize=compactViewport?112:clamp(cssHeight*.19,142,208);
+    const formScale=clamp(spriteSizeFor(racer)/SPRITE_SIZE,.86,1.34);
+    const baseSize=normalSize*formScale;
+    const footY=cssHeight*(racer.key==='her'?.63:.70);
+    const entry=easeOut(clamp(delayedProgress/.18,0,1));
+    let x,size,alpha,exit=0;
+    if(finalWorld){
+      const travel=easeOut(clamp((delayedProgress-.015)/.88,0,1));
+      x=mix(cssWidth*.09,cssWidth*.60,travel);
+      size=baseSize*mix(.12,1,entry);
+      alpha=easeOut(clamp(delayedProgress/.08,0,1));
+    }else if(tunnel){
+      const travel=easeInOut(clamp((delayedProgress-.015)/.95,0,1));
+      exit=easeInOut(clamp((delayedProgress-.86)/.13,0,1));
+      x=mix(cssWidth*.12,cssWidth*.76,travel)+Math.sin(multiverseElapsed*4+racer.seed)*8;
+      size=baseSize*mix(.34,1.05,entry)*mix(1,.28,exit);
+      alpha=easeOut(clamp(delayedProgress/.06,0,1))*(1-exit*.8);
+    }else{
+      const travel=easeInOut(clamp((delayedProgress-.025)/.91,0,1));
+      exit=easeInOut(clamp((delayedProgress-.78)/.18,0,1));
+      x=mix(cssWidth*.09,cssWidth*.91,travel);
+      size=baseSize*mix(.12,1,entry)*mix(1,.11,exit);
+      alpha=easeOut(clamp(delayedProgress/.07,0,1))*(1-easeInOut(clamp((exit-.46)/.54,0,1)));
+    }
+    return {x,y:footY,size,normalSize,alpha,entry,exit,finalWorld,tunnel};
+  }
+
+  function drawMultiverseTrail(racer,state,palette,alphaScale){
+    if(state.alpha<=.01)return;
+    const centerY=state.y-state.size*.52;
+    const startX=Math.max(-120,state.x-mix(100,cssWidth*.34,state.entry));
+    const gradient=ctx.createLinearGradient(startX,centerY,state.x,centerY);
+    gradient.addColorStop(0,'rgba(0,0,0,0)');
+    gradient.addColorStop(.46,palette.outer);gradient.addColorStop(1,palette.bright);
+    ctx.save();ctx.globalCompositeOperation='lighter';ctx.lineCap='round';
+    ctx.globalAlpha=.19*state.alpha*alphaScale;ctx.strokeStyle=gradient;ctx.lineWidth=42;ctx.shadowColor=palette.shadow;ctx.shadowBlur=30;
+    ctx.beginPath();ctx.moveTo(startX,centerY+Math.sin(multiverseElapsed*10+racer.seed)*7);ctx.lineTo(state.x,centerY);ctx.stroke();
+    ctx.globalAlpha=.82*state.alpha*alphaScale;ctx.strokeStyle=palette.core;ctx.lineWidth=2.8;ctx.shadowBlur=9;
+    ctx.beginPath();ctx.moveTo(startX,centerY);ctx.lineTo(state.x,centerY);ctx.stroke();ctx.restore();
+  }
+
+  function drawMultiverseSprite(racer,state,image,alpha,palette){
+    if(!image||!image.complete||!image.naturalWidth||alpha<=.005)return;
+    const frame=Math.floor(multiverseElapsed*15+racer.frameOffset)%4;
+    const size=state.size;
+    ctx.save();ctx.globalAlpha=alpha;ctx.translate(state.x,state.y);
+    ctx.shadowColor=palette.shadow;ctx.shadowBlur=18;
+    ctx.drawImage(image,frame*CELL,3*CELL,CELL,CELL,-size/2,-size,size,size);
+    ctx.restore();
+  }
+
+  function drawMultiverseRunner(racer,indexOffset,normalMix){
+    const state=multiverseRunnerState(racer,indexOffset);
+    if(racer.key==='her'&&activeSpeedster.special==='breach'){
+      state.x+=(compactViewport?96:150)*state.entry*(1-state.exit);
+    }
+    const palette=racerPalette(racer);
+    const mixToNormal=clamp(normalMix||0,0,1);
+    drawMultiverseTrail(racer,state,palette,1-mixToNormal*.86);
+    drawMultiverseSprite(racer,state,spriteImageFor(racer),state.alpha*(1-mixToNormal),palette);
+    if(mixToNormal>0){
+      const normalImage=normalOutfitImages[racer.key];
+      const normalPalette={core:'#fff8d7',bright:'#ffd97a',outer:'#71dfb1',shadow:'rgba(255,214,113,.72)'};
+      const normalState={...state,size:mix(state.size,state.normalSize,mixToNormal)};
+      drawMultiverseSprite(racer,normalState,normalImage,state.alpha*mixToNormal,normalPalette);
+    }
+    if(!REDUCED&&state.alpha>.12&&mixToNormal<.92){
+      ctx.save();ctx.globalCompositeOperation='lighter';ctx.globalAlpha=state.alpha*(1-mixToNormal);
+      const center={x:state.x,y:state.y-state.size*.52};
+      for(let bolt=0;bolt<3;bolt++){
+        const angle=randomish(racer.seed+bolt*8+Math.floor(multiverseElapsed*19))*Math.PI*2;
+        const radius=state.size*.3;
+        const start={x:center.x+Math.cos(angle)*radius*.35,y:center.y+Math.sin(angle)*radius*.45};
+        const end={x:center.x+Math.cos(angle+.9)*radius,y:center.y+Math.sin(angle+.9)*radius*.7};
+        drawBolt(start,end,4,palette.bright,bolt?1.2:2,racer.seed+bolt+Math.floor(multiverseElapsed*20));
+      }
+      ctx.restore();
+    }
+  }
+
+  function drawMultiversePursuers(){
+    const world=activeMultiverseStage();
+    if(!chaseActive||!world||world.final)return;
+    pursuers.forEach((pursuer,index)=>{
+      const state=multiverseRunnerState(pursuer,.035+index*.018);
+      state.x-=92+index*48;
+      state.y=cssHeight*(.67+(index%2?-.08:.055));
+      state.size*=.76;
+      const palette=racerPalette(pursuer);
+      drawMultiverseTrail(pursuer,state,palette,.56);
+      drawMultiverseSprite(pursuer,state,pursuer.image,state.alpha*.88,palette);
+    });
+  }
+
+  function drawMultiverseBreaches(world){
+    const progress=multiverseStageProgress;
+    const breachHeight=Math.min(cssHeight*.64,470);
+    const breachWidth=breachHeight*.88;
+    const footY=cssHeight*.685;
+    const centerY=footY-breachHeight*.48;
+    const entryCenter={x:cssWidth*.075,y:centerY};
+    const entryCollapse=easeInOut(clamp(progress/.28,0,1));
+    ctx.save();ctx.shadowColor=world.glow||'#82eeff';ctx.shadowBlur=30;
+    drawBreachFrame(entryCenter,breachWidth,breachHeight,mix(9.2,15.999,entryCollapse),1-entryCollapse*.96);
+    ctx.restore();
+    if(!world.final&&progress>.55){
+      const reveal=easeInOut(clamp((progress-.55)/.18,0,1));
+      const exitCenter={x:cssWidth*.925,y:centerY};
+      ctx.save();ctx.shadowColor=world.glow||'#82eeff';ctx.shadowBlur=28+reveal*22;
+      drawBreachFrame(exitCenter,breachWidth,breachHeight,mix(.5,10.2,reveal),reveal);
+      ctx.restore();
+    }
+  }
+
+  function drawMultiverse(){
+    const world=activeMultiverseStage()||multiverseWorlds[multiverseWorlds.length-1];
+    if(!world)return;
+    const progress=sceneState==='landing'?1:multiverseStageProgress;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.imageSmoothingEnabled=false;
+    ctx.fillStyle='#02070d';ctx.fillRect(0,0,cssWidth,cssHeight);
+    drawCoverImage(world.image,progress,world);
+    ctx.fillStyle=world.tint||'rgba(0,0,0,.12)';ctx.fillRect(0,0,cssWidth,cssHeight);
+    const horizon=ctx.createLinearGradient(0,0,0,cssHeight);
+    horizon.addColorStop(0,'rgba(1,5,14,.12)');horizon.addColorStop(.68,'rgba(2,6,12,.08)');horizon.addColorStop(1,'rgba(0,2,6,.72)');
+    ctx.fillStyle=horizon;ctx.fillRect(0,0,cssWidth,cssHeight);
+    drawMultiverseEffect(world,progress);
+    drawMultiverseBreaches(world);
+    const normalMix=world.final?easeInOut(clamp((progress-.62)/.24,0,1)):0;
+    drawMultiversePursuers();
+    drawMultiverseRunner(racers[0],0,normalMix);
+    drawMultiverseRunner(racers[1],.018,normalMix);
+
+    const entryFlash=(1-easeOut(clamp(progress/.10,0,1)))*.72;
+    const exitFlash=!world.final?easeInOut(clamp((progress-.94)/.06,0,1))*.86:0;
+    const landingFlash=sceneState==='landing'?easeInOut(clamp(landingElapsed/MULTIVERSE_LANDING_DURATION,0,1)):0;
+    const flash=Math.max(entryFlash,exitFlash,landingFlash);
+    if(flash>.001){
+      ctx.globalCompositeOperation='screen';ctx.fillStyle='rgba(226,251,255,'+flash+')';ctx.fillRect(0,0,cssWidth,cssHeight);ctx.globalCompositeOperation='source-over';
+    }
   }
 
   function drawWakeParticles(){
@@ -1166,7 +1653,8 @@
   function draw(){
     ctx.setTransform(1,0,0,1,0,0);
     ctx.clearRect(0,0,canvas.width,canvas.height);
-    drawWorld();
+    if(sceneState==='multiverse'||sceneState==='landing')drawMultiverse();
+    else drawWorld();
     drawScreenSpeedLines();
   }
 
@@ -1288,6 +1776,26 @@
     });
   }
 
+  function playWorldShift(world,index){
+    playExitBreach();
+    if(!audio||audio.context.state!=='running')return;
+    const context=audio.context;
+    const now=context.currentTime+.03;
+    const root=164.81*Math.pow(2,(index%5)/12);
+    [1,1.5,2].forEach((ratio,voiceIndex)=>{
+      const oscillator=context.createOscillator();
+      const gain=context.createGain();
+      oscillator.type=voiceIndex===1?'triangle':'sine';
+      oscillator.frequency.setValueAtTime(root*ratio,now+voiceIndex*.035);
+      oscillator.frequency.exponentialRampToValueAtTime(root*ratio*2.2,now+.42+voiceIndex*.03);
+      gain.gain.setValueAtTime(.0001,now);
+      gain.gain.exponentialRampToValueAtTime(world.final?.075:.045,now+.07+voiceIndex*.02);
+      gain.gain.exponentialRampToValueAtTime(.0001,now+.66+voiceIndex*.04);
+      oscillator.connect(gain);gain.connect(audio.master);
+      oscillator.start(now);oscillator.stop(now+.74+voiceIndex*.04);
+    });
+  }
+
   function updateAudio(){
     if(!audio||audio.context.state!=='running')return;
     const now=audio.context.currentTime;
@@ -1332,13 +1840,13 @@
     lastFrameTime=0;
     if(!audio)return;
     if(document.hidden){audio.context.suspend().catch(()=>{});return;}
-    if(sceneState==='running'&&!paused)audio.context.resume().catch(()=>{});
+    if((sceneState==='running'||sceneState==='multiverse')&&!paused)audio.context.resume().catch(()=>{});
   });
   window.addEventListener('keydown',event=>{
     const key=event.key.toLowerCase();
     if(key==='escape'){goHome();return;}
     if(key==='r'&&(sceneState==='finished'||sceneState==='ready')){startRun();return;}
-    if(key===' '&&sceneState==='running'){
+    if(key===' '&&(sceneState==='running'||sceneState==='multiverse')){
       event.preventDefault();paused=!paused;
       status.textContent=paused?'Run paused.':'Run resumed.';
     }
@@ -1348,6 +1856,7 @@
     start:startRun,
     replay:startRun,
     triggerHotPursuit,
+    startMultiverse:beginMultiverse,
     getState:()=>({
       state:sceneState,
       paused,
@@ -1365,6 +1874,21 @@
       },
       randomDeckRemaining:randomSpeedsterDeck.length,
       exitBreach:{opened:exitBreachOpened,reveal:exitBreachReveal(),swallow:finishSwallowProgress()},
+      multiverse:{
+        active:sceneState==='multiverse'||sceneState==='landing',
+        stageIndex:multiverseStageIndex,
+        stageKind:activeMultiverseStage()&&activeMultiverseStage().kind,
+        stage:activeMultiverseStage()&&activeMultiverseStage().name,
+        stageProgress:multiverseStageProgress,
+        worldIndex:multiverseWorldIndex,
+        world:multiverseWorlds[multiverseWorldIndex]&&multiverseWorlds[multiverseWorldIndex].name,
+        worldProgress:multiverseWorldProgress,
+        breachCount:multiverseBreachCount,
+        tunnel:{name:tunnelConfig.name,asset:tunnelConfig.asset,returns:multiverseWorlds.length},
+        worlds:multiverseWorlds.map(world=>world.name),
+        destination:{name:FINAL_DESTINATION.name,url:FINAL_DESTINATION.url},
+        savedOutfits:{him:selectedOutfitPath('him'),her:selectedOutfitPath('her')}
+      },
       performance:{compactViewport,particleRate,particleBudget,dpr},
       routeLength,
       racers:racers.map(racer=>({name:racer.name,direction:racer.pose&&racer.pose.direction,frame:racer.pose&&racer.pose.frame,x:racer.pose&&Math.round(racer.pose.x),y:racer.pose&&Math.round(racer.pose.y)}))
