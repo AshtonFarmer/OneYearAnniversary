@@ -30,6 +30,10 @@
   const BREACH_DURATION=2.2;
   const BREACH_FRAME_COUNT=16;
   const PURSUIT_LAUNCH_DELAY=.42;
+  const EXIT_BREACH_OPEN_AT=.9;
+  const EXIT_BREACH_FINISH_DURATION=1.68;
+  const EXIT_BREACH_WIDTH=360;
+  const EXIT_BREACH_HEIGHT=410;
   const REDUCED=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   const tileDefinitions=[
@@ -120,6 +124,7 @@
   let finishElapsed=0;
   let lastFrameTime=0;
   let currentProgress=0;
+  let currentRawProgress=0;
   let currentDistance=0;
   let currentSector=-1;
   let chapterTimer=0;
@@ -128,11 +133,15 @@
   let speedStrength=0;
   let wakeParticles=[];
   let particleCarry=0;
+  let particleRate=70;
+  let particleBudget=420;
+  let compactViewport=false;
   let audio=null;
   let lastCrackleAt=0;
   let loadFailed=false;
   let runNumber=0;
   let pursuitAlertTimer=0;
+  let exitBreachOpened=false;
   const hotPursuit={scheduled:false,active:false,startedAt:0,mix:0};
 
   function clamp(value,min,max){return Math.max(min,Math.min(max,value));}
@@ -237,9 +246,14 @@
   }
 
   function resize(){
-    dpr=Math.min(window.devicePixelRatio||1,2);
     cssWidth=Math.max(1,window.innerWidth);
     cssHeight=Math.max(1,window.innerHeight);
+    compactViewport=Math.min(cssWidth,cssHeight)<640&&Math.max(cssWidth,cssHeight)<980;
+    // Desktop is the primary presentation and keeps the full effects budget.
+    // Only genuinely phone-sized screens receive the lighter fallback.
+    dpr=Math.min(window.devicePixelRatio||1,compactViewport?1.5:2);
+    particleRate=compactViewport?48:70;
+    particleBudget=compactViewport?260:420;
     canvas.width=Math.round(cssWidth*dpr);
     canvas.height=Math.round(cssHeight*dpr);
     canvas.style.width=cssWidth+'px';
@@ -310,6 +324,7 @@
     sceneElapsed=0;
     finishElapsed=0;
     currentProgress=0;
+    currentRawProgress=0;
     currentDistance=0;
     currentSector=-1;
     chapterTimer=0;
@@ -319,6 +334,7 @@
     wakeParticles=[];
     particleCarry=0;
     pursuitAlertTimer=0;
+    exitBreachOpened=false;
     hotPursuit.scheduled=false;
     hotPursuit.active=false;
     hotPursuit.startedAt=0;
@@ -399,13 +415,14 @@
     sceneState='finishing';
     finishElapsed=0;
     flashStrength=1;
-    status.textContent=hotPursuit.active?'Hot Pursuit completed the Speed Force forest circuit.':'The Speed Force forest circuit is complete.';
+    status.textContent=hotPursuit.active?'Hot Pursuit is entering the exit breach.':'Ashton and Tanima are entering the exit breach.';
     fadeAudio();
   }
 
   function showFinish(){
     sceneState='finished';
     replayButton.textContent=runNumber===1?'Replay — Hot Pursuit':'Run it again';
+    status.textContent=hotPursuit.active?'Hot Pursuit cleared the breach.':'Breach transit complete. The forest circuit is clear.';
     finish.classList.remove('is-hidden');
   }
 
@@ -454,7 +471,14 @@
     const next=routeAt(currentDistance+130);
     const dot=clamp(ahead.tx*next.tx+ahead.ty*next.ty,-1,1);
     turnStrength=clamp((1-dot)*8,0,1);
-    const desiredZoom=baseZoom*(1-.075*speedStrength-.045*turnStrength-.035*hotPursuit.mix);
+    let desiredZoom=baseZoom*(1-.075*speedStrength-.045*turnStrength-.035*hotPursuit.mix);
+    if(sceneState==='finishing'){
+      const cinematic=Math.sin(clamp(finishElapsed/EXIT_BREACH_FINISH_DURATION,0,1)*Math.PI);
+      const breachCenter=exitBreachCenter();
+      target.x=mix(target.x,breachCenter.x,.58);
+      target.y=mix(target.y,breachCenter.y,.58);
+      desiredZoom*=1+cinematic*.105;
+    }
     zoom=mix(zoom||desiredZoom,desiredZoom,smoothFollow(.055,dt));
 
     const halfWidth=cssWidth/(2*zoom);
@@ -468,7 +492,7 @@
 
   function spawnWake(dt){
     if(REDUCED)return;
-    particleCarry+=dt*70;
+    particleCarry+=dt*particleRate;
     while(particleCarry>=1){
       particleCarry--;
       racers.forEach(racer=>{
@@ -489,7 +513,7 @@
         });
       });
     }
-    if(wakeParticles.length>420)wakeParticles.splice(0,wakeParticles.length-420);
+    if(wakeParticles.length>particleBudget)wakeParticles.splice(0,wakeParticles.length-particleBudget);
   }
 
   function updateParticles(dt){
@@ -541,6 +565,7 @@
       sceneElapsed+=dt;
       const raceElapsed=Math.max(0,sceneElapsed-(hotPursuit.active?PURSUIT_LAUNCH_DELAY:0));
       const raw=clamp(raceElapsed/RUN_DURATION,0,1);
+      currentRawProgress=raw;
       currentProgress=runProgress(raw);
       currentDistance=currentProgress*routeLength;
       speedStrength=clamp(Math.min(raw/.08,(1-raw)/.08),0,1);
@@ -553,19 +578,43 @@
       const percent=Math.round(raw*100);
       progressFill.style.width=percent+'%';
       progressPercent.textContent=percent+'%';
+      if(!exitBreachOpened&&raw>=EXIT_BREACH_OPEN_AT){
+        exitBreachOpened=true;
+        flashStrength=Math.max(flashStrength,.9);
+        status.textContent='Exit breach opening at the south gate.';
+        playExitBreach();
+      }
       if(raw>=1)finishRun();
     }else if(sceneState==='finishing'){
       finishElapsed+=dt;
       speedStrength=Math.max(0,1-finishElapsed/.9);
       updateParticles(dt);
       updateCamera(dt);
-      if(finishElapsed>=1.05)showFinish();
+      if(finishElapsed>=EXIT_BREACH_FINISH_DURATION)showFinish();
     }
   }
 
   function setWorldTransform(shakeX,shakeY){
     const scale=dpr*zoom;
     ctx.setTransform(scale,0,0,scale,canvas.width/2-(camera.x+shakeX)*scale,canvas.height/2-(camera.y+shakeY)*scale);
+  }
+
+  function drawVisibleWorldImage(){
+    const padding=180;
+    const halfWidth=cssWidth/(2*zoom)+padding;
+    const halfHeight=cssHeight/(2*zoom)+padding;
+    const left=clamp(camera.x-halfWidth,0,WORLD);
+    const top=clamp(camera.y-halfHeight,0,WORLD);
+    const right=clamp(camera.x+halfWidth,0,WORLD);
+    const bottom=clamp(camera.y+halfHeight,0,WORLD);
+    const width=Math.max(1,right-left);
+    const height=Math.max(1,bottom-top);
+    const sourceScale=(worldImage.naturalWidth||TILE)/WORLD;
+    ctx.drawImage(
+      worldImage,
+      left*sourceScale,top*sourceScale,width*sourceScale,height*sourceScale,
+      left,top,width,height
+    );
   }
 
   function drawWorld(){
@@ -576,22 +625,27 @@
     ctx.imageSmoothingEnabled=false;
     ctx.fillStyle='#041018';
     ctx.fillRect(0,0,WORLD,WORLD);
-    ctx.drawImage(worldImage,0,0,WORLD,WORLD);
+    drawVisibleWorldImage();
     // The render loop may begin before slower browsers finish loading every
     // asset and resetScene creates the first poses. Keep drawing the forest,
     // but wait to sort/draw racers until those poses exist.
     if(!racers.every(racer=>racer.pose))return;
     drawWakeParticles();
     drawPursuitRift();
+    drawExitBreach();
     racers.forEach(drawTrail);
     racers.forEach(drawAfterimages);
     [...racers].sort((a,b)=>a.pose.y-b.pose.y).forEach(drawRacer);
+    drawExitBreachVeil();
   }
 
   function drawWakeParticles(){
+    const halfWidth=cssWidth/(2*zoom)+130;
+    const halfHeight=cssHeight/(2*zoom)+130;
     ctx.save();
     ctx.globalCompositeOperation='lighter';
     wakeParticles.forEach(particle=>{
+      if(Math.abs(particle.x-camera.x)>halfWidth||Math.abs(particle.y-camera.y)>halfHeight)return;
       const life=particle.life/particle.maxLife;
       ctx.globalAlpha=life*(particle.type==='spark'?.8:.52);
       ctx.strokeStyle=particle.color;
@@ -665,31 +719,97 @@
     }
   }
 
+  function drawBreachFrame(center,width,height,frameFloat,alpha){
+    const safeFrame=clamp(frameFloat,0,BREACH_FRAME_COUNT-.0001);
+    const firstFrame=Math.min(BREACH_FRAME_COUNT-1,Math.floor(safeFrame));
+    const secondFrame=Math.min(BREACH_FRAME_COUNT-1,firstFrame+1);
+    const blend=safeFrame-firstFrame;
+
+    function drawFrame(frame,frameAlpha){
+      if(frameAlpha<=.01)return;
+      const col=frame%4,row=Math.floor(frame/4);
+      ctx.globalAlpha=frameAlpha*alpha;
+      ctx.drawImage(breachImage,col*CELL,row*CELL,CELL,CELL,center.x-width/2,center.y-height/2,width,height);
+    }
+
+    drawFrame(firstFrame,1-blend);
+    drawFrame(secondFrame,blend);
+  }
+
   function drawPursuitRift(){
-    if(REDUCED||!hotPursuit.active)return;
+    if(!hotPursuit.active)return;
     const elapsed=sceneElapsed-hotPursuit.startedAt;
     if(elapsed<0||elapsed>=BREACH_DURATION)return;
     const start=routeAt(0);
     const ashtonStartX=start.x-start.ty*racers[0].lane;
     const center={x:ashtonStartX-55,y:start.y-25};
-    const frameFloat=clamp(elapsed/BREACH_DURATION,0,.9999)*BREACH_FRAME_COUNT;
-    const firstFrame=Math.min(BREACH_FRAME_COUNT-1,Math.floor(frameFloat));
-    const secondFrame=Math.min(BREACH_FRAME_COUNT-1,firstFrame+1);
-    const blend=frameFloat-firstFrame;
-
-    function drawFrame(frame,alpha){
-      if(alpha<=.01)return;
-      const col=frame%4,row=Math.floor(frame/4);
-      ctx.globalAlpha=alpha;
-      ctx.drawImage(breachImage,col*CELL,row*CELL,CELL,CELL,center.x-140,center.y-170,280,340);
-    }
+    const frameFloat=REDUCED?8:clamp(elapsed/BREACH_DURATION,0,.9999)*BREACH_FRAME_COUNT;
 
     ctx.save();
     ctx.globalCompositeOperation='source-over';
     ctx.shadowColor='#64ddff';
     ctx.shadowBlur=18;
-    drawFrame(firstFrame,1-blend);
-    drawFrame(secondFrame,blend);
+    drawBreachFrame(center,280,340,frameFloat,1);
+    ctx.restore();
+  }
+
+  function exitBreachCenter(){
+    const end=routeAt(routeLength);
+    return {x:end.x,y:end.y-EXIT_BREACH_HEIGHT/2};
+  }
+
+  function exitBreachReveal(){
+    if(sceneState==='finishing')return 1;
+    if(sceneState!=='running')return 0;
+    return easeInOut((currentRawProgress-EXIT_BREACH_OPEN_AT)/.075);
+  }
+
+  function exitBreachFrame(){
+    if(sceneState!=='finishing')return exitBreachReveal()*10.25;
+    if(REDUCED)return finishElapsed<.76?9:15;
+    if(finishElapsed<.7)return 9.25+(Math.sin(sceneElapsed*11)+1)*.72;
+    return mix(11,15.999,easeInOut((finishElapsed-.7)/.86));
+  }
+
+  function drawExitBreach(){
+    const reveal=exitBreachReveal();
+    if(reveal<=.001)return;
+    const center=exitBreachCenter();
+    const collapse=sceneState==='finishing'?easeInOut((finishElapsed-.7)/.86):0;
+    const breathing=REDUCED?1:1+Math.sin(sceneElapsed*5.2)*.018*(1-collapse);
+    const scale=mix(.58,1,reveal)*breathing;
+    const alpha=reveal*(1-collapse*.96);
+
+    ctx.save();
+    ctx.globalCompositeOperation='source-over';
+    ctx.shadowColor='#82eeff';
+    ctx.shadowBlur=26+reveal*22;
+    drawBreachFrame(center,EXIT_BREACH_WIDTH*scale,EXIT_BREACH_HEIGHT*scale,exitBreachFrame(),alpha);
+    ctx.restore();
+  }
+
+  function finishSwallowProgress(){
+    if(sceneState!=='finishing')return 0;
+    return easeInOut(finishElapsed/.7);
+  }
+
+  function drawExitBreachVeil(){
+    const swallow=finishSwallowProgress();
+    if(swallow<=.001)return;
+    const center=exitBreachCenter();
+    const radius=66+swallow*30;
+    const glow=ctx.createRadialGradient(center.x,center.y,4,center.x,center.y,radius);
+    glow.addColorStop(0,'rgba(255,255,255,.98)');
+    glow.addColorStop(.22,'rgba(191,249,255,.86)');
+    glow.addColorStop(.58,'rgba(60,209,255,.34)');
+    glow.addColorStop(1,'rgba(36,133,255,0)');
+    ctx.save();
+    ctx.globalCompositeOperation='lighter';
+    ctx.globalAlpha=swallow*(1-clamp((finishElapsed-.72)/.72,0,1));
+    ctx.fillStyle=glow;
+    ctx.beginPath();
+    ctx.ellipse(center.x,center.y,radius,radius*1.18,0,0,Math.PI*2);
+    ctx.fill();
     ctx.restore();
   }
 
@@ -723,7 +843,7 @@
   function drawAfterimages(racer){
     if(REDUCED||racer.history.length<18)return;
     ctx.save();ctx.globalCompositeOperation='lighter';
-    [10,19,28].forEach((behind,index)=>{
+    (compactViewport?[12,25]:[10,19,28]).forEach((behind,index)=>{
       const point=racer.history[Math.max(0,racer.history.length-1-behind)];
       if(!point)return;
       const size=spriteSizeFor(racer)*(1-index*.025);
@@ -733,11 +853,38 @@
     ctx.restore();
   }
 
-  function drawRacer(racer){
+  function racerRenderState(racer){
     const pose=racer.pose;
+    const baseSize=spriteSizeFor(racer);
+    if(sceneState!=='finishing')return {pose,size:baseSize,scale:1,alpha:1};
+
+    const swallow=finishSwallowProgress();
+    const breach=exitBreachCenter();
+    const size=baseSize*mix(1,.12,swallow);
+    const baseCenterY=pose.y-baseSize*.5;
+    const laneOffset=(racer.key==='him'?-24:24)*(1-swallow);
+    const centerX=mix(pose.x,breach.x+laneOffset,swallow);
+    const centerY=mix(baseCenterY,breach.y+8,swallow);
+    const vanish=easeInOut((swallow-.42)/.58);
+    return {
+      pose:{
+        ...pose,
+        x:centerX,
+        y:centerY+size*.5,
+        turn:mix(pose.turn||0,racer.key==='him'?-.16:.16,swallow)
+      },
+      size,
+      scale:size/baseSize,
+      alpha:1-vanish
+    };
+  }
+
+  function drawRacer(racer){
+    const render=racerRenderState(racer);
+    const pose=render.pose;
     if(!pose)return;
-    const size=spriteSizeFor(racer);
-    const entryAlpha=racerEntryAlpha(racer);
+    const size=render.size;
+    const entryAlpha=racerEntryAlpha(racer)*render.alpha;
     ctx.save();
     ctx.globalAlpha=.28*entryAlpha;
     ctx.fillStyle='#02070a';
@@ -746,27 +893,27 @@
 
     ctx.save();ctx.globalCompositeOperation='lighter';
     if(racer.key==='him'&&hotPursuit.mix>0){
-      drawSpriteFrame(racer,pose,SPRITE_SIZE,.42*speedStrength*(1-hotPursuit.mix)*entryAlpha,true,racer.image);
-      drawSpriteFrame(racer,pose,PURSUIT_SIZE,.48*speedStrength*hotPursuit.mix*entryAlpha,true,pursuitImage);
+      drawSpriteFrame(racer,pose,SPRITE_SIZE*render.scale,.42*speedStrength*(1-hotPursuit.mix)*entryAlpha,true,racer.image);
+      drawSpriteFrame(racer,pose,PURSUIT_SIZE*render.scale,.48*speedStrength*hotPursuit.mix*entryAlpha,true,pursuitImage);
     }else{
-      drawSpriteFrame(racer,pose,SPRITE_SIZE,.42*speedStrength,true,racer.image);
+      drawSpriteFrame(racer,pose,SPRITE_SIZE*render.scale,.42*speedStrength*entryAlpha,true,racer.image);
     }
     ctx.restore();
     if(racer.key==='him'&&hotPursuit.mix>0){
-      drawSpriteFrame(racer,pose,SPRITE_SIZE,(1-hotPursuit.mix)*entryAlpha,false,racer.image);
-      drawSpriteFrame(racer,pose,PURSUIT_SIZE,hotPursuit.mix*entryAlpha,false,pursuitImage);
+      drawSpriteFrame(racer,pose,SPRITE_SIZE*render.scale,(1-hotPursuit.mix)*entryAlpha,false,racer.image);
+      drawSpriteFrame(racer,pose,PURSUIT_SIZE*render.scale,hotPursuit.mix*entryAlpha,false,pursuitImage);
     }else{
-      drawSpriteFrame(racer,pose,SPRITE_SIZE,1,false,racer.image);
+      drawSpriteFrame(racer,pose,SPRITE_SIZE*render.scale,entryAlpha,false,racer.image);
     }
-    drawBodyLightning(racer);
+    drawBodyLightning(racer,render);
   }
 
-  function drawBodyLightning(racer){
+  function drawBodyLightning(racer,render){
     if(REDUCED)return;
-    const pose=racer.pose;
+    const pose=render.pose;
     const palette=pursuitPalette(racer);
-    const spriteSize=spriteSizeFor(racer);
-    const entryAlpha=racerEntryAlpha(racer);
+    const spriteSize=render.size;
+    const entryAlpha=racerEntryAlpha(racer)*render.alpha;
     const tick=Math.floor(sceneElapsed*22);
     ctx.save();ctx.globalCompositeOperation='lighter';
     for(let index=0;index<4;index++){
@@ -786,9 +933,10 @@
     ctx.setTransform(dpr,0,0,dpr,0,0);
     ctx.save();ctx.globalCompositeOperation='lighter';ctx.lineCap='round';
     const centerX=cssWidth/2,centerY=cssHeight/2;
-    for(let index=0;index<30;index++){
+    const lineCount=compactViewport?20:30;
+    for(let index=0;index<lineCount;index++){
       const phase=randomish(index*17+Math.floor(sceneElapsed*8));
-      const angle=index/30*Math.PI*2+sceneElapsed*.04;
+      const angle=index/lineCount*Math.PI*2+sceneElapsed*.04;
       const startRadius=mix(Math.min(cssWidth,cssHeight)*.22,Math.max(cssWidth,cssHeight)*.52,phase);
       const length=mix(18,78,randomish(index*29+7))*speedStrength;
       const x=centerX+Math.cos(angle)*startRadius;
@@ -904,6 +1052,28 @@
     });
   }
 
+  function playExitBreach(){
+    if(!audio||audio.context.state!=='running')return;
+    const context=audio.context;
+    const now=context.currentTime+.015;
+    [
+      {type:'sine',start:78,end:34,gain:.15,duration:.82},
+      {type:'triangle',start:1320,end:210,gain:.095,duration:.66},
+      {type:'sawtooth',start:410,end:118,gain:.055,duration:.5}
+    ].forEach((voice,index)=>{
+      const oscillator=context.createOscillator();
+      const gain=context.createGain();
+      oscillator.type=voice.type;
+      oscillator.frequency.setValueAtTime(voice.start,now+index*.035);
+      oscillator.frequency.exponentialRampToValueAtTime(voice.end,now+voice.duration);
+      gain.gain.setValueAtTime(.0001,now);
+      gain.gain.exponentialRampToValueAtTime(voice.gain,now+.07+index*.02);
+      gain.gain.exponentialRampToValueAtTime(.0001,now+voice.duration);
+      oscillator.connect(gain);gain.connect(audio.master);
+      oscillator.start(now);oscillator.stop(now+voice.duration+.02);
+    });
+  }
+
   function updateAudio(){
     if(!audio||audio.context.state!=='running')return;
     const now=audio.context.currentTime;
@@ -927,6 +1097,11 @@
   }
 
   function loop(now){
+    if(document.hidden){
+      lastFrameTime=now;
+      requestAnimationFrame(loop);
+      return;
+    }
     const dt=lastFrameTime?clamp((now-lastFrameTime)/1000,0,.04):0;
     lastFrameTime=now;
     update(dt);
@@ -939,6 +1114,12 @@
   backButton.addEventListener('click',goHome);
   finishHome.addEventListener('click',goHome);
   window.addEventListener('resize',resize);
+  document.addEventListener('visibilitychange',()=>{
+    lastFrameTime=0;
+    if(!audio)return;
+    if(document.hidden){audio.context.suspend().catch(()=>{});return;}
+    if(sceneState==='running'&&!paused)audio.context.resume().catch(()=>{});
+  });
   window.addEventListener('keydown',event=>{
     const key=event.key.toLowerCase();
     if(key==='escape'){goHome();return;}
@@ -958,8 +1139,11 @@
       paused,
       runNumber,
       progress:currentProgress,
+      rawProgress:currentRawProgress,
       sector:tileDefinitions[currentSector]&&tileDefinitions[currentSector].name,
       hotPursuit:{scheduled:hotPursuit.scheduled,active:hotPursuit.active,mix:hotPursuit.mix,mode:hotPursuit.active?'full-run':'flash'},
+      exitBreach:{opened:exitBreachOpened,reveal:exitBreachReveal(),swallow:finishSwallowProgress()},
+      performance:{compactViewport,particleRate,particleBudget,dpr},
       routeLength,
       racers:racers.map(racer=>({name:racer.name,direction:racer.pose&&racer.pose.direction,frame:racer.pose&&racer.pose.frame,x:racer.pose&&Math.round(racer.pose.x),y:racer.pose&&Math.round(racer.pose.y)}))
     }),
