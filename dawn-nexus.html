@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Dawn Nexus</title>
+  <link rel="preload" as="image" href="assets/multiverse/dawn-nexus.webp">
+  <style>
+    :root{color-scheme:dark;--gold:#ffe29a;--cyan:#9cf5ff;--panel:rgba(15,23,35,.86)}
+    *{box-sizing:border-box}
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#10182a;color:#fff;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    #game{display:block;width:100vw;height:100vh;image-rendering:pixelated;touch-action:none;background:#9ddff0}
+    #loading{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:radial-gradient(circle at 50% 45%,#314e69,#0c1425 70%);transition:opacity .55s ease}
+    #loading.is-hidden{opacity:0;pointer-events:none}
+    .loading-card{width:min(510px,88vw);padding:28px;border:2px solid rgba(255,226,154,.78);border-radius:18px;background:rgba(8,15,28,.9);text-align:center;box-shadow:0 20px 70px #000b,0 0 45px rgba(93,226,255,.12)}
+    .loading-card strong{display:block;color:var(--gold);font-size:clamp(22px,5vw,34px);letter-spacing:.08em}
+    .loading-card span{display:block;margin-top:10px;color:#dff9ff;font-size:13px;line-height:1.45}
+    .load-line{height:5px;margin-top:20px;overflow:hidden;border-radius:999px;background:#24384a}
+    .load-line:after{content:"";display:block;width:36%;height:100%;background:linear-gradient(90deg,#2fcfff,#fff5bd,#2fcfff);animation:load 1s ease-in-out infinite}
+    @keyframes load{from{transform:translateX(-110%)}to{transform:translateX(385%)}}
+    #title{position:fixed;z-index:7;top:max(14px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);padding:8px 17px;border:2px solid rgba(255,226,154,.74);border-radius:999px;background:var(--panel);color:#fff2c2;font-weight:900;letter-spacing:.12em;box-shadow:0 8px 26px #0007;pointer-events:none}
+    .nav{position:fixed;z-index:8;top:max(12px,env(safe-area-inset-top));padding:9px 12px;border:2px solid rgba(183,245,255,.72);border-radius:10px;background:rgba(8,18,31,.9);color:#edfdff;font-weight:900;text-decoration:none;box-shadow:0 8px 24px #0008}
+    #home{left:max(12px,env(safe-area-inset-left));border-color:rgba(255,226,154,.72);color:#fff1bd}
+    #replay{right:max(12px,env(safe-area-inset-right))}
+    #prompt{position:fixed;z-index:9;left:50%;bottom:max(24px,calc(env(safe-area-inset-bottom) + 14px));transform:translateX(-50%);display:none;max-width:min(760px,90vw);padding:11px 17px;border:2px solid rgba(255,226,154,.82);border-radius:12px;background:rgba(8,15,27,.94);color:#fff5cb;font-size:clamp(13px,2vw,17px);font-weight:900;text-align:center;box-shadow:0 10px 30px #000b}
+    #toast{position:fixed;z-index:12;top:max(68px,calc(env(safe-area-inset-top) + 52px));left:50%;transform:translate(-50%,-14px);width:min(580px,86vw);padding:13px 18px;border:2px solid rgba(117,236,255,.78);border-radius:13px;background:rgba(7,19,34,.96);opacity:0;pointer-events:none;transition:opacity .25s ease,transform .25s ease;text-align:center;box-shadow:0 12px 40px #000b,0 0 30px rgba(91,226,255,.15)}
+    #toast.is-visible{opacity:1;transform:translate(-50%,0)}
+    #toast strong{display:block;color:#fff0ae;font-size:17px;margin-bottom:4px}#toast span{color:#dcf7ff;line-height:1.35}
+    #controls{position:fixed;z-index:7;right:14px;bottom:14px;padding:8px 11px;border:1px solid rgba(255,255,255,.25);border-radius:9px;background:rgba(8,15,27,.65);color:#ecfaff;font-size:11px;pointer-events:none}
+    #arrivalFlash{position:fixed;inset:0;z-index:15;pointer-events:none;opacity:0;background:radial-gradient(circle at 50% 58%,rgba(255,255,255,.95),rgba(82,226,255,.5) 14%,rgba(36,114,255,.12) 35%,transparent 60%);mix-blend-mode:screen}
+    @media(max-width:620px){#title{top:61px}.nav{font-size:0}.nav:after{font-size:19px}#home:after{content:"←"}#replay:after{content:"↻"}#controls{display:none}}
+    @media(prefers-reduced-motion:reduce){.load-line:after{animation:none;width:100%}#loading,#toast{transition:none}}
+  </style>
+</head>
+<body>
+  <canvas id="game" aria-label="Ashton and Tanima exploring the Dawn Nexus"></canvas>
+  <div id="arrivalFlash" aria-hidden="true"></div>
+  <div id="loading" role="status" aria-live="polite"><div class="loading-card"><strong>ENTERING THE DAWN NEXUS</strong><span>Sealing the pursuit and restoring your saved outfits…</span><div class="load-line" aria-hidden="true"></div></div></div>
+  <div id="title">DAWN NEXUS</div>
+  <a id="home" class="nav" href="index.html">← Back to Farm</a>
+  <a id="replay" class="nav" href="speed-force-run.html">Run the Speed Force again →</a>
+  <div id="prompt" role="status" aria-live="polite"></div>
+  <div id="toast" role="status" aria-live="polite"><strong></strong><span></span></div>
+  <div id="controls">ASHTON: WASD · TANIMA: ARROWS · E: INTERACT</div>
+  <script src="js/dawn-nexus.js?v=20260823-1"></script>
+</body>
+</html>
