@@ -1,4 +1,5 @@
-// Automatic two-speedster circuit through the connected 3x3 Speed Force forest.
+// Automatic two-runner circuit through the connected 3x3 Speed Force forest,
+// with a guaranteed Flash/Hot Pursuit opening and a comic-speedster pursuit bag.
 // The future entrance can point directly to speed-force-run.html; this scene is
 // intentionally self-contained until the final doorway location is chosen.
 (function(){
@@ -20,6 +21,9 @@
   const progressPercent=document.getElementById('progressPercent');
   const speedFlash=document.getElementById('speedFlash');
   const pursuitAlert=document.getElementById('pursuitAlert');
+  const alertEyebrow=pursuitAlert.querySelector('small');
+  const alertTitle=pursuitAlert.querySelector('strong');
+  const alertSubtitle=pursuitAlert.querySelector('span');
 
   const TILE=1254;
   const WORLD=TILE*3;
@@ -34,7 +38,29 @@
   const EXIT_BREACH_FINISH_DURATION=1.68;
   const EXIT_BREACH_WIDTH=360;
   const EXIT_BREACH_HEIGHT=410;
+  const CHASE_START_RUN=5; // Initial run + three replays must finish first.
+  const MAX_PURSUERS=5;
   const REDUCED=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  const fallbackRoster=[
+    {
+      id:'flash-new52',name:'New 52 Flash',asset:'assets/sprites/him_outfit10_run.png',
+      guaranteedRun:1,random:false,spriteSize:SPRITE_SIZE,leadBoost:0,
+      lightning:{label:'GOLD SPEED FORCE',core:'#fff9cf',bright:'#ffd438',outer:'#ff7a14',shadow:'rgba(255,176,35,.9)'}
+    },
+    {
+      id:'hot-pursuit',name:'Hot Pursuit',asset:'assets/sprites/him_hot_pursuit_run.png',
+      guaranteedRun:2,random:false,spriteSize:PURSUIT_SIZE,leadBoost:88,special:'breach',
+      lightning:{label:'COSMIC CYAN + ORANGE',core:'#eaffff',bright:'#60efff',outer:'#ff7d0b',shadow:'rgba(87,235,255,.96)'}
+    }
+  ];
+  const rosterSource=Array.isArray(window.SPEEDSTER_ROSTER)&&window.SPEEDSTER_ROSTER.length>=2
+    ?window.SPEEDSTER_ROSTER:fallbackRoster;
+  const speedsterRoster=rosterSource.map(entry=>({...entry,image:null,loaded:false,failed:false}));
+  const speedsterById=new Map(speedsterRoster.map(entry=>[entry.id,entry]));
+  const baseSpeedster=speedsterById.get('flash-new52')||speedsterRoster[0];
+  const pursuitSpeedster=speedsterById.get('hot-pursuit')||speedsterRoster[1]||baseSpeedster;
+  const randomSpeedsters=speedsterRoster.filter(entry=>entry.random);
 
   const tileDefinitions=[
     {key:'northwest',name:'Thunderbloom Grove',col:0,row:0},
@@ -57,12 +83,21 @@
   const worldImage=new Image();
   worldImage.src='assets/speed-force/speed-force-master.png';
 
-  const himImage=new Image();
-  himImage.src='assets/sprites/him_outfit10_run.png';
+  function loadSpeedsterImage(speedster){
+    if(speedster.image)return speedster.image;
+    const image=new Image();
+    speedster.image=image;
+    image.addEventListener('load',()=>{speedster.loaded=true;speedster.failed=false;},{once:true});
+    image.addEventListener('error',()=>{speedster.failed=true;},{once:true});
+    image.src=speedster.asset;
+    if(image.complete&&image.naturalWidth>0)speedster.loaded=true;
+    return image;
+  }
+
+  const himImage=loadSpeedsterImage(baseSpeedster);
   const herImage=new Image();
   herImage.src='assets/sprites/her_outfit10_run.png';
-  const pursuitImage=new Image();
-  pursuitImage.src='assets/sprites/him_hot_pursuit_run.png';
+  const pursuitImage=loadSpeedsterImage(pursuitSpeedster);
   const breachImage=new Image();
   breachImage.src='assets/sprites/speed_force_breach.png';
 
@@ -142,6 +177,13 @@
   let runNumber=0;
   let pursuitAlertTimer=0;
   let exitBreachOpened=false;
+  let activeSpeedster=baseSpeedster;
+  let activeSpeedsterImage=himImage;
+  let randomSpeedsterDeck=[];
+  let lastRandomSpeedsterId='';
+  let queuedSpeedsterId='';
+  let pursuers=[];
+  let chaseActive=false;
   const hotPursuit={scheduled:false,active:false,startedAt:0,mix:0};
 
   function clamp(value,min,max){return Math.max(min,Math.min(max,value));}
@@ -153,18 +195,22 @@
   function randomish(value){const result=seeded(value);return result<0?result+1:result;}
   function easeInOut(value){const t=clamp(value,0,1);return t*t*(3-2*t);}
 
-  function pursuitPalette(racer){
-    if(racer.key==='him'&&hotPursuit.mix>.08){
-      return {core:'#eaffff',bright:'#60efff',outer:'#ff7d0b',shadow:'rgba(87,235,255,.96)'};
-    }
-    return racer;
+  function racerPalette(racer){
+    if(racer.speedster)return racer.speedster.lightning||racer;
+    return racer.key==='him'?(activeSpeedster.lightning||racer):racer;
   }
 
   function spriteSizeFor(racer){
-    return racer.key==='him'?mix(SPRITE_SIZE,PURSUIT_SIZE,hotPursuit.mix):SPRITE_SIZE;
+    if(racer.speedster)return (racer.speedster.spriteSize||SPRITE_SIZE)*.94;
+    return racer.key==='him'?(activeSpeedster.spriteSize||SPRITE_SIZE):SPRITE_SIZE;
+  }
+
+  function spriteImageFor(racer){
+    return racer.key==='him'?activeSpeedsterImage:racer.image;
   }
 
   function racerEntryAlpha(racer){
+    if(racer.isPursuer)return racer.entryAlpha||0;
     if(racer.key!=='him'||!hotPursuit.active)return 1;
     return easeInOut((sceneElapsed-.12)/.42);
   }
@@ -289,9 +335,10 @@
         sceneState='ready';
         startButton.disabled=false;
         startButton.textContent='Start the run';
-        loadText.textContent='First run: Flash. First replay: Hot Pursuit. The circuit is ready.';
+        loadText.textContent='Run 1: Flash. Replay 1: Hot Pursuit. The comic pursuit begins after replay 3.';
         status.textContent='The Speed Force forest is ready.';
         resetScene();
+        preloadRandomSpeedsters();
       }
     }
     images.forEach(asset=>{
@@ -310,6 +357,95 @@
       // may have fired before this function attached its listeners.
       if(image.complete)window.setTimeout(()=>settle(image.naturalWidth>0),0);
     });
+  }
+
+  function preloadRandomSpeedsters(){
+    const start=()=>randomSpeedsters.forEach((speedster,index)=>{
+      window.setTimeout(()=>loadSpeedsterImage(speedster),index*70);
+    });
+    if('requestIdleCallback' in window)window.requestIdleCallback(start,{timeout:1400});
+    else window.setTimeout(start,80);
+  }
+
+  function refillRandomSpeedsterDeck(){
+    randomSpeedsterDeck=[...randomSpeedsters];
+    for(let index=randomSpeedsterDeck.length-1;index>0;index--){
+      const swapIndex=Math.floor(Math.random()*(index+1));
+      [randomSpeedsterDeck[index],randomSpeedsterDeck[swapIndex]]=[randomSpeedsterDeck[swapIndex],randomSpeedsterDeck[index]];
+    }
+    if(randomSpeedsterDeck.length>1&&randomSpeedsterDeck[randomSpeedsterDeck.length-1].id===lastRandomSpeedsterId){
+      [randomSpeedsterDeck[0],randomSpeedsterDeck[randomSpeedsterDeck.length-1]]=[randomSpeedsterDeck[randomSpeedsterDeck.length-1],randomSpeedsterDeck[0]];
+    }
+  }
+
+  function nextRandomSpeedster(){
+    if(!randomSpeedsterDeck.length)refillRandomSpeedsterDeck();
+    const speedster=randomSpeedsterDeck.pop()||baseSpeedster;
+    lastRandomSpeedsterId=speedster.id;
+    return speedster;
+  }
+
+  function applySpeedsterTheme(){
+    const palette=activeSpeedster.lightning||baseSpeedster.lightning;
+    pursuitAlert.style.borderColor=palette.bright;
+    pursuitAlert.style.boxShadow='0 10px 32px #000b, 0 0 34px '+palette.shadow;
+    alertEyebrow.style.color=palette.outer;
+    alertTitle.style.textShadow='-2px 0 10px '+palette.outer+', 2px 0 10px '+palette.bright;
+    alertSubtitle.style.color=palette.bright;
+    speedFlash.style.background='linear-gradient(110deg,'+palette.outer+'99,rgba(255,255,255,.12) 45%,'+palette.bright+'99)';
+    progressFill.style.background='linear-gradient(90deg,'+palette.outer+','+palette.bright+' 43%,#fff 53%,#a8f8ff 68%,#37d7ff)';
+  }
+
+  function selectSpeedsterForRun(){
+    let selected;
+    if(queuedSpeedsterId){
+      selected=speedsterById.get(queuedSpeedsterId);
+      queuedSpeedsterId='';
+    }
+    if(!selected){
+      if(runNumber===1)selected=baseSpeedster;
+      else if(runNumber===2)selected=pursuitSpeedster;
+      else selected=baseSpeedster;
+    }
+    activeSpeedster=selected||baseSpeedster;
+    activeSpeedsterImage=loadSpeedsterImage(activeSpeedster);
+    hotPursuit.scheduled=activeSpeedster.id===pursuitSpeedster.id;
+    hotPursuit.startedAt=0;
+    hotPursuit.active=hotPursuit.scheduled;
+    hotPursuit.mix=hotPursuit.active?1:0;
+    applySpeedsterTheme();
+  }
+
+  function selectPursuersForRun(){
+    pursuers=[];
+    chaseActive=runNumber>=CHASE_START_RUN;
+    if(!chaseActive||!randomSpeedsters.length)return;
+
+    const count=Math.min(2+(runNumber-CHASE_START_RUN),MAX_PURSUERS,randomSpeedsters.length);
+    const lanes=[-126,126,-202,202,0];
+    const selectedIds=new Set();
+    for(let index=0;index<count;index++){
+      let speedster=nextRandomSpeedster();
+      let guard=0;
+      while(selectedIds.has(speedster.id)&&guard<randomSpeedsters.length){
+        speedster=nextRandomSpeedster();
+        guard++;
+      }
+      selectedIds.add(speedster.id);
+      pursuers.push({
+        key:'pursuer-'+speedster.id+'-'+index,
+        name:speedster.name,
+        image:loadSpeedsterImage(speedster),
+        speedster,
+        isPursuer:true,
+        lane:lanes[index]||0,
+        frameOffset:(index*2+1)%4,
+        seed:211+index*47,
+        history:[],pose:null,
+        entryDelay:.48+index*.16,
+        entryAlpha:0
+      });
+    }
   }
 
   function handleStart(){
@@ -339,6 +475,8 @@
     hotPursuit.active=false;
     hotPursuit.startedAt=0;
     hotPursuit.mix=0;
+    pursuers=[];
+    chaseActive=false;
     pursuitAlert.classList.remove('is-visible');
     paused=false;
     racers.forEach(racer=>{racer.history=[];racer.pose=null;});
@@ -359,12 +497,14 @@
   function startRun(){
     resetScene();
     runNumber++;
-    scheduleHotPursuit();
+    selectSpeedsterForRun();
+    selectPursuersForRun();
     // resetScene prepares the ordinary Flash pose for the ready screen. Build
-    // the first playable pose again after selecting this run's mode so a Hot
-    // Pursuit replay never exposes even one normal-suit frame.
+    // the first playable pose again after selecting this run's form so every
+    // replay uses one speedster from launch through the finish line.
     racers.forEach(racer=>{racer.history=[];racer.pose=null;});
     updateRacers(0,true);
+    updatePursuers(0,true);
     sceneState='running';
     loader.classList.add('is-hidden');
     finish.classList.add('is-hidden');
@@ -373,22 +513,17 @@
     playCharge();
     if(hotPursuit.active){
       announceHotPursuit();
+    }else if(chaseActive){
+      announcePursuers();
     }else{
       status.textContent='Ashton and Tanima launch into the Speed Force forest.';
     }
   }
 
-  function scheduleHotPursuit(){
-    // The original suits own the first trip. The first replay always begins
-    // in Hot Pursuit mode; later anomalies are also full runs, never mid-run
-    // transformations that expire before the finish.
-    hotPursuit.scheduled=runNumber===2||(runNumber>2&&Math.random()<.46);
-    hotPursuit.startedAt=0;
-    hotPursuit.active=hotPursuit.scheduled;
-    hotPursuit.mix=hotPursuit.active?1:0;
-  }
-
   function announceHotPursuit(){
+    alertEyebrow.textContent='Dimensional breach detected';
+    alertTitle.textContent='HOT PURSUIT PROTOCOL';
+    alertSubtitle.textContent='Cosmic bike engaged';
     pursuitAlertTimer=2.9;
     pursuitAlert.classList.add('is-visible');
     flashStrength=1.35;
@@ -396,13 +531,32 @@
     playPursuitSiren();
   }
 
+  function announcePursuers(){
+    const first=pursuers[0];
+    const palette=first&&first.speedster&&first.speedster.lightning;
+    if(palette){
+      pursuitAlert.style.borderColor=palette.bright;
+      pursuitAlert.style.boxShadow='0 10px 32px #000b, 0 0 34px '+palette.shadow;
+      alertEyebrow.style.color=palette.outer;
+      alertTitle.style.textShadow='-2px 0 10px '+palette.outer+', 2px 0 10px '+palette.bright;
+      alertSubtitle.style.color=palette.bright;
+    }
+    alertEyebrow.textContent='Speedster pursuit detected';
+    alertTitle.textContent=pursuers.length+' COMIC SPEEDSTERS';
+    alertSubtitle.textContent='BREACHING IN BEHIND YOU';
+    pursuitAlertTimer=2.9;
+    pursuitAlert.classList.add('is-visible');
+    flashStrength=1.15;
+    status.textContent=pursuers.map(pursuer=>pursuer.name).join(', ')+' are chasing Ashton and Tanima.';
+    playPursuitSiren();
+  }
+
   function triggerHotPursuit(){
-    if(sceneState!=='running')return;
-    hotPursuit.scheduled=true;
-    hotPursuit.active=true;
-    hotPursuit.startedAt=sceneElapsed;
-    hotPursuit.mix=1;
-    announceHotPursuit();
+    // Never transform during a run. This debug hook queues a complete Hot
+    // Pursuit run for the next launch instead.
+    queuedSpeedsterId=pursuitSpeedster.id;
+    status.textContent='Hot Pursuit is queued for the next complete run.';
+    return true;
   }
 
   function updateHotPursuit(){
@@ -415,22 +569,30 @@
     sceneState='finishing';
     finishElapsed=0;
     flashStrength=1;
-    status.textContent=hotPursuit.active?'Hot Pursuit is entering the exit breach.':'Ashton and Tanima are entering the exit breach.';
+    status.textContent=chaseActive
+      ?'Ashton and Tanima are escaping '+pursuers.length+' comic speedsters through the exit breach.'
+      :(hotPursuit.active?'Hot Pursuit is entering the exit breach.':'Ashton and Tanima are entering the exit breach.');
     fadeAudio();
   }
 
   function showFinish(){
     sceneState='finished';
-    replayButton.textContent=runNumber===1?'Replay — Hot Pursuit':'Run it again';
-    status.textContent=hotPursuit.active?'Hot Pursuit cleared the breach.':'Breach transit complete. The forest circuit is clear.';
+    if(runNumber===1)replayButton.textContent='Replay 1 — Hot Pursuit';
+    else if(runNumber===2)replayButton.textContent='Replay 2 — Flash';
+    else if(runNumber===3)replayButton.textContent='Replay 3 — Flash';
+    else if(runNumber===4)replayButton.textContent='Replay 4 — Pursuit begins';
+    else replayButton.textContent='Replay — New pursuers';
+    status.textContent=chaseActive
+      ?'Breach transit complete. Ashton and Tanima escaped the comic-speedster pursuit.'
+      :(hotPursuit.active?'Hot Pursuit cleared the breach.':'Breach transit complete. The forest circuit is clear.');
     finish.classList.remove('is-hidden');
   }
 
   function racerDistance(racer,baseDistance,progress){
     const rivalry=Math.sin(progress*Math.PI*6+(racer.key==='her'?.7:3.84))*34;
     const straightBoost=Math.sin(progress*Math.PI*14+(racer.key==='her'?1.2:4.34))*11;
-    const pursuitBoost=racer.key==='him'?hotPursuit.mix*88:0;
-    return clamp(baseDistance+rivalry+straightBoost+pursuitBoost,0,routeLength);
+    const formBoost=racer.key==='him'?(activeSpeedster.leadBoost||0):0;
+    return clamp(baseDistance+rivalry+straightBoost+formBoost,0,routeLength);
   }
 
   function updateRacers(dt,force){
@@ -458,7 +620,36 @@
       }
     });
 
-    if(!force)spawnWake(dt);
+  }
+
+  function updatePursuers(dt,force){
+    if(!chaseActive)return;
+    pursuers.forEach((pursuer,index)=>{
+      pursuer.entryAlpha=easeInOut((sceneElapsed-pursuer.entryDelay)/.46);
+      const closingGap=mix(760,235,currentProgress)+index*112;
+      const surge=Math.sin(currentProgress*Math.PI*9+pursuer.seed)*28;
+      const sampled=routeAt(currentDistance-closingGap+surge);
+      const lanePulse=1+Math.sin(currentProgress*Math.PI*10+pursuer.seed)*.08;
+      const lane=pursuer.lane*lanePulse;
+      const x=sampled.x-sampled.ty*lane;
+      const y=sampled.y+sampled.tx*lane;
+      const direction=directionFor(sampled.tx,sampled.ty);
+      const frame=Math.floor(sceneElapsed*15+pursuer.frameOffset)%4;
+      const previous=pursuer.pose;
+      const angularTurn=previous?Math.atan2(sampled.ty,sampled.tx)-Math.atan2(previous.ty,previous.tx):0;
+      const normalizedTurn=Math.atan2(Math.sin(angularTurn),Math.cos(angularTurn));
+      pursuer.pose={x,y,tx:sampled.tx,ty:sampled.ty,direction,frame,turn:clamp(normalizedTurn*2,-.18,.18)};
+
+      if((force||!previous||distance(previous,pursuer.pose)>5)&&pursuer.entryAlpha>.02){
+        const spriteSize=spriteSizeFor(pursuer);
+        pursuer.history.push({
+          x,y,tx:sampled.tx,ty:sampled.ty,direction,frame,
+          centerX:x,centerY:y-spriteSize*.48
+        });
+        const historyLimit=REDUCED?8:32;
+        if(pursuer.history.length>historyLimit)pursuer.history.splice(0,pursuer.history.length-historyLimit);
+      }
+    });
   }
 
   function updateCamera(dt){
@@ -467,11 +658,17 @@
       x:(racers[0].pose.x+racers[1].pose.x)/2,
       y:(racers[0].pose.y+racers[1].pose.y)/2
     };
-    const target={x:mix(midpoint.x,ahead.x,.34),y:mix(midpoint.y,ahead.y,.34)};
+    const forwardBias=chaseActive?.18:.34;
+    const target={x:mix(midpoint.x,ahead.x,forwardBias),y:mix(midpoint.y,ahead.y,forwardBias)};
+    const closestPursuer=pursuers.find(pursuer=>pursuer.pose&&pursuer.entryAlpha>.05);
+    if(closestPursuer){
+      target.x=mix(target.x,closestPursuer.pose.x,.11);
+      target.y=mix(target.y,closestPursuer.pose.y,.11);
+    }
     const next=routeAt(currentDistance+130);
     const dot=clamp(ahead.tx*next.tx+ahead.ty*next.ty,-1,1);
     turnStrength=clamp((1-dot)*8,0,1);
-    let desiredZoom=baseZoom*(1-.075*speedStrength-.045*turnStrength-.035*hotPursuit.mix);
+    let desiredZoom=baseZoom*(1-.075*speedStrength-.045*turnStrength-.035*hotPursuit.mix-(chaseActive?.055:0));
     if(sceneState==='finishing'){
       const cinematic=Math.sin(clamp(finishElapsed/EXIT_BREACH_FINISH_DURATION,0,1)*Math.PI);
       const breachCenter=exitBreachCenter();
@@ -495,9 +692,11 @@
     particleCarry+=dt*particleRate;
     while(particleCarry>=1){
       particleCarry--;
-      racers.forEach(racer=>{
+      const wakeRunners=[...racers,...pursuers.slice(0,3).filter(pursuer=>pursuer.entryAlpha>.05)];
+      wakeRunners.forEach(racer=>{
         const pose=racer.pose;
-        const palette=pursuitPalette(racer);
+        if(!pose)return;
+        const palette=racerPalette(racer);
         const spark=Math.random()>.42;
         const side=(Math.random()-.5)*60;
         const life=spark?mix(.22,.48,Math.random()):mix(.55,1.05,Math.random());
@@ -513,7 +712,8 @@
         });
       });
     }
-    if(wakeParticles.length>particleBudget)wakeParticles.splice(0,wakeParticles.length-particleBudget);
+    const activeParticleBudget=particleBudget+(chaseActive?100:0);
+    if(wakeParticles.length>activeParticleBudget)wakeParticles.splice(0,wakeParticles.length-activeParticleBudget);
   }
 
   function updateParticles(dt){
@@ -571,6 +771,8 @@
       speedStrength=clamp(Math.min(raw/.08,(1-raw)/.08),0,1);
       updateHotPursuit();
       updateRacers(dt,false);
+      updatePursuers(dt,false);
+      spawnWake(dt);
       updateParticles(dt);
       updateCamera(dt);
       updateSector(false);
@@ -632,10 +834,12 @@
     if(!racers.every(racer=>racer.pose))return;
     drawWakeParticles();
     drawPursuitRift();
+    drawChaseRift();
     drawExitBreach();
-    racers.forEach(drawTrail);
-    racers.forEach(drawAfterimages);
-    [...racers].sort((a,b)=>a.pose.y-b.pose.y).forEach(drawRacer);
+    const activeRunners=[...racers,...pursuers.filter(pursuer=>pursuer.pose&&pursuer.entryAlpha>.01)];
+    activeRunners.forEach(drawTrail);
+    activeRunners.forEach(drawAfterimages);
+    activeRunners.sort((a,b)=>a.pose.y-b.pose.y).forEach(drawRacer);
     drawExitBreachVeil();
   }
 
@@ -679,7 +883,7 @@
   function drawTrail(racer){
     const history=racer.history;
     if(history.length<2)return;
-    const palette=pursuitPalette(racer);
+    const palette=racerPalette(racer);
     const oldest=history[0],newest=history[history.length-1];
     const gradient=ctx.createLinearGradient(oldest.centerX,oldest.centerY,newest.centerX,newest.centerY);
     gradient.addColorStop(0,'rgba(0,0,0,0)');
@@ -688,14 +892,16 @@
     ctx.save();
     ctx.globalCompositeOperation='lighter';
     ctx.lineCap='round';ctx.lineJoin='round';
-    ctx.globalAlpha=.16*speedStrength;
-    ctx.strokeStyle=gradient;ctx.lineWidth=54+hotPursuit.mix*(racer.key==='him'?16:0);ctx.shadowColor=palette.shadow;ctx.shadowBlur=34;
+    const entryAlpha=racerEntryAlpha(racer);
+    const trailScale=racer.isPursuer?.72:1;
+    ctx.globalAlpha=.16*speedStrength*entryAlpha;
+    ctx.strokeStyle=gradient;ctx.lineWidth=(54+hotPursuit.mix*(racer.key==='him'?16:0))*trailScale;ctx.shadowColor=palette.shadow;ctx.shadowBlur=34;
     if(trailPath(history))ctx.stroke();
-    ctx.globalAlpha=.44*speedStrength;
-    ctx.lineWidth=19;ctx.shadowBlur=20;
+    ctx.globalAlpha=.44*speedStrength*entryAlpha;
+    ctx.lineWidth=19*trailScale;ctx.shadowBlur=20;
     if(trailPath(history))ctx.stroke();
-    ctx.globalAlpha=.93*speedStrength;
-    ctx.strokeStyle=palette.core;ctx.lineWidth=3.2+hotPursuit.mix*(racer.key==='him'?1.8:0);ctx.shadowBlur=9;
+    ctx.globalAlpha=.93*speedStrength*entryAlpha;
+    ctx.strokeStyle=palette.core;ctx.lineWidth=(3.2+hotPursuit.mix*(racer.key==='him'?1.8:0))*trailScale;ctx.shadowBlur=9;
     if(trailPath(history))ctx.stroke();
     drawTrailBranches(racer);
     ctx.restore();
@@ -704,7 +910,7 @@
   function drawTrailBranches(racer){
     if(REDUCED)return;
     const history=racer.history;
-    const palette=pursuitPalette(racer);
+    const palette=racerPalette(racer);
     const tick=Math.floor(sceneElapsed*18);
     for(let index=5;index<history.length-2;index+=7){
       const point=history[index];
@@ -714,7 +920,7 @@
         x:point.centerX-point.ty*branchSize*side-point.tx*branchSize*.35,
         y:point.centerY+point.tx*branchSize*side-point.ty*branchSize*.35
       };
-      ctx.globalAlpha=.42*(index/history.length)*speedStrength;
+      ctx.globalAlpha=.42*(index/history.length)*speedStrength*racerEntryAlpha(racer);
       drawBolt({x:point.centerX,y:point.centerY},end,4,palette.bright,1.8,racer.seed+index+tick);
     }
   }
@@ -750,6 +956,21 @@
     ctx.shadowColor='#64ddff';
     ctx.shadowBlur=18;
     drawBreachFrame(center,280,340,frameFloat,1);
+    ctx.restore();
+  }
+
+  function drawChaseRift(){
+    if(!chaseActive)return;
+    const elapsed=sceneElapsed;
+    if(elapsed<0||elapsed>=BREACH_DURATION)return;
+    const start=routeAt(0);
+    const center={x:start.x,y:start.y-14};
+    const frameFloat=REDUCED?8:clamp(elapsed/BREACH_DURATION,0,.9999)*BREACH_FRAME_COUNT;
+    ctx.save();
+    ctx.globalCompositeOperation='source-over';
+    ctx.shadowColor='#64ddff';
+    ctx.shadowBlur=22;
+    drawBreachFrame(center,330,388,frameFloat,1);
     ctx.restore();
   }
 
@@ -829,14 +1050,16 @@
 
   function drawSpriteFrame(racer,pose,size,alpha,glow,imageOverride){
     if(!pose)return;
+    const image=imageOverride||spriteImageFor(racer);
+    if(!image||!image.complete||image.naturalWidth===0)return;
     const row=rowFor(pose.direction);
     ctx.save();
     ctx.globalAlpha=alpha;
     ctx.translate(pose.x,pose.y);
     ctx.rotate(pose.turn||0);
-    const palette=pursuitPalette(racer);
+    const palette=racerPalette(racer);
     if(glow){ctx.shadowColor=palette.shadow;ctx.shadowBlur=26;}
-    ctx.drawImage(imageOverride||racer.image,pose.frame*CELL,row*CELL,CELL,CELL,-size/2,-size,size,size);
+    ctx.drawImage(image,pose.frame*CELL,row*CELL,CELL,CELL,-size/2,-size,size,size);
     ctx.restore();
   }
 
@@ -847,8 +1070,8 @@
       const point=racer.history[Math.max(0,racer.history.length-1-behind)];
       if(!point)return;
       const size=spriteSizeFor(racer)*(1-index*.025);
-      const image=racer.key==='him'&&hotPursuit.mix>.35?pursuitImage:racer.image;
-      drawSpriteFrame(racer,{...point,turn:0},size,(.13-index*.025)*speedStrength,true,image);
+      const image=spriteImageFor(racer);
+      drawSpriteFrame(racer,{...point,turn:0},size,(.13-index*.025)*speedStrength*racerEntryAlpha(racer),true,image);
     });
     ctx.restore();
   }
@@ -892,26 +1115,16 @@
     ctx.restore();
 
     ctx.save();ctx.globalCompositeOperation='lighter';
-    if(racer.key==='him'&&hotPursuit.mix>0){
-      drawSpriteFrame(racer,pose,SPRITE_SIZE*render.scale,.42*speedStrength*(1-hotPursuit.mix)*entryAlpha,true,racer.image);
-      drawSpriteFrame(racer,pose,PURSUIT_SIZE*render.scale,.48*speedStrength*hotPursuit.mix*entryAlpha,true,pursuitImage);
-    }else{
-      drawSpriteFrame(racer,pose,SPRITE_SIZE*render.scale,.42*speedStrength*entryAlpha,true,racer.image);
-    }
+    drawSpriteFrame(racer,pose,size,.44*speedStrength*entryAlpha,true,spriteImageFor(racer));
     ctx.restore();
-    if(racer.key==='him'&&hotPursuit.mix>0){
-      drawSpriteFrame(racer,pose,SPRITE_SIZE*render.scale,(1-hotPursuit.mix)*entryAlpha,false,racer.image);
-      drawSpriteFrame(racer,pose,PURSUIT_SIZE*render.scale,hotPursuit.mix*entryAlpha,false,pursuitImage);
-    }else{
-      drawSpriteFrame(racer,pose,SPRITE_SIZE*render.scale,entryAlpha,false,racer.image);
-    }
+    drawSpriteFrame(racer,pose,size,entryAlpha,false,spriteImageFor(racer));
     drawBodyLightning(racer,render);
   }
 
   function drawBodyLightning(racer,render){
     if(REDUCED)return;
     const pose=render.pose;
-    const palette=pursuitPalette(racer);
+    const palette=racerPalette(racer);
     const spriteSize=render.size;
     const entryAlpha=racerEntryAlpha(racer)*render.alpha;
     const tick=Math.floor(sceneElapsed*22);
@@ -933,6 +1146,7 @@
     ctx.setTransform(dpr,0,0,dpr,0,0);
     ctx.save();ctx.globalCompositeOperation='lighter';ctx.lineCap='round';
     const centerX=cssWidth/2,centerY=cssHeight/2;
+    const ashtonPalette=activeSpeedster.lightning||baseSpeedster.lightning;
     const lineCount=compactViewport?20:30;
     for(let index=0;index<lineCount;index++){
       const phase=randomish(index*17+Math.floor(sceneElapsed*8));
@@ -942,7 +1156,7 @@
       const x=centerX+Math.cos(angle)*startRadius;
       const y=centerY+Math.sin(angle)*startRadius;
       ctx.globalAlpha=mix(.02,.12,phase)*speedStrength;
-      ctx.strokeStyle=hotPursuit.mix>.08?(index%3?'#7cf4ff':'#ff8b16'):(index%2?'#d9fdff':'#ffe682');
+      ctx.strokeStyle=index%3===0?'#8ff4ff':(index%2?ashtonPalette.bright:ashtonPalette.outer);
       ctx.lineWidth=mix(.5,1.6,phase);
       ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(angle)*length,y+Math.sin(angle)*length);ctx.stroke();
     }
@@ -1141,12 +1355,24 @@
       progress:currentProgress,
       rawProgress:currentRawProgress,
       sector:tileDefinitions[currentSector]&&tileDefinitions[currentSector].name,
-      hotPursuit:{scheduled:hotPursuit.scheduled,active:hotPursuit.active,mix:hotPursuit.mix,mode:hotPursuit.active?'full-run':'flash'},
+      speedster:{id:activeSpeedster.id,name:activeSpeedster.name,asset:activeSpeedster.asset,lightning:activeSpeedster.lightning&&activeSpeedster.lightning.label,fullRun:true},
+      hotPursuit:{scheduled:hotPursuit.scheduled,active:hotPursuit.active,mix:hotPursuit.mix,mode:hotPursuit.active?'full-run':'inactive'},
+      chase:{
+        unlocked:runNumber>=CHASE_START_RUN,
+        active:chaseActive,
+        beginsAfterReplay:3,
+        pursuers:pursuers.map(pursuer=>({id:pursuer.speedster.id,name:pursuer.name,asset:pursuer.speedster.asset,lightning:pursuer.speedster.lightning&&pursuer.speedster.lightning.label}))
+      },
+      randomDeckRemaining:randomSpeedsterDeck.length,
       exitBreach:{opened:exitBreachOpened,reveal:exitBreachReveal(),swallow:finishSwallowProgress()},
       performance:{compactViewport,particleRate,particleBudget,dpr},
       routeLength,
       racers:racers.map(racer=>({name:racer.name,direction:racer.pose&&racer.pose.direction,frame:racer.pose&&racer.pose.frame,x:racer.pose&&Math.round(racer.pose.x),y:racer.pose&&Math.round(racer.pose.y)}))
     }),
+    getRoster:()=>speedsterRoster.map(speedster=>({
+      id:speedster.id,name:speedster.name,asset:speedster.asset,random:!!speedster.random,
+      guaranteedRun:speedster.guaranteedRun||null,loaded:!!speedster.loaded,lightning:speedster.lightning&&speedster.lightning.label
+    })),
     route:authoredPoints.map(point=>({...point})),
     tiles:tileDefinitions.map(tile=>({...tile}))
   };
