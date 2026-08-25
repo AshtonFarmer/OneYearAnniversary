@@ -48,6 +48,10 @@
   const FINAL_DESTINATION=multiverseConfig.destination||{name:'Dawn Nexus',url:'dawn-nexus.html?from=speed-force'};
   const CHASE_START_RUN=5; // Initial run + three replays must finish first.
   const MAX_PURSUERS=5;
+  const SAVITAR_EVENT_SEEN_KEY='speedForceSavitarEventSeen';
+  const SAVITAR_RESCUE_STAGE=6; // Third return through the blue corridor.
+  const SAVITAR_BREAK_WORLD_STAGE=7;
+  const SAVITAR_FINAL_TUNNEL_STAGE=8;
   const REDUCED=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   const fallbackRoster=[
@@ -244,6 +248,8 @@
   let multiverseBreachCount=0;
   let landingElapsed=0;
   let destinationStarted=false;
+  let forceSavitarNextRun=false;
+  let savitarEvent={active:false,pursuer:null,phase:'inactive',announcedPhase:'',completed:false,forced:false};
   const hotPursuit={scheduled:false,active:false,startedAt:0,mix:0};
 
   function clamp(value,min,max){return Math.max(min,Math.min(max,value));}
@@ -267,12 +273,30 @@
     try{sessionStorage.setItem('speedForceCompletedRuns',String(runNumber));}catch(error){}
   }
 
+  function hasSeenSavitarEvent(){
+    try{return localStorage.getItem(SAVITAR_EVENT_SEEN_KEY)==='1';}catch(error){return false;}
+  }
+
+  function markSavitarEventSeen(){
+    if(!savitarEvent.active||savitarEvent.completed)return;
+    savitarEvent.completed=true;
+    try{localStorage.setItem(SAVITAR_EVENT_SEEN_KEY,'1');}catch(error){}
+  }
+
+  function resetSavitarEvent(){
+    savitarEvent={active:false,pursuer:null,phase:'inactive',announcedPhase:'',completed:false,forced:false};
+  }
+
   function nextRunCopy(){
     const next=runNumber+1;
     if(next===1)return {button:'Start the run',detail:'Run 1: New 52 Flash. Every finish now crosses five worlds.'};
     if(next===2)return {button:'Replay 1 — Hot Pursuit',detail:'Replay 1: Hot Pursuit and the cosmic bike cross all five worlds.'};
     if(next===3)return {button:'Replay 2 — Flash',detail:'Replay 2: New 52 Flash returns. The pursuit remains sealed.'};
     if(next===4)return {button:'Replay 3 — Flash',detail:'Replay 3: one last clear circuit before the pursuit wakes up.'};
+    if(next>=CHASE_START_RUN&&(forceSavitarNextRun||!hasSeenSavitarEvent()))return {
+      button:'Replay '+(next-1)+' — Savitar finds you',
+      detail:'Savitar is guaranteed for the first pursuit: shoulder catch, breach drag, Tanima rescue, then the breakaway.'
+    };
     if(next===5)return {button:'Replay 4 — Pursuit begins',detail:'Replay 4: comic speedsters will breach in behind you.'};
     return {button:'Replay — New pursuers',detail:'Replay '+(next-1)+': a new no-repeat group is waiting beyond the first breach.'};
   }
@@ -503,36 +527,69 @@
     applySpeedsterTheme();
   }
 
+  function createPursuer(speedster,index){
+    const lanes=[-126,126,-202,202,0];
+    return {
+      key:'pursuer-'+speedster.id+'-'+index,
+      name:speedster.name,
+      image:loadSpeedsterImage(speedster),
+      speedster,
+      behavior:speedster.behavior||'pursuit',
+      isPursuer:true,
+      lane:lanes[index]||0,
+      frameOffset:(index*2+1)%4,
+      seed:211+index*47,
+      history:[],pose:null,
+      entryDelay:.48+index*.16,
+      entryAlpha:0
+    };
+  }
+
   function selectPursuersForRun(){
     pursuers=[];
+    resetSavitarEvent();
     chaseActive=runNumber>=CHASE_START_RUN;
     if(!chaseActive||!randomSpeedsters.length)return;
 
     const count=Math.min(2+(runNumber-CHASE_START_RUN),MAX_PURSUERS,randomSpeedsters.length);
-    const lanes=[-126,126,-202,202,0];
+    const selected=[];
     const selectedIds=new Set();
-    for(let index=0;index<count;index++){
+    const savitar=speedsterById.get('savitar');
+    const guaranteeSavitar=!!savitar&&(forceSavitarNextRun||!hasSeenSavitarEvent());
+
+    if(guaranteeSavitar){
+      selected.push(savitar);
+      selectedIds.add(savitar.id);
+    }
+
+    while(selected.length<count){
       let speedster=nextRandomSpeedster();
       let guard=0;
       while(selectedIds.has(speedster.id)&&guard<randomSpeedsters.length){
         speedster=nextRandomSpeedster();
         guard++;
       }
+      if(selectedIds.has(speedster.id))break;
+      selected.push(speedster);
       selectedIds.add(speedster.id);
-      pursuers.push({
-        key:'pursuer-'+speedster.id+'-'+index,
-        name:speedster.name,
-        image:loadSpeedsterImage(speedster),
-        speedster,
-        isPursuer:true,
-        lane:lanes[index]||0,
-        frameOffset:(index*2+1)%4,
-        seed:211+index*47,
-        history:[],pose:null,
-        entryDelay:.48+index*.16,
-        entryAlpha:0
-      });
     }
+
+    const savitarIndex=selected.findIndex(speedster=>speedster.id==='savitar');
+    if(savitarIndex>0)[selected[0],selected[savitarIndex]]=[selected[savitarIndex],selected[0]];
+    pursuers=selected.map(createPursuer);
+
+    const savitarPursuer=pursuers.find(pursuer=>pursuer.speedster.id==='savitar')||null;
+    if(savitarPursuer){
+      savitarEvent={
+        active:true,
+        pursuer:savitarPursuer,
+        phase:'waiting',
+        announcedPhase:'',
+        completed:false,
+        forced:guaranteeSavitar
+      };
+    }
+    forceSavitarNextRun=false;
   }
 
   function handleStart(){
@@ -593,6 +650,7 @@
 
   function startRun(){
     resetScene();
+    if(forceSavitarNextRun&&runNumber<CHASE_START_RUN-1)runNumber=CHASE_START_RUN-1;
     runNumber++;
     selectSpeedsterForRun();
     selectPursuersForRun();
@@ -638,13 +696,22 @@
       alertTitle.style.textShadow='-2px 0 10px '+palette.outer+', 2px 0 10px '+palette.bright;
       alertSubtitle.style.color=palette.bright;
     }
-    alertEyebrow.textContent='Speedster pursuit detected';
-    alertTitle.textContent=pursuers.length+' COMIC SPEEDSTERS';
-    alertSubtitle.textContent='BREACHING IN BEHIND YOU';
-    pursuitAlertTimer=2.9;
+    if(savitarEvent.active){
+      alertEyebrow.textContent='God of Motion detected';
+      alertTitle.textContent='SAVITAR HAS FOUND YOU';
+      alertSubtitle.textContent='SPECIAL PURSUIT • DO NOT LET HIM CLOSE';
+      pursuitAlertTimer=3.45;
+      flashStrength=1.42;
+      status.textContent='Savitar leads the pursuit. Tanima is staying tight beside Ashton.';
+    }else{
+      alertEyebrow.textContent='Speedster pursuit detected';
+      alertTitle.textContent=pursuers.length+' COMIC SPEEDSTERS';
+      alertSubtitle.textContent='BREACHING IN BEHIND YOU';
+      pursuitAlertTimer=2.9;
+      flashStrength=1.15;
+      status.textContent=pursuers.map(pursuer=>pursuer.name).join(', ')+' are chasing Ashton and Tanima.';
+    }
     pursuitAlert.classList.add('is-visible');
-    flashStrength=1.15;
-    status.textContent=pursuers.map(pursuer=>pursuer.name).join(', ')+' are chasing Ashton and Tanima.';
     playPursuitSiren();
   }
 
@@ -653,6 +720,13 @@
     // Pursuit run for the next launch instead.
     queuedSpeedsterId=pursuitSpeedster.id;
     status.textContent='Hot Pursuit is queued for the next complete run.';
+    return true;
+  }
+
+  function previewSavitar(){
+    forceSavitarNextRun=true;
+    status.textContent='Savitar’s shoulder-grab pursuit is queued for the next complete run.';
+    if(sceneState==='ready'||sceneState==='finished')startRun();
     return true;
   }
 
@@ -674,6 +748,7 @@
   function announceMultiverseWorld(index){
     const world=multiverseWorlds[index];
     if(!world)return;
+    const dragged=savitarEvent.active&&multiverseStageIndex<SAVITAR_RESCUE_STAGE;
     multiverseWorldIndex=index;
     multiverseBreachCount=index+1;
     chapterLabel.textContent=world.final?'Destination world':'Multiverse transit';
@@ -691,8 +766,10 @@
     }else{
       alertEyebrow.textContent='Dimensional crossing '+(index+1)+' of '+multiverseWorlds.length;
       alertTitle.textContent=world.name.toUpperCase();
-      alertSubtitle.textContent='NEXT BREACH OPENING';
-      status.textContent='Ashton and Tanima breached into '+world.name+'.';
+      alertSubtitle.textContent=dragged?'SAVITAR GRIP LOCKED • NEXT BREACH':'NEXT BREACH OPENING';
+      status.textContent=dragged
+        ?'Savitar drags Ashton into '+world.name+' while Tanima keeps pace beside them.'
+        :'Ashton and Tanima breached into '+world.name+'.';
     }
     pursuitAlert.style.borderColor=world.glow||'#8ff3ff';
     pursuitAlert.style.boxShadow='0 10px 32px #000b, 0 0 38px '+(world.glow||'#8ff3ff');
@@ -705,6 +782,7 @@
 
   function announceTunnelStage(stage){
     const target=multiverseWorlds[stage.targetWorldIndex];
+    const dragged=savitarEvent.active&&multiverseStageIndex>0&&multiverseStageIndex<=SAVITAR_RESCUE_STAGE&&savitarEvent.phase==='grabbed';
     chapterLabel.textContent='Inside the breach';
     sectorName.textContent=tunnelConfig.name||'Speed Force Corridor';
     chapter.classList.add('is-visible');
@@ -712,7 +790,9 @@
     flashStrength=1.18;
     alertEyebrow.textContent='Blue corridor locked';
     alertTitle.textContent='SPEED FORCE TUNNEL';
-    alertSubtitle.textContent=target?'BREACHING TOWARD '+target.name.toUpperCase():'REALITY SHIFT IN PROGRESS';
+    alertSubtitle.textContent=dragged
+      ?'SAVITAR GRIP LOCKED • TANIMA HOLD POSITION'
+      :(target?'BREACHING TOWARD '+target.name.toUpperCase():'REALITY SHIFT IN PROGRESS');
     const glow=tunnelConfig.glow||'#71efff';
     pursuitAlert.style.borderColor=glow;
     pursuitAlert.style.boxShadow='0 10px 32px #000b, 0 0 42px '+glow;
@@ -720,9 +800,11 @@
     alertSubtitle.style.color=glow;
     pursuitAlertTimer=1.25;
     pursuitAlert.classList.add('is-visible');
-    status.textContent=target
-      ?'Ashton and Tanima are back inside the blue breach corridor, racing toward '+target.name+'.'
-      :'Ashton and Tanima are racing inside the Speed Force corridor.';
+    status.textContent=dragged
+      ?'Savitar keeps Ashton locked by the shoulder through the blue corridor. Tanima stays beside them.'
+      :(target
+        ?'Ashton and Tanima are back inside the blue breach corridor, racing toward '+target.name+'.'
+        :'Ashton and Tanima are racing inside the Speed Force corridor.');
     playWorldShift(tunnelConfig,stage.targetWorldIndex||0);
   }
 
@@ -747,6 +829,144 @@
       cursor=end;
     }
     return null;
+  }
+
+  // Stages alternate tunnel/world. Savitar catches Ashton in stage 0, keeps
+  // the grip through stages 1–5, loses it to Tanima in stage 6, falls back in
+  // stage 7, and is sealed inside the final tunnel at stage 8.
+  function savitarChoreographyFor(stageIndex,progress,active){
+    const p=clamp(Number(progress)||0,0,1);
+    const base={
+      active:!!active,
+      phase:active?'waiting':'inactive',
+      closeMix:0,
+      gripMix:0,
+      rescueMix:0,
+      releaseMix:0,
+      breakMix:0,
+      sealMix:0,
+      besideMix:0,
+      savitarAlpha:active?1:0,
+      savitarVisible:!!active,
+      shake:0
+    };
+    if(!active||stageIndex<0)return base;
+
+    if(stageIndex===0){
+      const closeMix=easeInOut((p-.08)/.30);
+      const gripMix=easeInOut((p-.30)/.22);
+      return {
+        ...base,
+        phase:gripMix<.72?'closing':'grabbed',
+        closeMix,
+        gripMix,
+        besideMix:mix(.3,1,closeMix),
+        shake:gripMix*.58
+      };
+    }
+
+    if(stageIndex<SAVITAR_RESCUE_STAGE){
+      return {...base,phase:'grabbed',closeMix:1,gripMix:1,besideMix:1,shake:.34};
+    }
+
+    if(stageIndex===SAVITAR_RESCUE_STAGE){
+      const rescueMix=easeInOut((p-.18)/.24);
+      const releaseMix=easeInOut((p-.50)/.22);
+      return {
+        ...base,
+        phase:p<.18?'grabbed':'rescue',
+        closeMix:1,
+        gripMix:1-releaseMix,
+        rescueMix,
+        releaseMix,
+        breakMix:releaseMix*.35,
+        besideMix:1,
+        shake:.38+rescueMix*(1-releaseMix)*.68
+      };
+    }
+
+    if(stageIndex===SAVITAR_BREAK_WORLD_STAGE){
+      const breakMix=mix(.35,1,easeOut(p));
+      return {
+        ...base,
+        phase:'breakaway',
+        closeMix:1,
+        releaseMix:1,
+        breakMix,
+        besideMix:1,
+        savitarAlpha:1-easeInOut((p-.74)/.22)*.42,
+        shake:(1-breakMix)*.78
+      };
+    }
+
+    if(stageIndex===SAVITAR_FINAL_TUNNEL_STAGE){
+      const sealMix=easeInOut((p-.12)/.56);
+      return {
+        ...base,
+        phase:'sealed',
+        closeMix:1,
+        releaseMix:1,
+        breakMix:1,
+        sealMix,
+        besideMix:1-sealMix*.7,
+        savitarAlpha:1-easeInOut((p-.56)/.30),
+        shake:(1-sealMix)*.44
+      };
+    }
+
+    return {
+      ...base,
+      phase:'sealed',
+      releaseMix:1,
+      breakMix:1,
+      sealMix:1,
+      savitarAlpha:0,
+      savitarVisible:false
+    };
+  }
+
+  function savitarChoreographyAt(){
+    return savitarChoreographyFor(multiverseStageIndex,multiverseStageProgress,savitarEvent.active);
+  }
+
+  function announceSavitarPhase(phase){
+    const copy={
+      closing:{eyebrow:'God of Motion detected',title:'SAVITAR IS CLOSING',subtitle:'STAY TOGETHER'},
+      grabbed:{eyebrow:'Shoulder lock',title:'SAVITAR HAS ASHTON',subtitle:'TANIMA — STAY WITH HIM'},
+      rescue:{eyebrow:'Cyan strike charging',title:'TANIMA TARGETS THE GRIP',subtitle:'BREAK THE HOLD'},
+      breakaway:{eyebrow:'Grip broken',title:'ASHTON IS FREE',subtitle:'RUN FOR THE FINAL BREACH'},
+      sealed:{eyebrow:'Final corridor',title:'SAVITAR LEFT BEHIND',subtitle:'SEAL THE BREACH'}
+    }[phase];
+    if(!copy)return;
+    const palette=savitarEvent.pursuer&&racerPalette(savitarEvent.pursuer)||{
+      bright:'#58dfff',outer:'#ffb72f',shadow:'rgba(72,200,255,.96)'
+    };
+    alertEyebrow.textContent=copy.eyebrow;
+    alertTitle.textContent=copy.title;
+    alertSubtitle.textContent=copy.subtitle;
+    pursuitAlert.style.borderColor=palette.bright;
+    pursuitAlert.style.boxShadow='0 10px 32px #000b, 0 0 44px '+palette.shadow;
+    alertEyebrow.style.color=phase==='rescue'||phase==='breakaway'?'#bdf9ff':palette.outer;
+    alertTitle.style.textShadow='-2px 0 12px '+palette.outer+', 2px 0 14px '+palette.bright;
+    alertSubtitle.style.color=phase==='rescue'||phase==='breakaway'?'#bdf9ff':palette.bright;
+    pursuitAlertTimer=phase==='grabbed'?2.25:2.05;
+    pursuitAlert.classList.add('is-visible');
+    flashStrength=Math.max(flashStrength,phase==='rescue'?1.65:(phase==='breakaway'?1.45:1.18));
+    if(phase==='closing')status.textContent='Savitar is closing the gap inside the first blue corridor.';
+    else if(phase==='grabbed')status.textContent='Savitar caught Ashton by the shoulder and is dragging him through the breaches.';
+    else if(phase==='rescue')status.textContent='Tanima stays beside Ashton and drives cyan lightning into Savitar’s grip.';
+    else if(phase==='breakaway')status.textContent='The grip breaks. Ashton and Tanima surge toward the final breach together.';
+    else status.textContent='The last corridor is sealing Savitar out before the final world.';
+    playSavitarCue(phase);
+  }
+
+  function updateSavitarChoreography(){
+    if(!savitarEvent.active||sceneState!=='multiverse')return;
+    const choreography=savitarChoreographyAt();
+    savitarEvent.phase=choreography.phase;
+    if(choreography.phase==='waiting'||choreography.phase===savitarEvent.announcedPhase)return;
+    savitarEvent.announcedPhase=choreography.phase;
+    announceSavitarPhase(choreography.phase);
   }
 
   function beginMultiverse(){
@@ -784,12 +1004,19 @@
     sectorName.textContent=FINAL_DESTINATION.name;
     chapter.classList.add('is-visible');
     chapterTimer=4;
-    status.textContent='Earth-Prime arrival complete. Saved everyday outfits restored.';
+    if(savitarEvent.active){
+      markSavitarEventSeen();
+      savitarEvent.phase='completed';
+      status.textContent='Tanima broke Savitar’s grip. Earth-Prime arrival complete and saved everyday outfits restored.';
+    }else{
+      status.textContent='Earth-Prime arrival complete. Saved everyday outfits restored.';
+    }
     saveCompletedRunCount();
     try{
       sessionStorage.setItem('speedForceArrival',JSON.stringify({
         runNumber,
         chased:chaseActive,
+        savitarEvent:savitarEvent.active?{completed:savitarEvent.completed,phase:savitarEvent.phase}:null,
         worlds:multiverseWorlds.map(world=>world.id),
         destination:FINAL_DESTINATION.id||'dawn-nexus'
       }));
@@ -809,6 +1036,7 @@
     if(runNumber===1)replayButton.textContent='Replay 1 — Hot Pursuit';
     else if(runNumber===2)replayButton.textContent='Replay 2 — Flash';
     else if(runNumber===3)replayButton.textContent='Replay 3 — Flash';
+    else if(runNumber===4&&!hasSeenSavitarEvent())replayButton.textContent='Replay 4 — Savitar finds you';
     else if(runNumber===4)replayButton.textContent='Replay 4 — Pursuit begins';
     else replayButton.textContent='Replay — New pursuers';
     status.textContent=chaseActive
@@ -851,15 +1079,86 @@
 
   }
 
+  function pursuerSignature(pursuer,progress,elapsed){
+    const behavior=pursuer.behavior||'pursuit';
+    const time=Number(elapsed)||0;
+    const wave=Math.sin(progress*Math.PI*10+pursuer.seed*.17+time*.8);
+    const fastWave=Math.sin(progress*Math.PI*18+pursuer.seed*.31+time*1.8);
+    const motion={advance:0,lane:0,alpha:1,echoes:0};
+    if(REDUCED){
+      if(behavior==='shoulder-grab')motion.advance=42*easeInOut((progress-.58)/.32);
+      return motion;
+    }
+    switch(behavior){
+      case 'flank-surge':
+        motion.advance=Math.max(0,wave)*62;
+        motion.lane=fastWave*24;
+        break;
+      case 'echo-clones':
+        motion.advance=18+Math.max(0,fastWave)*22;
+        motion.lane=wave*30;
+        motion.echoes=2;
+        break;
+      case 'shadow-phase':
+        motion.advance=Math.max(0,-wave)*34;
+        motion.lane=wave*18;
+        motion.alpha=.28+.72*easeInOut((wave+1)/2);
+        break;
+      case 'blue-orbit':
+        motion.advance=14;
+        motion.lane=wave*68;
+        break;
+      case 'zigzag-burst':
+        motion.advance=Math.max(0,fastWave)*48;
+        motion.lane=fastWave*88;
+        break;
+      case 'draft-line':
+        motion.advance=24;
+        motion.lane=wave*12;
+        break;
+      case 'future-blink':
+        motion.advance=(Math.floor(time*5+pursuer.seed)%3)*16;
+        motion.lane=fastWave*32;
+        motion.alpha=Math.floor(time*8+pursuer.seed)%5===0?.16:1;
+        break;
+      case 'mercury-arc':
+        motion.advance=12+Math.max(0,wave)*20;
+        motion.lane=wave*50;
+        break;
+      case 'lane-sling':
+        motion.advance=Math.max(0,-fastWave)*38;
+        motion.lane=fastWave*108;
+        break;
+      case 'impact-pulse':
+        motion.advance=Math.pow(Math.max(0,wave),2)*78;
+        motion.lane=fastWave*20;
+        break;
+      case 'side-dash':
+        motion.advance=Math.max(0,fastWave)*42;
+        motion.lane=(fastWave>=0?1:-1)*70;
+        break;
+      case 'shoulder-grab':
+        motion.advance=mix(20,112,easeInOut((progress-.54)/.36));
+        motion.lane=wave*16;
+        break;
+      default:
+        motion.advance=Math.max(0,wave)*18;
+        motion.lane=wave*14;
+    }
+    return motion;
+  }
+
   function updatePursuers(dt,force){
     if(!chaseActive)return;
     pursuers.forEach((pursuer,index)=>{
-      pursuer.entryAlpha=easeInOut((sceneElapsed-pursuer.entryDelay)/.46);
-      const closingGap=mix(760,235,currentProgress)+index*112;
+      const signature=pursuerSignature(pursuer,currentProgress,sceneElapsed);
+      pursuer.behaviorMotion=signature;
+      pursuer.entryAlpha=easeInOut((sceneElapsed-pursuer.entryDelay)/.46)*signature.alpha;
+      const closingGap=mix(760,235,currentProgress)+index*112-signature.advance;
       const surge=Math.sin(currentProgress*Math.PI*9+pursuer.seed)*28;
       const sampled=routeAt(currentDistance-closingGap+surge);
       const lanePulse=1+Math.sin(currentProgress*Math.PI*10+pursuer.seed)*.08;
-      const lane=pursuer.lane*lanePulse;
+      const lane=pursuer.lane*lanePulse+signature.lane;
       const x=sampled.x-sampled.ty*lane;
       const y=sampled.y+sampled.tx*lane;
       const direction=directionFor(sampled.tx,sampled.ty);
@@ -1032,12 +1331,19 @@
       speedStrength=location.stage.final
         ?mix(1,.48,easeInOut((multiverseStageProgress-.72)/.28))
         :(location.stage.kind==='tunnel'?1.12:1);
+      updateSavitarChoreography();
       updateAudio();
       const totalProgress=clamp(multiverseElapsed/MULTIVERSE_TOTAL_DURATION,0,1);
       progressFill.style.width=Math.round(totalProgress*100)+'%';
-      progressPercent.textContent=location.stage.kind==='tunnel'
+      const transitCopy=location.stage.kind==='tunnel'
         ?'BLUE TUNNEL → WORLD '+(location.stage.targetWorldIndex+1)
         :'WORLD '+(location.stage.worldIndex+1)+' / '+multiverseWorlds.length;
+      if(savitarEvent.active&&savitarEvent.phase==='closing')progressPercent.textContent='SAVITAR • CLOSING';
+      else if(savitarEvent.active&&savitarEvent.phase==='grabbed')progressPercent.textContent='SAVITAR GRIP • LOCKED';
+      else if(savitarEvent.active&&savitarEvent.phase==='rescue')progressPercent.textContent='TANIMA • CYAN STRIKE';
+      else if(savitarEvent.active&&savitarEvent.phase==='breakaway')progressPercent.textContent='ASHTON • BREAKAWAY';
+      else if(savitarEvent.active&&savitarEvent.phase==='sealed')progressPercent.textContent='FINAL BREACH • SEALING';
+      else progressPercent.textContent=transitCopy;
       if(multiverseElapsed>=MULTIVERSE_TOTAL_DURATION)beginLanding();
     }else if(sceneState==='landing'){
       landingElapsed+=dt;
@@ -1234,13 +1540,15 @@
     const frame=Math.floor(multiverseElapsed*15+racer.frameOffset)%4;
     const size=state.size;
     ctx.save();ctx.globalAlpha=alpha;ctx.translate(state.x,state.y);
+    ctx.rotate(state.rotation||0);
+    ctx.scale(state.scaleX||1,state.scaleY||1);
     ctx.shadowColor=palette.shadow;ctx.shadowBlur=18;
     ctx.drawImage(image,frame*CELL,3*CELL,CELL,CELL,-size/2,-size,size,size);
     ctx.restore();
   }
 
-  function drawMultiverseRunner(racer,indexOffset,normalMix){
-    const state=multiverseRunnerState(racer,indexOffset);
+  function drawMultiverseRunner(racer,indexOffset,normalMix,stateOverride){
+    const state=stateOverride||multiverseRunnerState(racer,indexOffset);
     if(racer.key==='her'&&activeSpeedster.special==='breach'){
       state.x+=(compactViewport?96:150)*state.entry*(1-state.exit);
     }
@@ -1266,20 +1574,172 @@
       }
       ctx.restore();
     }
+    return state;
   }
 
-  function drawMultiversePursuers(){
+  function applyMultiversePursuerSignature(pursuer,state){
+    const totalProgress=clamp((Math.max(0,multiverseStageIndex)+multiverseStageProgress)/Math.max(1,multiverseStages.length),0,1);
+    const signature=pursuerSignature(pursuer,totalProgress,multiverseElapsed);
+    state.x+=signature.advance*.72;
+    state.y+=signature.lane*.42;
+    state.alpha*=signature.alpha;
+    state.rotation=clamp(signature.lane/920,-.11,.11);
+    return signature;
+  }
+
+  function drawMultiversePursuerEchoes(pursuer,state,palette,signature){
+    if(REDUCED||!signature.echoes)return;
+    for(let echo=signature.echoes;echo>=1;echo--){
+      const ghost={
+        ...state,
+        x:state.x-echo*(26+state.size*.12),
+        y:state.y+(echo%2?.11:-.07)*state.size,
+        size:state.size*(1-echo*.045),
+        rotation:(state.rotation||0)+(echo%2?-.035:.035)
+      };
+      drawMultiverseSprite(pursuer,ghost,pursuer.image,state.alpha*(.22-echo*.045),palette);
+    }
+  }
+
+  function drawMultiversePursuers(choreography){
     const world=activeMultiverseStage();
     if(!chaseActive||!world||world.final)return;
     pursuers.forEach((pursuer,index)=>{
+      if(choreography.active&&pursuer===savitarEvent.pursuer)return;
       const state=multiverseRunnerState(pursuer,.035+index*.018);
       state.x-=92+index*48;
       state.y=cssHeight*(.67+(index%2?-.08:.055));
       state.size*=.76;
+      const signature=applyMultiversePursuerSignature(pursuer,state);
       const palette=racerPalette(pursuer);
       drawMultiverseTrail(pursuer,state,palette,.56);
+      drawMultiversePursuerEchoes(pursuer,state,palette,signature);
       drawMultiverseSprite(pursuer,state,pursuer.image,state.alpha*.88,palette);
     });
+  }
+
+  function applySavitarHeroChoreography(ashtonState,tanimaState,choreography){
+    if(!choreography.active)return;
+    const size=ashtonState.size;
+    const drag=choreography.gripMix;
+    const escape=choreography.breakMix*(1-choreography.sealMix);
+    ashtonState.x-=drag*size*.075;
+    ashtonState.x+=escape*size*.34;
+    ashtonState.y+=drag*size*.035-escape*size*.035;
+    ashtonState.rotation=-drag*.09+escape*.12;
+
+    const beside=choreography.besideMix;
+    const targetX=ashtonState.x+size*mix(.72,.50,choreography.rescueMix);
+    const targetY=ashtonState.y-size*mix(.035,.015,choreography.rescueMix);
+    tanimaState.x=mix(tanimaState.x,targetX,beside);
+    tanimaState.y=mix(tanimaState.y,targetY,beside);
+    tanimaState.rotation=-choreography.rescueMix*(1-choreography.releaseMix)*.075+escape*.055;
+  }
+
+  function savitarMultiverseState(ashtonState,choreography){
+    const pursuer=savitarEvent.pursuer;
+    if(!pursuer||!choreography.savitarVisible)return null;
+    const size=ashtonState.size*1.04;
+    const gap=mix(size*1.48,size*.49,choreography.closeMix);
+    let x=ashtonState.x-gap;
+    let y=ashtonState.y+size*.025;
+    let rotation=-choreography.gripMix*.035;
+    if(choreography.releaseMix>0){
+      const fall=choreography.releaseMix*size*(.12+choreography.breakMix*1.35);
+      x-=fall;
+      y+=choreography.releaseMix*size*(.04+Math.sin(choreography.breakMix*Math.PI)*.18);
+      rotation-=choreography.releaseMix*(.08+choreography.breakMix*.24);
+    }
+    if(choreography.phase==='sealed'){
+      x=mix(cssWidth*.10,cssWidth*.075,choreography.sealMix);
+      y=mix(cssHeight*.67,cssHeight*.69,choreography.sealMix);
+      rotation-=choreography.sealMix*.22;
+    }
+    return {
+      ...ashtonState,
+      x,
+      y,
+      size:size*mix(1,.42,choreography.sealMix),
+      alpha:ashtonState.alpha*choreography.savitarAlpha,
+      rotation,
+      scaleX:mix(1,.86,choreography.sealMix)
+    };
+  }
+
+  function drawSavitarSpecial(ashtonState,choreography){
+    const pursuer=savitarEvent.pursuer;
+    const state=savitarMultiverseState(ashtonState,choreography);
+    if(!pursuer||!state||state.alpha<=.005)return null;
+    const palette=racerPalette(pursuer);
+    drawMultiverseTrail(pursuer,state,palette,.9);
+    if(!REDUCED&&choreography.closeMix>.05){
+      const ghost={...state,x:state.x-state.size*.24,y:state.y+state.size*.035,size:state.size*.96};
+      drawMultiverseSprite(pursuer,ghost,pursuer.image,state.alpha*.16,palette);
+    }
+    drawMultiverseSprite(pursuer,state,pursuer.image,state.alpha,palette);
+    if(!REDUCED&&choreography.sealMix>.02){
+      const center={x:state.x,y:state.y-state.size*.5};
+      const breach={x:cssWidth*.075,y:cssHeight*.69-state.size*.5};
+      ctx.save();ctx.globalCompositeOperation='lighter';ctx.globalAlpha=state.alpha*(1-choreography.sealMix*.55);
+      drawBolt(center,breach,5,palette.bright,2.1,Math.floor(multiverseElapsed*24)+611);
+      drawBolt({x:center.x,y:center.y+16},{x:breach.x,y:breach.y-13},4,palette.outer,1.35,Math.floor(multiverseElapsed*18)+733);
+      ctx.restore();
+    }
+    return state;
+  }
+
+  function savitarGripPoints(ashtonState,savitarState){
+    return {
+      shoulder:{x:ashtonState.x-ashtonState.size*.19,y:ashtonState.y-ashtonState.size*.67},
+      hand:{x:savitarState.x+savitarState.size*.30,y:savitarState.y-savitarState.size*.60}
+    };
+  }
+
+  function drawSavitarGrip(ashtonState,savitarState,choreography){
+    if(!savitarState||choreography.gripMix<=.01)return;
+    const points=savitarGripPoints(ashtonState,savitarState);
+    const alpha=choreography.gripMix*ashtonState.alpha;
+    const block=Math.max(3,ashtonState.size*.028);
+    ctx.save();ctx.lineCap='square';ctx.globalAlpha=alpha;
+    ctx.strokeStyle='#174f8d';ctx.lineWidth=Math.max(7,ashtonState.size*.075);ctx.shadowColor='#58dfff';ctx.shadowBlur=18;
+    ctx.beginPath();ctx.moveTo(points.hand.x,points.hand.y);ctx.lineTo(points.shoulder.x,points.shoulder.y);ctx.stroke();
+    ctx.strokeStyle='#ffbf3d';ctx.lineWidth=Math.max(2,ashtonState.size*.022);ctx.shadowBlur=10;
+    ctx.beginPath();ctx.moveTo(points.hand.x,points.hand.y);ctx.lineTo(points.shoulder.x,points.shoulder.y);ctx.stroke();
+    ctx.fillStyle='#6de7ff';
+    ctx.fillRect(points.shoulder.x-block*1.5,points.shoulder.y-block,block*3,block*2);
+    ctx.fillStyle='#ffbd3b';
+    ctx.fillRect(points.shoulder.x-block*.65,points.shoulder.y-block*1.55,block*1.3,block*3.1);
+    if(!REDUCED){
+      ctx.globalCompositeOperation='lighter';
+      drawBolt(points.hand,points.shoulder,4,'#d9fbff',2.1,Math.floor(multiverseElapsed*26)+877);
+    }
+    ctx.restore();
+  }
+
+  function drawTanimaRescueStrike(tanimaState,ashtonState,savitarState,choreography){
+    if(!savitarState||choreography.rescueMix<=.01)return;
+    const points=savitarGripPoints(ashtonState,savitarState);
+    const hand={x:tanimaState.x-tanimaState.size*.18,y:tanimaState.y-tanimaState.size*.61};
+    const strike=choreography.rescueMix*(1-easeInOut((choreography.releaseMix-.72)/.28));
+    const burst=Math.sin(choreography.releaseMix*Math.PI);
+    const seed=Math.floor(multiverseElapsed*30)+991;
+    ctx.save();ctx.globalCompositeOperation='lighter';
+    ctx.globalAlpha=Math.max(strike*.45,burst*.34)*tanimaState.alpha;
+    drawBolt(hand,points.shoulder,6,'#eaffff',4.2,seed);
+    drawBolt({x:hand.x,y:hand.y-12},{x:points.shoulder.x+8,y:points.shoulder.y+9},5,'#54e8ff',2.4,seed+17);
+    drawBolt({x:hand.x+9,y:hand.y+7},{x:points.shoulder.x-7,y:points.shoulder.y-10},4,'#247dff',1.6,seed+31);
+    const radius=ashtonState.size*(.14+burst*.34);
+    const glow=ctx.createRadialGradient(points.shoulder.x,points.shoulder.y,1,points.shoulder.x,points.shoulder.y,radius);
+    glow.addColorStop(0,'rgba(255,255,255,.98)');
+    glow.addColorStop(.25,'rgba(103,238,255,.75)');
+    glow.addColorStop(1,'rgba(30,112,255,0)');
+    ctx.globalAlpha=Math.max(strike*.55,burst*.8);
+    ctx.fillStyle=glow;ctx.beginPath();ctx.arc(points.shoulder.x,points.shoulder.y,radius,0,Math.PI*2);ctx.fill();
+    if(burst>.04){
+      ctx.globalAlpha=burst*.8;ctx.strokeStyle='#c9fbff';ctx.lineWidth=2.2;ctx.shadowColor='#54e8ff';ctx.shadowBlur=15;
+      ctx.beginPath();ctx.arc(points.shoulder.x,points.shoulder.y,radius*1.15,0,Math.PI*2);ctx.stroke();
+    }
+    ctx.restore();
   }
 
   function drawMultiverseBreaches(world){
@@ -1306,9 +1766,13 @@
     const world=activeMultiverseStage()||multiverseWorlds[multiverseWorlds.length-1];
     if(!world)return;
     const progress=sceneState==='landing'?1:multiverseStageProgress;
-    ctx.setTransform(dpr,0,0,dpr,0,0);
+    const choreography=savitarChoreographyAt();
+    const shakeAmount=REDUCED?0:choreography.shake*6;
+    const shakeX=Math.sin(multiverseElapsed*47)*shakeAmount;
+    const shakeY=Math.cos(multiverseElapsed*39)*shakeAmount*.55;
+    ctx.setTransform(dpr,0,0,dpr,shakeX*dpr,shakeY*dpr);
     ctx.imageSmoothingEnabled=false;
-    ctx.fillStyle='#02070d';ctx.fillRect(0,0,cssWidth,cssHeight);
+    ctx.fillStyle='#02070d';ctx.fillRect(-12,-12,cssWidth+24,cssHeight+24);
     drawCoverImage(world.image,progress,world);
     ctx.fillStyle=world.tint||'rgba(0,0,0,.12)';ctx.fillRect(0,0,cssWidth,cssHeight);
     const horizon=ctx.createLinearGradient(0,0,0,cssHeight);
@@ -1317,16 +1781,24 @@
     drawMultiverseEffect(world,progress);
     drawMultiverseBreaches(world);
     const normalMix=world.final?easeInOut(clamp((progress-.62)/.24,0,1)):0;
-    drawMultiversePursuers();
-    drawMultiverseRunner(racers[0],0,normalMix);
-    drawMultiverseRunner(racers[1],.018,normalMix);
+    const ashtonState=multiverseRunnerState(racers[0],0);
+    const tanimaState=multiverseRunnerState(racers[1],.018);
+    applySavitarHeroChoreography(ashtonState,tanimaState,choreography);
+    drawMultiversePursuers(choreography);
+    const savitarState=drawSavitarSpecial(ashtonState,choreography);
+    drawMultiverseRunner(racers[0],0,normalMix,ashtonState);
+    drawSavitarGrip(ashtonState,savitarState,choreography);
+    drawMultiverseRunner(racers[1],.018,normalMix,tanimaState);
+    drawTanimaRescueStrike(tanimaState,ashtonState,savitarState,choreography);
 
     const entryFlash=(1-easeOut(clamp(progress/.10,0,1)))*.72;
     const exitFlash=!world.final?easeInOut(clamp((progress-.94)/.06,0,1))*.86:0;
     const landingFlash=sceneState==='landing'?easeInOut(clamp(landingElapsed/MULTIVERSE_LANDING_DURATION,0,1)):0;
-    const flash=Math.max(entryFlash,exitFlash,landingFlash);
+    const gripBreakFlash=Math.sin(choreography.releaseMix*Math.PI)*.52;
+    const rescueFlash=choreography.rescueMix*(1-choreography.releaseMix)*.13;
+    const flash=Math.max(entryFlash,exitFlash,landingFlash,gripBreakFlash,rescueFlash);
     if(flash>.001){
-      ctx.globalCompositeOperation='screen';ctx.fillStyle='rgba(226,251,255,'+flash+')';ctx.fillRect(0,0,cssWidth,cssHeight);ctx.globalCompositeOperation='source-over';
+      ctx.globalCompositeOperation='screen';ctx.fillStyle='rgba(226,251,255,'+flash+')';ctx.fillRect(-12,-12,cssWidth+24,cssHeight+24);ctx.globalCompositeOperation='source-over';
     }
   }
 
@@ -1754,6 +2226,47 @@
     });
   }
 
+  function playSavitarCue(phase){
+    if(!audio||audio.context.state!=='running')return;
+    const cue={
+      closing:[
+        {type:'sawtooth',start:92,end:46,gain:.09,duration:.72},
+        {type:'triangle',start:540,end:210,gain:.055,duration:.58}
+      ],
+      grabbed:[
+        {type:'sawtooth',start:310,end:72,gain:.12,duration:.52},
+        {type:'square',start:880,end:190,gain:.035,duration:.36}
+      ],
+      rescue:[
+        {type:'triangle',start:1680,end:260,gain:.11,duration:.31},
+        {type:'sawtooth',start:1120,end:170,gain:.075,duration:.42}
+      ],
+      breakaway:[
+        {type:'triangle',start:190,end:1280,gain:.1,duration:.48},
+        {type:'sine',start:95,end:620,gain:.085,duration:.62}
+      ],
+      sealed:[
+        {type:'sine',start:82,end:28,gain:.13,duration:.82},
+        {type:'triangle',start:460,end:54,gain:.06,duration:.68}
+      ]
+    }[phase];
+    if(!cue)return;
+    const context=audio.context;
+    const now=context.currentTime+.012;
+    cue.forEach((voice,index)=>{
+      const oscillator=context.createOscillator();
+      const gain=context.createGain();
+      oscillator.type=voice.type;
+      oscillator.frequency.setValueAtTime(voice.start,now+index*.018);
+      oscillator.frequency.exponentialRampToValueAtTime(voice.end,now+voice.duration);
+      gain.gain.setValueAtTime(.0001,now);
+      gain.gain.exponentialRampToValueAtTime(voice.gain,now+.025+index*.01);
+      gain.gain.exponentialRampToValueAtTime(.0001,now+voice.duration);
+      oscillator.connect(gain);gain.connect(audio.master);
+      oscillator.start(now);oscillator.stop(now+voice.duration+.025);
+    });
+  }
+
   function playExitBreach(){
     if(!audio||audio.context.state!=='running')return;
     const context=audio.context;
@@ -1799,10 +2312,12 @@
   function updateAudio(){
     if(!audio||audio.context.state!=='running')return;
     const now=audio.context.currentTime;
-    audio.hum.frequency.setTargetAtTime(47+speedStrength*22+hotPursuit.mix*18,now,.08);
-    audio.pulse.frequency.setTargetAtTime(94+turnStrength*34+hotPursuit.mix*46,now,.06);
-    audio.noiseGain.gain.setTargetAtTime(.035+speedStrength*.11+turnStrength*.045+hotPursuit.mix*.05,now,.09);
-    audio.filter.frequency.setTargetAtTime(620+speedStrength*1550+turnStrength*480+hotPursuit.mix*680,now,.08);
+    const savitar=savitarChoreographyAt();
+    const savitarTension=savitar.active?Math.max(savitar.gripMix,savitar.rescueMix*(1-savitar.releaseMix)):0;
+    audio.hum.frequency.setTargetAtTime(47+speedStrength*22+hotPursuit.mix*18+savitarTension*16,now,.08);
+    audio.pulse.frequency.setTargetAtTime(94+turnStrength*34+hotPursuit.mix*46+savitarTension*52,now,.06);
+    audio.noiseGain.gain.setTargetAtTime(.035+speedStrength*.11+turnStrength*.045+hotPursuit.mix*.05+savitarTension*.035,now,.09);
+    audio.filter.frequency.setTargetAtTime(620+speedStrength*1550+turnStrength*480+hotPursuit.mix*680+savitarTension*520,now,.08);
   }
 
   function fadeAudio(){
@@ -1856,7 +2371,9 @@
     start:startRun,
     replay:startRun,
     triggerHotPursuit,
+    previewSavitar,
     startMultiverse:beginMultiverse,
+    getSavitarChoreography:(stage,progress,active=true)=>savitarChoreographyFor(stage,progress,active),
     getState:()=>({
       state:sceneState,
       paused,
@@ -1870,7 +2387,21 @@
         unlocked:runNumber>=CHASE_START_RUN,
         active:chaseActive,
         beginsAfterReplay:3,
-        pursuers:pursuers.map(pursuer=>({id:pursuer.speedster.id,name:pursuer.name,asset:pursuer.speedster.asset,lightning:pursuer.speedster.lightning&&pursuer.speedster.lightning.label}))
+        savitarEvent:{
+          active:savitarEvent.active,
+          phase:savitarEvent.phase,
+          forced:savitarEvent.forced,
+          completed:savitarEvent.completed,
+          seen:hasSeenSavitarEvent(),
+          choreography:savitarChoreographyAt()
+        },
+        pursuers:pursuers.map(pursuer=>({
+          id:pursuer.speedster.id,
+          name:pursuer.name,
+          asset:pursuer.speedster.asset,
+          lightning:pursuer.speedster.lightning&&pursuer.speedster.lightning.label,
+          behavior:pursuer.behavior
+        }))
       },
       randomDeckRemaining:randomSpeedsterDeck.length,
       exitBreach:{opened:exitBreachOpened,reveal:exitBreachReveal(),swallow:finishSwallowProgress()},
@@ -1895,7 +2426,8 @@
     }),
     getRoster:()=>speedsterRoster.map(speedster=>({
       id:speedster.id,name:speedster.name,asset:speedster.asset,random:!!speedster.random,
-      guaranteedRun:speedster.guaranteedRun||null,loaded:!!speedster.loaded,lightning:speedster.lightning&&speedster.lightning.label
+      guaranteedRun:speedster.guaranteedRun||null,loaded:!!speedster.loaded,lightning:speedster.lightning&&speedster.lightning.label,
+      behavior:speedster.behavior||'pursuit',special:speedster.special||null
     })),
     route:authoredPoints.map(point=>({...point})),
     tiles:tileDefinitions.map(tile=>({...tile}))
