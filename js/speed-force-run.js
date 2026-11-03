@@ -40,12 +40,12 @@
   const EXIT_BREACH_FINISH_DURATION=1.68;
   const EXIT_BREACH_WIDTH=360;
   const EXIT_BREACH_HEIGHT=410;
-  const multiverseConfig=window.SPEED_FORCE_MULTIVERSE||{worlds:[],destination:{name:'Dawn Nexus',url:'dawn-nexus.html?from=speed-force'}};
+  const multiverseConfig=window.SPEED_FORCE_MULTIVERSE||{worlds:[],destination:{name:'Our Little World',url:'memory-world.html?from=speed-force'}};
   const TUNNEL_DURATION=Number(multiverseConfig.tunnelDuration)||1.55;
   const WORLD_DURATION=Number(multiverseConfig.worldDuration)||1.72;
   const FINAL_WORLD_DURATION=Number(multiverseConfig.finalDuration)||3.35;
   const MULTIVERSE_LANDING_DURATION=Number(multiverseConfig.landingDuration)||1.12;
-  const FINAL_DESTINATION=multiverseConfig.destination||{name:'Dawn Nexus',url:'dawn-nexus.html?from=speed-force'};
+  const FINAL_DESTINATION=multiverseConfig.destination||{name:'Our Little World',url:'memory-world.html?from=speed-force'};
   const CHASE_START_RUN=5; // Initial run + three replays must finish first.
   const MAX_PURSUERS=5;
   const SAVITAR_EVENT_SEEN_KEY='speedForceSavitarEventSeen';
@@ -1018,7 +1018,7 @@
         chased:chaseActive,
         savitarEvent:savitarEvent.active?{completed:savitarEvent.completed,phase:savitarEvent.phase}:null,
         worlds:multiverseWorlds.map(world=>world.id),
-        destination:FINAL_DESTINATION.id||'dawn-nexus'
+        destination:FINAL_DESTINATION.id||'our-little-world'
       }));
     }catch(error){}
     fadeAudio();

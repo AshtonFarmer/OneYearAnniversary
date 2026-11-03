@@ -1,0 +1,13 @@
+{
+  "name": "one-year-together",
+  "private": true,
+  "version": "1.0.0",
+  "description": "The existing buildless two-player anniversary game. Development dependencies are for regression tests only.",
+  "scripts": {
+    "test": "node --test tests/our-year.test.cjs"
+  },
+  "devDependencies": {
+    "@napi-rs/canvas": "0.1.100",
+    "sharp": "0.35.5"
+  }
+}

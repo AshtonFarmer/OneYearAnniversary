@@ -14,6 +14,7 @@
   }
 
   function selectedSpritePath(originalPath){
+    if(/[?&]wardrobe-(base|preview)=/.test(originalPath))return originalPath;
     const isHer = originalPath.includes('assets/sprites/her_atlas.png');
     const isHim = originalPath.includes('assets/sprites/him_atlas.png');
     if(!isHer && !isHim) return originalPath;
@@ -44,6 +45,7 @@
 
   CanvasRenderingContext2D.prototype.drawImage = function(image, ...args){
     const src = image && image.src ? image.src : '';
+    const replacement=window.SharedWardrobe&&window.SharedWardrobe.getSprite(image);
     const isOldCrop = args.length === 8 && args[2] === 96 && args[3] === 128;
 
     if(isOldCrop && isSpriteSheet(src) && image.naturalWidth && image.naturalHeight && image.naturalWidth !== 384){
@@ -66,7 +68,7 @@
 
       return originalDrawImage.call(
         this,
-        image,
+        replacement||image,
         frame * cellW + cropX,
         row * cellH + cropY,
         cropW,
@@ -78,6 +80,6 @@
       );
     }
 
-    return originalDrawImage.call(this, image, ...args);
+    return originalDrawImage.call(this, replacement||image, ...args);
   };
 })();
