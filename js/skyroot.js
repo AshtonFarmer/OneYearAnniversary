@@ -30,7 +30,7 @@
 
   var images={grounds:new Image(),treehouse:new Image(),her:new Image(),him:new Image()};
   images.grounds.src='assets/maps/skyroot-grounds.png';
-  images.treehouse.src='assets/maps/skyroot-treehouse.png';
+  images.treehouse.src='assets/our-year/treehouse-upper.webp';
   images.her.src=selectedOutfitPath('her');
   images.him.src=selectedOutfitPath('him');
 
@@ -93,7 +93,14 @@
       title:'SKYROOT TREEHOUSE',
       image:images.treehouse,
       spawn:{her:{x:730,y:875,dir:'up'},him:{x:806,y:875,dir:'up'}},
-      solids:[],
+      solids:[
+        rect(245,92,139,75),rect(350,220,125,78),rect(405,113,105,91),
+        rect(1010,157,130,89),rect(1220,221,106,70),rect(1275,128,78,78),
+        rect(140,455,133,61),rect(300,405,58,81),
+        rect(1270,417,85,42),rect(1410,409,64,57),
+        rect(264,644,78,65),rect(225,735,72,53),rect(430,735,70,53),
+        rect(1110,722,150,62)
+      ],
       walkable:[
         ellipse(340,205,245,176),ellipse(1145,210,246,176),
         ellipse(205,470,248,178),ellipse(1310,470,245,176),
@@ -104,12 +111,15 @@
       ],
       locations:[
         {name:'Trunk Lift',x:768,y:820,r:100,text:'Press E to ride the lift back to Skyroot Grounds',action:'grounds'},
-        {name:'Creator Studio',x:330,y:215,r:118,text:'Press E to explore the shared creator studio',action:'creator'},
-        {name:'Future Family Room',x:1145,y:220,r:118,text:'Press E to visit the future-family room',action:'family'},
-        {name:'Future Planning Room',x:210,y:470,r:116,text:'Press E to look through your future plans',action:'planning'},
-        {name:'Mojo Pet Loft',x:1310,y:470,r:116,text:'Press E to visit Mojo’s pet loft',action:'mojo'},
-        {name:'Sky Observatory',x:350,y:700,r:118,text:'Press E to look through the sky observatory',action:'observatory'},
-        {name:'Web-Slinger Gear Room',x:1175,y:700,r:120,text:'Press E to inspect the web-slinger gear room',action:'gear'},
+        {name:'Our Little World',x:768,y:355,r:64,text:'Press E to step into our memory neighborhood',action:'memoryWorld'},
+        {name:'Creator Atelier',x:330,y:315,r:85,text:'Press E to make a saree, dress, or matching outfit',action:'creator'},
+        {name:'Homecoming & Family Room',x:1145,y:320,r:85,text:'Press E to relive the day she finally came home',action:'family'},
+        {name:'Our Photo & Memory Gallery',x:210,y:550,r:95,text:'Press E to revisit our year together',action:'planning'},
+        {name:'Flash Necklace Keepsake',x:345,y:500,r:45,text:'Press E to revisit the necklace and our first yes',action:'necklace'},
+        {name:'Our Celebrations',x:1320,y:550,r:88,text:'Press E for Atlanta, Puja, the concert, and her community',action:'celebrations'},
+        {name:'For My Lokkhi',x:1210,y:515,r:43,text:'Press E to open her Puja ring gift',action:'ring'},
+        {name:'Sky Observatory',x:350,y:810,r:84,text:'Press E for our Birmingham skies and nighttime walk',action:'observatory'},
+        {name:'Firsts & Autumn Workshop',x:1175,y:810,r:85,text:'Press E for pumpkins, Halloween, and our little firsts',action:'gear'},
         {name:'Cloud Balcony',x:875,y:905,r:110,text:'Press E to relax together above the clouds',action:'balcony'}
       ]
     }
@@ -329,6 +339,9 @@
   }
 
   function handleAction(action){
+    if(action==='memoryWall'&&window.OurYearTreehouse){window.OurYearTreehouse.open();return;}
+    if(action==='memoryWorld'){location.href='memory-world.html?from=treehouse';return;}
+    if(['creator','family','planning','celebrations','observatory','gear','necklace','ring'].indexOf(action)!==-1&&window.OurYearTreehouse){window.OurYearTreehouse.room(action);return;}
     if(action==='treehouse'){switchMap('treehouse');return;}if(action==='grounds'){switchMap('grounds');return;}
     if(action==='christianPrayer'){startPrayerCeremony('christian');return;}
     if(action==='krishnaPrayer'){startPrayerCeremony('krishna');return;}
@@ -351,6 +364,7 @@
   function interact(){if(paused||transitioning)return;var location=nearestLocation();if(location)handleAction(location.action);}
 
   function update(){
+    if(window.OurYearTreehouse)window.OurYearTreehouse.setContext(currentMap);
     updateCeremony();
     movePlayer(players.her,inputFor('her',{up:keys.arrowup,down:keys.arrowdown,left:keys.arrowleft,right:keys.arrowright}));
     movePlayer(players.him,inputFor('him',{up:keys.w,down:keys.s,left:keys.a,right:keys.d}));
@@ -646,12 +660,14 @@
   function draw(){
     camera=getCamera();ctx.clearRect(0,0,canvas.width,canvas.height);ctx.fillStyle=currentMap==='grounds'?'#07100c':'#0b1530';ctx.fillRect(0,0,canvas.width,canvas.height);
     ctx.imageSmoothingEnabled=false;ctx.drawImage(currentConfig.image,Math.round(screenX(0)),Math.round(screenY(0)));
+    if(currentMap==='treehouse'&&window.OurYearTreehouse)window.OurYearTreehouse.draw(ctx,screenX(0),screenY(0),heartTimer/60,nearestLocation()&&nearestLocation().action);
     drawCeremonyUnderlay();drawDebugZones();[players.her,players.him].sort(function(a,b){return a.y-b.y;}).forEach(drawSprite);drawHeart();drawCeremonyParticles();drawBoxSelector();
   }
 
   function loop(){update();draw();requestAnimationFrame(loop);}
 
   function restoreState(){
+    if(new URLSearchParams(location.search).get('map')==='treehouse'){currentMap='treehouse';currentConfig=maps.treehouse;placePlayers(maps.treehouse.spawn);return;}
     var fromForest=new URLSearchParams(location.search).get('from')==='forest';
     if(fromForest){try{sessionStorage.removeItem('skyrootState');}catch(error){}currentMap='grounds';currentConfig=maps.grounds;placePlayers(maps.grounds.spawn);return;}
     try{
@@ -713,8 +729,17 @@
   }
 
   addEventListener('resize',resize);
+  addEventListener('ouryearmodal',function(event){
+    paused=!!event.detail.open;keys={};interactPressed=false;lastInteract=false;
+    Object.keys(touchState).forEach(function(who){Object.keys(touchState[who]).forEach(function(direction){touchState[who][direction]=false;});});
+  });
   addEventListener('keydown',function(event){
     var key=event.key.toLowerCase();
+    if(window.OurYearTreehouse&&window.OurYearTreehouse.isOpen()){
+      if(key==='escape'){event.preventDefault();window.OurYearTreehouse.close();}
+      else if((key==='e'||key===' '&&event.target.tagName!=='BUTTON')&&!event.repeat&&['INPUT','SELECT','TEXTAREA'].indexOf(event.target.tagName)===-1){event.preventDefault();window.OurYearTreehouse.activate();}
+      return;
+    }
     if(key==='g'){
       if(!event.repeat){debugMode=!debugMode;console.log(debugMode?'SKYROOT DEBUG ON':'SKYROOT DEBUG OFF');}
       event.preventDefault();return;
@@ -737,6 +762,7 @@
   addEventListener('keyup',function(event){keys[event.key.toLowerCase()]=false;});
   addEventListener('beforeunload',saveState);
   addEventListener('pageshow',refreshOutfits);
+  addEventListener('wardrobechange',refreshOutfits);
   addEventListener('storage',function(event){if(event.key==='herOutfit'||event.key==='himOutfit')refreshOutfits();});
   closeFaith.addEventListener('click',closePrayerPanel);
   faithMoment.addEventListener('click',function(event){if(event.target===faithMoment)closePrayerPanel();});

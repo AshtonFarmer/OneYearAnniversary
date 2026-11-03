@@ -38,9 +38,9 @@
       glow:'#dc8cff'
     },
     {
-      id:'dawn-nexus',
-      name:'Earth-Prime — Dawn Nexus',
-      asset:'assets/multiverse/dawn-nexus.webp',
+      id:'our-little-world',
+      name:'Earth-Prime — Our Little World',
+      asset:'assets/our-year/neighborhood.webp',
       effect:'dawn',
       tint:'rgba(120,72,10,.06)',
       glow:'#ffe39a',
@@ -62,9 +62,9 @@
     finalDuration:3.35,
     landingDuration:1.12,
     destination:Object.freeze({
-      id:'dawn-nexus',
-      name:'Dawn Nexus',
-      url:'dawn-nexus.html?from=speed-force'
+      id:'our-little-world',
+      name:'Our Little World',
+      url:'memory-world.html?from=speed-force'
     }),
     worlds:Object.freeze(worlds.map(world=>Object.freeze({...world})))
   });

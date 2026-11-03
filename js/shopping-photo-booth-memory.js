@@ -45,6 +45,7 @@ function moveSpecialToward(p,target,speed=2.2){
 }
 
 function finishSpecialPhotoScene(){
+  if(window.OUR_YEAR){try{window.OUR_YEAR.complete('necklace',{keepsake:'Flash necklace',poses:['necklace','question','yes','kiss']});}catch(error){console.warn('The necklace memory could not be saved.');}}
   specialPhotoScene = null;
   shoppingAction = null;
   shoppingCooldown = 35;
@@ -100,8 +101,15 @@ function updateSpecialPhotoScene(){
     players.him.frame = 0;
     players.her.frame = 0;
     if(specialPhotoScene.timer > 85){
-      specialPhotoScene.phase = 'ask';
+      specialPhotoScene.phase = 'necklace';
       specialPhotoScene.timer = 0;
+    }
+  } else if(specialPhotoScene.phase === 'necklace'){
+    specialPhotoScene.message = 'Ashton gives Tanima the Flash necklace ⚡';
+    players.him.dir='right';players.her.dir='left';players.him.frame=0;players.her.frame=0;
+    if(specialPhotoScene.timer>170){
+      if(window.SharedWardrobe){try{window.SharedWardrobe.setNecklace(true);}catch(error){console.warn('The necklace accessory could not be saved.');}}
+      specialPhotoScene.phase='ask';specialPhotoScene.timer=0;
     }
   } else if(specialPhotoScene.phase === 'ask'){
     specialPhotoScene.message = 'Will you be my girlfriend?';
@@ -142,7 +150,7 @@ function updateSpecialPhotoScene(){
       specialPhotoScene.phase = 'print';
       specialPhotoScene.timer = 0;
       specialPhotoScene.flash = 20;
-      photoStrip = {poses:['bubbles','question','yes','kiss'],y:-160,show:true};
+      photoStrip = {poses:['necklace','question','yes','kiss'],y:-160,show:true};
     }
   } else if(specialPhotoScene.phase === 'print'){
     specialPhotoScene.message = 'Printing the special photo strip...';
@@ -153,7 +161,7 @@ function updateSpecialPhotoScene(){
     }
   }
 
-  if(['bubbles','ask','yesWalk','hold'].includes(specialPhotoScene.phase) && specialPhotoScene.timer % 4 === 0){
+  if(['bubbles','necklace','ask','yesWalk','hold'].includes(specialPhotoScene.phase) && specialPhotoScene.timer % 4 === 0){
     specialPhotoBubbles.push({x:bubbleX+Math.random()*18,y:bubbleY,vx:(Math.random()-.5)*.65,vy:-.75-Math.random()*.7,life:105,size:3+Math.random()*5});
   }
 
@@ -300,6 +308,36 @@ function drawSpecialKneelDetail(){
   ctx.restore();
 }
 
+function drawFlashNecklaceGift(){
+  if(!specialPhotoScene||specialPhotoScene.phase!=='necklace')return;
+  const x=(players.him.x+players.her.x)/2-camera.x,y=players.him.y-camera.y-57;
+  const open=Math.min(1,specialPhotoScene.timer/35);
+  ctx.save();ctx.shadowColor='#ffe098';ctx.shadowBlur=12;
+  ctx.fillStyle='#7f2231';ctx.fillRect(x-17,y+10,34,17);
+  ctx.fillStyle='#f9e1ac';ctx.fillRect(x-14,y+11,28,10);
+  ctx.strokeStyle='#f2d06f';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(x,y+4,10,15*open,0,0,Math.PI*2);ctx.stroke();
+  ctx.fillStyle='#b52b39';ctx.beginPath();ctx.arc(x,y+15,7,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#ffdf69';ctx.beginPath();ctx.moveTo(x+2,y+8);ctx.lineTo(x-4,y+16);ctx.lineTo(x,y+16);ctx.lineTo(x-2,y+22);ctx.lineTo(x+5,y+13);ctx.lineTo(x+1,y+13);ctx.closePath();ctx.fill();
+  ctx.font='12px monospace';ctx.textAlign='center';ctx.fillStyle='#fff2bd';ctx.fillText('For you ⚡',x,y-23);ctx.restore();
+}
+
+function drawSpecialMemoryStrip(){
+  const printing=specialPhotoScene&&specialPhotoScene.phase==='print';
+  if(!printing&&specialPhotoEndingStripTimer<=0)return;
+  const progress=printing?Math.min(1,specialPhotoScene.timer/90):1;
+  const x=canvas.width-154,y=-285+progress*365,w=116,h=276;
+  ctx.save();ctx.shadowColor='#ffb5d6';ctx.shadowBlur=12;
+  ctx.fillStyle='#fff3dc';ctx.fillRect(x,y,w,h);ctx.shadowBlur=0;
+  ctx.fillStyle='#523e46';ctx.font='10px monospace';ctx.textAlign='center';ctx.fillText('OUR FIRST YES',x+w/2,y+18);
+  ['THE NECKLACE','THE QUESTION','HER YES','OUR KISS'].forEach(function(label,index){
+    const py=y+29+index*58;ctx.fillStyle=['#403653','#454969','#5b3854','#57435f'][index];ctx.fillRect(x+8,py,w-16,44);
+    ['him','her'].forEach(function(who,i){const image=players[who].img;if(image&&image.complete&&image.naturalWidth){const cell=image.naturalWidth/4;ctx.drawImage(image,(index%4)*cell,0,cell,cell,x+22+i*36,py+1,36,40);}});
+    if(index===0){ctx.strokeStyle='#ffe083';ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(x+58,py+18,7,10,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#ffe083';ctx.fillText('ϟ',x+58,py+32);}
+    else {ctx.fillStyle='#efb5cd';drawPixelHeart(x+57,py+9,1);}
+    ctx.fillStyle='#523e46';ctx.font='7px monospace';ctx.fillText(label,x+w/2,py+53);
+  });ctx.restore();
+}
+
 const originalSpecialPhotoDrawDebugZones = drawDebugZones;
 drawDebugZones = function(){
   originalSpecialPhotoDrawDebugZones();
@@ -313,14 +351,16 @@ drawDebugZones = function(){
 const originalSpecialPhotoDraw = draw;
 draw = function(){
   originalSpecialPhotoDraw();
-  if(!specialPhotoScene) return;
+  if(!specialPhotoScene){drawSpecialMemoryStrip();return;}
 
   drawSpecialBubbleMachine();
   drawSpecialBubbles();
   drawSpecialKneelDetail();
+  drawFlashNecklaceGift();
   drawSpecialSpeech();
   drawYesSpeech();
   drawSpecialHearts();
+  drawSpecialMemoryStrip();
 
   if(specialPhotoScene.flash > 0){
     ctx.save();

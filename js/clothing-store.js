@@ -210,10 +210,11 @@ function drawOutfitPreview(preview, who, outfit){
     pctx.fillText('sprite', 36, 42);
     pctx.fillText('needed', 36, 56);
   };
-  img.src = outfitPath(who, outfit);
+  img.src = outfitPath(who, outfit)+'?wardrobe-preview=1';
 }
 
 function chooseOutfit(who, outfit){
+  if(window.SharedWardrobe)window.SharedWardrobe.unequip(who);
   localStorage.setItem(`${who}Outfit`, outfit);
   const p = players[who];
   const newImg = new Image();
