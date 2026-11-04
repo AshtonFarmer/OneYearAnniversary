@@ -3,13 +3,18 @@
 (function(){
   'use strict';
   const KEY='ourYear.wardrobe.v1', rawSheets=new Map(), rendered=new Map();
+  const presets=[
+    {id:'tanima-pool-day',who:'her',base:12,name:'Tanima · teal bikini',occasion:'swimming',description:'A teal bikini and bare feet for our first swim.'},
+    {id:'ashton-pool-day',who:'him',base:12,name:'Ashton · swim trunks',occasion:'swimming',description:'Navy swim trunks with gold side stripes and bare feet.'},
+    {id:'tanima-welcome-home',who:'her',base:13,name:'Tanima · welcome home',occasion:'homecoming',description:'The light-blue T-shirt and patterned shorts from our welcome-home photos.'}
+  ];
   let saved=read();
   function read(){try{const v=JSON.parse(localStorage.getItem(KEY)||'null');return v&&v.version===1?v:{version:1,designs:[],equipped:{},necklace:false};}catch(e){return {version:1,designs:[],equipped:{},necklace:false};}}
   function persist(){localStorage.setItem(KEY,JSON.stringify(saved));rendered.clear();dispatchEvent(new CustomEvent('wardrobechange'));}
   function rgb(hex){const n=parseInt((/^#[0-9a-f]{6}$/i.test(hex)?hex:'#6e8b73').slice(1),16);return [n>>16,(n>>8)&255,n&255];}
   function normalize(d){
-    const who=d.who==='him'?'him':'her',kind=who==='him'?'suit':(d.kind==='dress'?'dress':'saree');
-    return {id:String(d.id||'look-'+Date.now()),name:String(d.name||'My new look').slice(0,50),who,kind,base:who==='him'?6:(kind==='dress'?5:1),color:/^#[0-9a-f]{6}$/i.test(d.color)?d.color:'#728d77',trim:/^#[0-9a-f]{6}$/i.test(d.trim)?d.trim:'#e5ba65',pattern:['none','flowers','stars','stripes','checks'].includes(d.pattern)?d.pattern:'none',strokes:(Array.isArray(d.strokes)?d.strokes:[]).slice(-350).map(s=>({color:/^#[0-9a-f]{6}$/i.test(s.color)?s.color:'#ffffff',size:Math.max(.005,Math.min(.15,Number(s.size)||.025)),points:(Array.isArray(s.points)?s.points:[]).slice(0,240).filter(p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)).map(p=>p.map(n=>Math.max(0,Math.min(1,n))))}))};
+    const who=d.who==='him'?'him':'her',preset=presets.find(p=>p.id===d.preset&&p.who===who),kind=preset?'preset':who==='him'?'suit':(d.kind==='dress'?'dress':'saree');
+    return {id:String(d.id||'look-'+Date.now()),name:String(d.name||'My new look').slice(0,50),who,kind,base:preset?preset.base:who==='him'?6:(kind==='dress'?5:1),...(preset?{preset:preset.id}:{}),color:/^#[0-9a-f]{6}$/i.test(d.color)?d.color:'#728d77',trim:/^#[0-9a-f]{6}$/i.test(d.trim)?d.trim:'#e5ba65',pattern:['none','flowers','stars','stripes','checks'].includes(d.pattern)?d.pattern:'none',strokes:(Array.isArray(d.strokes)?d.strokes:[]).slice(-350).map(s=>({color:/^#[0-9a-f]{6}$/i.test(s.color)?s.color:'#ffffff',size:Math.max(.005,Math.min(.15,Number(s.size)||.025)),points:(Array.isArray(s.points)?s.points:[]).slice(0,240).filter(p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)).map(p=>p.map(n=>Math.max(0,Math.min(1,n))))}))};
   }
   function save(design){const d=normalize(design);const i=saved.designs.findIndex(x=>x.id===d.id);if(i>=0)saved.designs[i]=d;else {if(saved.designs.length>=30)throw new Error('Your closet holds 30 designs. Remove one before saving another.');saved.designs.push(d);}persist();return d;}
   function equip(id){const d=saved.designs.find(x=>x.id===id);if(!d)throw new Error('That saved look is missing.');saved.equipped[d.who]=id;localStorage.setItem(d.who+'Outfit',String(d.base));persist();return d;}
@@ -35,7 +40,7 @@
     const d=input?normalize(input):null,who=d?d.who:'her',base=d?d.base:1;
     const image=await sheet(who,base),c=document.createElement('canvas');c.width=image.naturalWidth;c.height=image.naturalHeight;
     const p=c.getContext('2d',{willReadFrequently:true});p.drawImage(image,0,0);
-    if(d){
+    if(d&&!d.preset){
       const pixels=p.getImageData(0,0,c.width,c.height),a=pixels.data;
       const t=texture(d).getContext('2d').getImageData(0,0,256,320).data,trim=rgb(d.trim);
       const cw=c.width/4,ch=c.height/4;
@@ -90,6 +95,9 @@
     const her=save({id:'addams-morticia',name:'Morticia · our Halloween',who:'her',kind:'dress',color:'#17131e',trim:'#9b7fa7',pattern:'none',strokes:[]});
     const him=save({id:'addams-gomez',name:'Gomez · our Halloween',who:'him',kind:'suit',color:'#171b2e',trim:'#b5c9d2',pattern:'stripes',strokes:[]});equip(her.id);equip(him.id);return [her,him];
   }
+  function presetDesign(id){const p=presets.find(p=>p.id===id);if(!p)throw new Error('That occasion outfit is missing.');return normalize({...p,preset:p.id,strokes:[]});}
+  function wearPreset(id){const d=save(presetDesign(id));equip(d.id);return d;}
+  function occasionSheet(who,occasion){const p=presets.find(p=>p.who===who&&p.occasion===occasion);return p?sheet(who,p.base):Promise.reject(new Error('That occasion outfit is missing.'));}
   addEventListener('storage',e=>{if(e.key===KEY){saved=read();rendered.clear();dispatchEvent(new CustomEvent('wardrobechange'));}});
-  window.SharedWardrobe={KEY,read:()=>JSON.parse(JSON.stringify(saved)),save,equip,unequip,remove,normalize,texture,render,getSprite,addams,setNecklace:on=>{saved.necklace=!!on;persist();}};
+  window.SharedWardrobe={KEY,read:()=>JSON.parse(JSON.stringify(saved)),save,equip,unequip,remove,normalize,texture,render,getSprite,addams,presets:()=>presets.map(p=>({...p})),presetDesign,wearPreset,occasionSheet,setNecklace:on=>{saved.necklace=!!on;persist();}};
 })();

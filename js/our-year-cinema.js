@@ -6,6 +6,8 @@
   const F = window.OurYearFilms, clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
   const mix = (a, b, u) => a + (b - a) * u, ease = u => {u = clamp(u); return u * u * (3 - 2 * u);};
   const TAU = Math.PI * 2, bounds = new WeakMap();
+  let homecomingRoom=null;
+  function homecomingBackdrop(){if(!homecomingRoom){homecomingRoom=new Image();homecomingRoom.src='assets/our-year/places/apartment.webp?v=20261104-4';}return homecomingRoom.complete&&(homecomingRoom.naturalWidth||homecomingRoom.width)>1?homecomingRoom:null;}
 
   function renderer(canvas, options) {
     const p = canvas.getContext('2d');
@@ -53,12 +55,12 @@
       function part(x0,y0,x1,y1,dx,dy,dw,dh){p.drawImage(im,x0*sw,y0*sh,(x1-x0)*sw,(y1-y0)*sh,dx,dy,dw,dh);}
       if(['idle','walk','look'].includes(pose)){p.drawImage(im,-w/2,-h,w,h);if(pose==='look'){p.fillStyle='#ffe9a000';}p.restore();return;}
       if(pose==='swim') {
-        p.rotate(-.12+Math.sin(phase*2)*.025);p.drawImage(im,0,0,sw,sh*.47,-w/2,-h*.64,w,h*.47);
-        const skin=who==='him'?'#e2ab77':'#bb8558';
-        rect(-w*.24,-h*.19,w*.48,h*.29,who==='him'?skin:'#c67e8d',8);
-        if(who==='him')rect(-w*.25,h*.07,w*.5,h*.09,'#456675',3);
-        for(let side=-1;side<=1;side+=2){const a=side*Math.sin(phase*4)*1.1;p.save();p.translate(side*w*.27,-h*.17);p.rotate(a+side*.75);line([[0,0],[side*w*.12,h*.14],[0,h*.26]],skin,h*.045);p.restore();}
-        for(let side=-1;side<=1;side+=2)line([[side*w*.12,h*.1],[side*w*.15+Math.sin(phase*5+side)*7,h*.22]],skin,h*.04);
+        p.translate(0,Math.sin(phase*3)*2);p.rotate(-.05+Math.sin(phase*2)*.025);
+        // The generated bikini/trunks and original textured skin supply the
+        // swimmer's body. The waterline hides the submerged legs.
+        p.save();p.beginPath();p.rect(-w,-h,w*2,h*.91);p.clip();p.drawImage(im,-w/2,-h*.88,w,h);p.restore();
+        for(const side of [-1,1]){p.save();p.translate(side*w*.32,-h*.35);p.rotate(side*(.35+Math.sin(phase*4)*.3));part(side<0?0:.78,.43,side<0?.22:1,.77,-w*.11,-h*.07,w*.22,h*.34);p.restore();}
+        p.strokeStyle='#d0efef88';p.lineWidth=1.3;for(let ring=0;ring<2;ring++){p.beginPath();p.ellipse(0,-h*.04+ring*5,w*.67+Math.sin(phase*3+ring)*3,5+ring*3,0,0,TAU);p.stroke();}
         p.restore();return;
       }
       const seated=['sit','lean','carve'].includes(pose),crouch=pose==='crouch';
@@ -128,13 +130,12 @@
     function table(y=480){rect(185,y,590,65,'#805537',5);rect(210,y+65,13,65,'#503c2f');rect(735,y+65,13,65,'#503c2f');line([[190,y+6],[768,y+6]],'#bd9166',2);}
     function dish(x,y){oval(x,y,45,12,'#e9dfbe');oval(x,y-2,33,8,'#d8c780');oval(x-10,y-3,12,5,'#bba05b');oval(x+14,y-2,10,5,'#6e8b50');}
     function drawHome() {
-      room();text('WELCOME HOME',480,150,34,'#a17a35');text('love',480,213,28,'#bd974e');
-      for(const x of [240,718])for(let i=0;i<12;i++)line([[x+i*3,106],[x+i*3,270+Math.sin(i+t*.5)*4]],i%2?'#e5bd58':'#c79a3d',2);
-      table(473);flowers(340,432,.7);dish(500,485);dish(620,485);
-      if(action==='prepare'){actor('him',mix(250,520,ease(u)),448,144,'walk');}
-      if(action==='arrive'){actor('him',428,447,154,'give');actor('her',mix(870,525,ease(u)),450,146,'walk');rect(850,175,62*(1-ease(u)),205,'#846c4a');}
-      if(action==='embrace')embrace(490,450,164,u>.65);
-      if(action==='dinner'){pair(490,422,160,'sit',97,true);dish(445,485);dish(555,485);heart(490,248,.55);}
+      const backdrop=options.backdrops&&options.backdrops.apartment||homecomingBackdrop();if(!backdrop){gradient('#302b24','#5d5140');text('Getting our welcome home ready…',480,285,22);return;}
+      p.drawImage(backdrop,0,55,1536,912,0,0,960,570);
+      if(action==='prepare')actor('him',mix(250,310,ease(u)),458,128,'walk');
+      if(action==='arrive'){actor('him',430,520,138,'give');actor('her',mix(680,515,ease(u)),520,132,'walk');}
+      if(action==='embrace')embrace(480,520,140,u>.65);
+      if(action==='dinner'){pair(490,330,138,'sit',84,true);heart(490,205,.35);}
     }
     function drawSky(){
       gradient('#07182c','#394b62');stars(150);skyline(375);rect(0,415,960,155,'#243c39');line([[0,434],[960,434]],'#8e9170',4);for(let i=0;i<20;i++)rect(i*54,435,3,60,'#516965');bench(480,461,200);
@@ -265,6 +266,10 @@
         window.SharedWardrobe.render({who:'him',kind:'suit',color:'#171b2e',trim:'#b5c9d2',pattern:'stripes',strokes:[]},false),
         window.SharedWardrobe.render({who:'her',kind:'dress',color:'#17131e',trim:'#9b7fa7',pattern:'none',strokes:[]},false)
       ]).then(([him,her])=>{if(!disposed)filmOptions.images={him,her};}).catch(()=>options.status('The Halloween costumes could not load; your current outfits are shown.'));
+    }
+    if(window.SharedWardrobe&&['swimming','homecoming'].includes(memory.id)){
+      const cast=memory.id==='swimming'?['him','her']:['her'];
+      Promise.all(cast.map(who=>window.SharedWardrobe.occasionSheet(who,memory.id))).then(sheets=>{if(!disposed)cast.forEach((who,i)=>filmOptions.images[who]=sheets[i]);}).catch(()=>options.status('The occasion outfits could not load. Your current outfits are shown.'));
     }
     const screen=renderer(options.canvas,filmOptions),controls=options.controls;
     const add=(label,fn,cls)=>{const b=document.createElement('button');b.type='button';b.textContent=label;if(cls)b.className=cls;b.onclick=fn;controls.appendChild(b);return b;};
