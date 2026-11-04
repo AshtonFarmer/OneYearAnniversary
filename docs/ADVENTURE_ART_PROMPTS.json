@@ -1,0 +1,77 @@
+{
+  "tool": "Built-in image generation",
+  "mode": "Layout reference transformed into detailed pixel-art scenery",
+  "shared_constraints": "1536x1024; preserve exact overhead RPG layout, all object footprints and paths. Later-added 64px characters. No UI, frame or people. Do not introduce solid obstacles. Surface textures, decorative low plants and lighting allowed.",
+  "maps": [
+    {
+      "id": "apartment",
+      "asset": "assets/our-year/places/apartment.webp",
+      "prompt_details": "A warm welcome-home apartment at night. Beautiful richly textured wooden flooring, charcoal sofa and pale cushions, gold foil fringe decorations beside the sofa, warm lamps, a little kitchen counter with sink and stove in upper left, pink woven rug, wooden dinner table, and a shelf of books. Keep every existing furniture footprint and exact position. Leave the welcome-home banner area blank so the game can animate hanging it; omit ALL letters, the flower bouquet, the wrapped gift box, food, and pumpkins because those are dynamic game objects. Fill empty floor with subtle wood grain and soft light, NOT more furniture. Window night reflections and cozy shadows."
+    },
+    {
+      "id": "astra",
+      "asset": "assets/our-year/places/astra.webp",
+      "prompt_details": "An enchanted mountain forest at night, Astra Lumina inspired. Replace the schematic city skyline with dense shadowed forest and distant Smoky Mountain silhouettes. Keep the exact connected serpentine path footprint and tree trunk positions. Repaint paths as subtle slate-green gravel lit along edges by tiny celestial lanterns, NEVER a giant tan road. Rich ferns, moss, fireflies, moonlit foliage within the existing grass areas; keep paths unobstructed. Add SMALL non-solid light installations right on the open paths at these exact pixel coordinates: glowing arch (350,850), falling star strings (750,850), concentric choir lights (1190,850), stardust beams (1300,600), nebula light ribbons (1040,580), star-eye ring (660,580), twinkling floor stars (245,580), luminous orb (245,315), rising starlights (740,315), luminous photobooth arch (1250,315). These are lights, never solid obstacles. Magic teal, gold, violet, midnight blue, warm welcoming mood."
+    },
+    {
+      "id": "community",
+      "asset": "assets/our-year/places/community.webp",
+      "prompt_details": "A beautiful Indian community festival plaza in warm late-afternoon light. Keep the two stages at the top, food stall on lower left, fabric-and-color stall lower right, two picnic tables and central alpona exactly at the existing reference positions. Rich embroidered stage curtains, woven rugs strictly inside stage footprints, marigold garlands, tiny string lights overhead, stone paving, colorful folded saree fabrics on the right stall, appetizing vegetarian platters on the left stall, flowers in the lawn. Do not add new solid obstacles to walking space or stage center; no people. Festive Bengali/Indian community celebration, warm detailed pixel art."
+    },
+    {
+      "id": "concert",
+      "asset": "assets/our-year/places/concert.webp",
+      "prompt_details": "A cozy indoor Atlanta concert hall at night, with the existing stage along the top, twelve audience bench blocks in exactly the existing positions, a program stand on the left and refreshment stand lower-right. Rich burgundy/violet velvet seating, embroidered dark curtains, subtle golden trim, atmospheric teal and amber stage light beams, stage spotlight pools, warm wall sconces and textured patterned carpet. Keep the stage center empty for the animated singer and band. Preserve all walking aisles and the entrance at bottom center. No extra furniture, no people, no text. A place to watch Usha Uthup perform together."
+    },
+    {
+      "id": "golf",
+      "asset": "assets/our-year/places/golf.webp",
+      "prompt_details": "A beautiful nighttime golf entertainment bay and range inspired by Topgolf. Keep all FOUR colored circular target locations exactly fixed, the range boundary, the net geometry, the sofa/table on lower-left, green hitting mat at lower-center, and snack counter at lower-right. Rich short-cut grass, subtle stripes, realistic colored target rings, tall net poles, distant night lights along the horizon, warm amber bay lighting, detailed wooden furniture and soft seat cushions, tiled patio. Do not add balls, clubs, characters, or objects on the hitting mat\u2014the game animates those. Keep every walking aisle clear."
+    },
+    {
+      "id": "halloween",
+      "asset": "assets/our-year/places/halloween.webp",
+      "prompt_details": "A cozy gothic Halloween party room for Gomez and Morticia inspired costumes. Purple velvet nighttime light, carved dark wooden floor, dark sofa at the existing left footprint, books and a few costume fabrics in the existing upper-right shelf, an intricately woven burgundy rug at the exact central footprint for dancing, treat table lower-right. Add wall-hung spiderweb decorations, small hanging bats, warm candles on existing surfaces only, red-rose motif. Omit the loose flower bouquet so the game can draw it as a collectible. Keep large dance floor completely open. No text, no people, no new obstacles."
+    },
+    {
+      "id": "haunt",
+      "asset": "assets/our-year/places/haunt.webp",
+      "prompt_details": "An atmospheric haunted warehouse adventure interior. Preserve EXACT wall segments, door gaps, both mirror positions, room division, bottom-center exit and chain positions: these are an existing playable maze. Rich weathered plank floor, old brick textures on walls, tarnished metal mirrors, swaying-looking hanging chains, cool teal moonlight, soft low fog and eerie green exit glow. Readable pathways, cinematic Halloween atmosphere, mildly spooky and romantic, no blood, no gore, no monsters, no people, no extra blocking crates, no new walls. Remove lettering; game adds room prompts."
+    },
+    {
+      "id": "jeep",
+      "asset": "assets/our-year/places/jeep.webp",
+      "prompt_details": "A beautiful Jeep Invasion gathering in a Smoky Mountain setting in warm daylight. Keep the exact eight four-door Jeep locations and their red-orange, blue-gray, sage-green, cream color sequence; exactly TWO rows of FOUR. Keep event booth upper-left and souvenir booth upper-right, road across bottom, straight center walkway and small overlook access at top. Detailed Wrangler-like silhouettes, oversized tires, bumpers, spare wheels, chrome glints, vendor awnings, mountain silhouettes and distant forest, gravel/sunlit ground texture. OMIT all little yellow ducks; those are collectible sprites added by the game. No people, no lettering, no extra parked vehicles or obstacles, generous open aisles."
+    },
+    {
+      "id": "observatory",
+      "asset": "assets/our-year/places/observatory.webp",
+      "prompt_details": "A gorgeous romantic Birmingham night-sky overlook. Keep the exact tiled platform, central grass rectangle with picnic blanket and two cushions, wooden bench upper-left, telescope upper-right, two lamps and two trees at the existing footprints. Rich hand-pixelled night foliage and distant city skyline at the top, warm lamps, detailed telescope brass and ivory tube, soft picnic fabric, moonlit stone. OMIT the Moon and ALL large planet lights from the top strip so the game can animate five different skies. Small static stars are fine. Clear ample walking area; no people."
+    },
+    {
+      "id": "pool",
+      "asset": "assets/our-year/places/pool.webp",
+      "prompt_details": "A lovely sunny apartment pool courtyard inspired by the Alight swimming photo. Preserve the exact rectangular pool footprint x485 y300 width690 height420, the four loungers above it, pool supply kiosk on the left, umbrella and little table on the right, and ladder at bottom-left of the pool. Bright turquoise water with delicate caustics, pale stone deck with textured grout, aqua cushions on the loungers, white/tan apartment facade at top, lush low planting around edges, sunshine and soft shadows. No floats, no people, no extra ladders, no new obstacles or furniture, no text. The game animates swimmers and a purchased float."
+    },
+    {
+      "id": "puja",
+      "asset": "assets/our-year/places/puja.webp",
+      "prompt_details": "A richly decorated Bengali Durga Puja courtyard in Atlanta. Keep the exact upper-center pandal footprint, left flower stall, right sweet stall, lower-right table, central red carpet/alpona and entrance. Lovely marigold strings, red-and-gold embroidered canopy, carved wooden altar frame, warm golden lighting, white hand-drawn alpona, detailed stone paving, baskets of marigolds and Bengali sweets on existing stands, low flowering plants along edges. The game adds four interactive diyas at (600,435),(920,435),(600,710),(920,710), so leave those four carpet spots clear. Omit the loose lower-left bouquet because it is a dynamic object. Keep altar interior a respectful abstract floral light motif rather than inventing a deity sculpture. No people, no new walls or obstacles, no labels."
+    },
+    {
+      "id": "pumpkins",
+      "asset": "assets/our-year/places/pumpkins.webp",
+      "prompt_details": "A gorgeous sunny autumn pumpkin farm. Keep the red barn centered at the top, rustic farm stand upper-left, wooden pumpkin wagon upper-right, and EXACT central and lower path shapes and wide bare field layout. Rich red weathered barn siding, hay and corn decorations strictly against the barn/outer edge, golden grass, earthy rows, small autumn leaves, rustic red wagon wheels, warm sunlight and soft shadows. IMPORTANT: OMIT ALL TWELVE large loose pumpkins from the field because those are individually collectible sprites drawn by the game; leave a small bare-soil circle at each existing pumpkin footprint instead. Pumpkins on the wagon and barn decor may stay. No people, no new objects on the paths. No text except a small tasteful blank barn sign."
+    },
+    {
+      "id": "stadium",
+      "asset": "assets/our-year/places/stadium.webp",
+      "prompt_details": "A beautiful miniature baseball stadium at night inspired by Regions Field in Birmingham. Keep the exact diamond footprint and orientation: home plate at (885,600), left/right bases at (635,420),(1135,420), far base at (885,253), pitcher mound near(885,415). Keep scoreboard upper-center, souvenir stand left-top, concession stand left-middle, FOUR bench blocks at bottom, bottom-center entrance, lamps at their reference positions. Rich striped green turf, carefully textured dirt diamond, chalk lines, small fence and stadium-light detail, warm lit concession counters, colorful souvenir pennants within booth footprint. Dark Birmingham skyline along top border. NO fireworks baked into the sky (the game animates them), no people, no extra seats, no text, no new obstacles."
+    },
+    {
+      "id": "park",
+      "asset": "assets/our-year/places/park.webp",
+      "prompt_details": "Rich cozy pixel-art night park inspired by Railroad Park. Preserve exact reference layout, path shapes, pond footprint, bench and tree/lamp positions. Warm lamplight, layered oak leaves, ornamental grass and flowers, wood benches, moonlit pond reflections, Birmingham skyline and fireflies. No people, lettering, UI or new blocking objects."
+    }
+  ]
+}

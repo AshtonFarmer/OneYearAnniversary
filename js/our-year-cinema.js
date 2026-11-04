@@ -249,7 +249,7 @@
       if(!settings.thumbnail&&cross>0)rect(0,34,960,471,'#0c1b21'+Math.round(cross*190).toString(16).padStart(2,'0'));
       p.restore();return {id,time,index:frame.index,title:frame.shot.title,action,progress:u};
     }
-    return {render};
+    return {render,drawPose(who,x,y,size,pose,time,flip){t=time;actor(who,x,y,size,pose,t,flip);}};
   }
 
   function create(memory, options, makeActivity) {

@@ -1,9 +1,17 @@
 # Our year expansion
 
+## Walkable adventure
+
+The treehouse gallery, neighborhood entrances, and journal now lead into
+14 individual explorable maps. Homecoming, the ring, and pumpkin carving share
+the apartment; the necklace stays in the existing Love Mall. The film gallery
+remains an optional replay. See [ADVENTURE.md](ADVENTURE.md) for the current
+map-by-map activities, controls, save behavior, and remaining reference questions.
+The original Skyroot Grounds and forest swing are preserved.
+
 ## Animated films
 
-Every memory now opens a staged film by default, both upstairs and in the new
-destination. `memory-theater.html` is a direct gallery for all 17 films; it needs
+Every memory also has a staged film available as a replay. `memory-theater.html` is a direct gallery for all 17 films; it needs
 no game progress. The films total about 12 minutes. Each has a different sequence
 of shots, camera framing, sprite choreography, illustrated scenery, and an ending.
 The original photographs are optional keepsakes in collapsed disclosures and are
@@ -30,8 +38,8 @@ presented as their quotations. The band performs visually without a recording of
 Usha Uthup's music; optional original note cues remain available.
 
 Review artifacts: `docs/previews/memory-films-preview.mp4` samples three seconds
-from each film. The normal test command runs 20 regression tests, including all
-film chapters. Set `RENDER_FILMS=/absolute/output/path` to export chapter stills;
+from each film. The normal test command runs 28 regression tests, including all
+film chapters and the walkable map mechanics. Set `RENDER_FILMS=/absolute/output/path` to export chapter stills;
 set `FILM_TRAILER=/absolute/output.mp4` to additionally export a reel (requires
 FFmpeg). The gallery and browser game themselves need neither FFmpeg nor Node.
 
@@ -42,7 +50,7 @@ The Speed Force run now ends in **Our Little World**, a personal memory neighbor
 - The upper treehouse keeps the old 1536 × 1024 footprint, lift, bridges, and floor connections. Its 74-pixel characters fit roughly 100-pixel door openings. Furniture has collision; the rooms open activities with **E**.
 - The final neighborhood uses 44-pixel characters against 45–60-pixel doorways in the source artwork. A following camera presents them at about 79 screen pixels at its normal zoom. **Whole map** changes the camera, keeping the same character-to-world ratio.
 - Mountain and festival scenes are parts of the new destination. They do not replace the grounds or the four temporary multiverse realities.
-- Closing an upstairs memory returns to the same room and player positions. The upper gallery can replay every memory.
+- Upstairs memories now enter their individual maps. The upper gallery can explore every memory; the optional theater retains every film.
 
 ## Memories and events
 
