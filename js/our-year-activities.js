@@ -136,5 +136,8 @@
     ['pointerdown','pointermove','pointerup','pointercancel'].forEach(name=>c.addEventListener(name,pointer));
     buildControls();return {update,draw,activate:()=>{if(primary)primary();},getState:()=>JSON.parse(JSON.stringify(s)),dispose:()=>{active=false;['pointerdown','pointermove','pointerup','pointercancel'].forEach(name=>c.removeEventListener(name,pointer));}};
   }
-  window.OurYearActivities={create,SKY,ASTRA};
+  window.OurYearActivities={
+    create:(memory,options)=>window.OurYearCinema?window.OurYearCinema.create(memory,options,create):create(memory,options),
+    createActivity:create,SKY,ASTRA
+  };
 })();

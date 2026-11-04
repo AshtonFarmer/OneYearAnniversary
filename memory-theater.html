@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#142a27">
+  <title>Our year in motion · Ashton &amp; Tanima</title>
+  <meta name="description" content="Watch every animated chapter of Ashton and Tanima’s year together. Seventeen memories, staged with the two of us.">
+  <link rel="stylesheet" href="css/memory-films.css?v=20261104-1">
+</head>
+<body class="memory-theater">
+  <header class="theater-header"><a class="theater-brand" href="memory-theater.html"><span class="theater-monogram">A <i>&amp;</i> T</span><span>A LITTLE CINEMA<br>OF OUR OWN</span></a><nav aria-label="Return to our world"><a href="memory-world.html">Our little world ↗</a><a href="skyroot.html?map=treehouse">Treehouse ↗</a><a href="outfit-studio.html">Atelier ↗</a></nav></header>
+  <main>
+    <section class="theater-intro"><div><p class="film-eyebrow">THE PLACES WE WENT. THE PEOPLE WE BECAME.</p><h1>Our year,<br><em>in motion.</em></h1></div><div class="theater-intro-copy"><p>Not just a picture of the day.<br>A little way to be there together again.</p><p class="theater-count"><span id="filmCount">17</span> ANIMATED CHAPTERS <span class="gold-dot">✦</span> ASHTON &amp; TANIMA</p></div></section>
+    <section class="theater-screen" aria-labelledby="filmTitle">
+      <div class="theater-now"><div><span class="film-eyebrow" id="filmEyebrow">OUR FIRST CHAPTER</span><h2 id="filmTitle">Finally home to me</h2></div><span class="film-edition" id="filmNumber">01 / 17</span></div>
+      <div class="theater-canvas-wrap"><canvas id="filmScreen" width="960" height="570" aria-label="Animated memory with Ashton and Tanima"></canvas><div id="filmLoading" role="status">Getting our little cinema ready…</div></div>
+      <p id="filmStatus" class="theater-caption" aria-live="polite"></p>
+      <div id="filmControls" class="film-controls" aria-label="Film playback controls"></div>
+      <div class="theater-below"><div><button id="previousFilm" type="button">← Previous memory</button><button id="nextFilm" type="button">Next memory →</button></div><label class="watch-all"><input id="watchAll" type="checkbox"> Play the whole year</label><button id="sound" aria-pressed="false" type="button">Sound off ♫</button></div>
+      <details class="theater-keepsakes"><summary>Our photographs &amp; the story behind this day</summary><p id="filmStory"></p><div id="filmPhotos"></div></details>
+    </section>
+    <section class="theater-library" aria-labelledby="libraryTitle"><div class="theater-library-heading"><div><p class="film-eyebrow">CHOOSE A MEMORY</p><h2 id="libraryTitle">Every little first.</h2></div><p>Choose any chapter.<br>Stay as long as you like.</p></div><div id="filmFilters" class="film-filters" aria-label="Filter memories"></div><div id="filmGrid" class="film-grid"></div></section>
+    <footer class="theater-footer"><span>MADE FOR THE TWO OF US <span class="gold-dot">♥</span></span><p>Illustrated replays inspired by our memories. Captions describe the moments; they aren’t quotations. Progress and outfits stay in this browser.</p></footer>
+  </main>
+  <script src="js/shared-wardrobe.js?v=20261103-1"></script>
+  <script src="js/our-year-data.js?v=20261103-1"></script>
+  <script src="js/our-year-films.js?v=20261104-1"></script>
+  <script src="js/our-year-cinema.js?v=20261104-1"></script>
+  <script src="js/our-year-activities.js?v=20261104-1"></script>
+  <script src="js/memory-theater.js?v=20261104-1"></script>
+</body>
+</html>

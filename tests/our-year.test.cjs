@@ -100,3 +100,54 @@ test('the original photo booth gives the necklace before the question, then save
  assert.deepEqual(phases,['walkOut','bubbles','necklace','ask','yesWalk','hold','print']);assert.ok(s.OUR_YEAR.read().completed.necklace);assert.equal(s.SharedWardrobe.read().necklace,true);
 });
 test('the Speed Force retains its chase but now lands in the new map',()=>{const s=load(context(),'js/speed-force-worlds.js');const cfg=s.SPEED_FORCE_MULTIVERSE;assert.equal(cfg.worlds.length,5);assert.equal(cfg.worlds[4].asset,'assets/our-year/neighborhood.webp');assert.equal(cfg.destination.url,'memory-world.html?from=speed-force');assert.equal(cfg.tunnel.asset,'assets/multiverse/speed-force-tunnel.webp');});
+
+function filmFixture(id){
+ const s=load(context(),'js/our-year-data.js','js/shared-wardrobe.js','js/our-year-films.js','js/our-year-cinema.js','js/our-year-activities.js');
+ const c=canvas(),controls=new Element(),images={him:new Image(),her:new Image()};images.him.src='assets/sprites/him_atlas.png';images.her.src='assets/sprites/her_atlas.png';
+ let completions=0,message='';const options={canvas:c,controls,images,backdrops:{},status:t=>message=t,complete:(id,extra)=>{completions++;s.OUR_YEAR.complete(id,extra);},tone(){},open(){},photo(){}};
+ const a=s.OurYearActivities.create(s.OUR_YEAR.byId(id),options);
+ return {s,c,controls,images,a,options,count:()=>completions,status:()=>message};
+}
+test('all 17 memories default to films, complete once after their ending, and keep interactive activities',()=>{
+ const ids=load(context(),'js/our-year-data.js').OUR_YEAR.memories.map(m=>m.id);
+ for(const id of ids){const f=filmFixture(id);assert.equal(f.a.getState().mode,'film',id);const duration=f.a.getState().duration;assert.ok(duration>=30,id+' has staged time');assert.equal(f.count(),0);for(let i=0;i<duration*20+2;i++)f.a.update(.05);assert.equal(f.count(),1,id+' completes at end');assert.equal(f.a.getState().paused,true);f.a.update(.1);assert.equal(f.count(),1,'completion is idempotent');const button=f.controls.children.find(b=>b.textContent==='Play the activity ↗');assert.ok(button);button.click();assert.equal(f.a.getState().mode,'activity');f.a.dispose();}
+});
+test('film pause, chapter selection, replay and seek control the actual rendered timeline',()=>{
+ const f=filmFixture('astra');f.a.update(.1);f.a.pause();const at=f.a.getState().time;for(let i=0;i<20;i++)f.a.update(.05);assert.equal(f.a.getState().time,at);f.a.seek(40);assert.equal(f.a.getState().chapter,4);f.a.draw();assert.match(f.status(),/Nebular Waves/);assert.equal(f.count(),0,'seeking does not immediately complete');f.a.play();f.a.update(.1);assert.ok(f.a.getState().time>40);f.controls.children.find(b=>b.textContent==='Replay ↻').click();assert.equal(f.a.getState().time,0);assert.equal(f.a.getState().paused,false);f.a.dispose();const previous=f.a.getState().time;f.a.update(1);assert.equal(f.a.getState().time,previous,'disposed directors stop');
+});
+test('every chapter renders from sprites and drawings with no photographs, and movement changes frames',async()=>{
+ const output=process.env.RENDER_FILMS;let index=0;
+ const f0=filmFixture('homecoming');
+ for(const memory of f0.s.OUR_YEAR.memories){
+  const f=filmFixture(memory.id),photos=[];await new Promise(resolve=>setImmediate(resolve));const real=f.c.getContext('2d').drawImage.bind(f.c.getContext('2d'));f.c.getContext('2d').drawImage=(im,...args)=>{if(im.src&&im.src.includes('/photos/'))photos.push(im.src);return real(im,...args);};
+  let previous=null;const shots=f.s.OurYearFilms.get(memory.id);for(const shot of shots){f.a.seek(shot.start+shot.duration*.35);f.a.draw();const a=f.c.toBuffer('image/png');f.a.seek(shot.start+shot.duration*.7);f.a.draw();const b=f.c.toBuffer('image/png');assert.notDeepEqual(a,b,memory.id+'/'+shot.title+' animates');if(previous)assert.notDeepEqual(previous,b,'chapters have different scenery/poses');previous=b;}
+  assert.deepEqual(photos,[],memory.id+' film never draws a relationship photo');
+  if(output){fs.mkdirSync(output,{recursive:true});const shot=shots[Math.min(2,shots.length-1)];f.a.seek(shot.start+shot.duration*.65);f.a.draw();fs.writeFileSync(path.join(output,String(++index).padStart(2,'0')+'-'+memory.id+'.png'),f.c.toBuffer('image/png'));}
+  f.a.dispose();
+ }
+});
+test('film viewing does not silently change clothing; Addams equip remains an explicit action',async()=>{
+ const f=filmFixture('addams'),before=JSON.stringify(f.s.SharedWardrobe.read());await new Promise(resolve=>setImmediate(resolve));f.a.seek(17);f.a.draw();assert.equal(JSON.stringify(f.s.SharedWardrobe.read()),before);f.controls.children.find(b=>b.textContent==='Wear our Addams looks').click();assert.equal(f.s.SharedWardrobe.read().equipped.her,'addams-morticia');
+});
+test('all ten Astra installations and the necklace gift order are staged as separate chapters',()=>{
+ const f=filmFixture('astra');assert.equal(f.s.OurYearFilms.get('astra').length,10);assert.deepEqual(Array.from(f.s.OurYearFilms.get('necklace'),s=>s.action),['booth','gift','ask','yes','print']);assert.ok(f.s.OurYearFilms.get('jeep').some(s=>s.action==='gathering'));assert.ok(f.s.OurYearFilms.get('park').some(s=>s.action==='sit'));assert.ok(f.s.OurYearFilms.get('swimming').some(s=>s.action==='swim'));
+});
+
+// Optional review artifact, rendered through the same director as the browser.
+// This is intentionally opt-in, never a prerequisite for running the tests.
+if(process.env.FILM_TRAILER)test('export a short scene from each of the 17 films',async()=>{
+ const {spawn}=require('node:child_process'),destination=process.env.FILM_TRAILER;
+ fs.mkdirSync(path.dirname(destination),{recursive:true});
+ const ff=spawn('ffmpeg',['-y','-loglevel','error','-f','rawvideo','-pixel_format','rgba','-video_size','960x570','-framerate','18','-i','pipe:0','-vf','scale=768:456','-c:v','libx264','-preset','veryfast','-crf','25','-pix_fmt','yuv420p','-movflags','+faststart',destination]);
+ let errors='';ff.stderr.on('data',b=>errors+=b);const ended=new Promise((resolve,reject)=>{ff.on('error',reject);ff.on('close',code=>code===0?resolve():reject(new Error(errors)));});
+ const ids=load(context(),'js/our-year-data.js').OUR_YEAR.memories.map(m=>m.id);
+ for(const [index,id] of ids.entries()){
+  const f=filmFixture(id);await new Promise(resolve=>setImmediate(resolve));
+  const shots=f.s.OurYearFilms.get(id),pick=id==='baseball'?3:id==='sky'?4:id==='astra'?3:Math.min(2,shots.length-1),shot=shots[pick];
+  for(let n=0;n<54;n++){
+   f.a.seek(shot.start+1+n/18);f.a.draw();const p=f.c.getContext('2d');p.fillStyle='#102421';p.fillRect(0,0,960,34);p.fillStyle='#e5cc99';p.font='17px Georgia';p.textAlign='left';p.fillText(String(index+1).padStart(2,'0')+' / '+ids.length+'  ·  '+f.s.OUR_YEAR.byId(id).title,24,23);
+   const pixels=p.getImageData(0,0,960,570).data;await new Promise((resolve,reject)=>ff.stdin.write(Buffer.from(pixels.buffer),error=>error?reject(error):resolve()));
+  }f.a.dispose();
+ }
+ ff.stdin.end();await ended;assert.ok(fs.statSync(destination).size>10000);
+});
