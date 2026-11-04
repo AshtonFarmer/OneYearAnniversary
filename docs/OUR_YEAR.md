@@ -1,5 +1,40 @@
 # Our year expansion
 
+## Animated films
+
+Every memory now opens a staged film by default, both upstairs and in the new
+destination. `memory-theater.html` is a direct gallery for all 17 films; it needs
+no game progress. The films total about 12 minutes. Each has a different sequence
+of shots, camera framing, sprite choreography, illustrated scenery, and an ending.
+The original photographs are optional keepsakes in collapsed disclosures and are
+never used as the film's scenery or performer.
+
+`js/our-year-films.js` holds the editable shot titles, captions, actions, and timing.
+`js/our-year-cinema.js` draws the scenes and directs articulated crops of the
+original character sprites. The original sprite sheets and map scale are unchanged.
+Seated knees and lap poses, facing embraces/kisses, swimming arms/kicks, clapping,
+dancing, gifts, carving, and club movement are drawn in the film renderer.
+
+The film controls support pause, replay, choosing a chapter, seeking, reduced
+camera movement, and optional gentle scares. E/Space pauses or resumes a film.
+The gallery also supports previous/next and continuous playback of the whole year.
+“Play the activity” retains the existing interactive minigames and their progress.
+Viewing the Halloween film previews its costumes without silently equipping them;
+the separate wear button still equips the shared Addams looks.
+
+These are stylized interpretations, with authored poses and silhouettes rather
+than newly hand-drawn animation sheets. The actual words exchanged, exact Jeep
+color/model for this trip, detailed reunion actions, and the identities/dates of
+other community celebrations await the couple's confirmation. Captions are not
+presented as their quotations. The band performs visually without a recording of
+Usha Uthup's music; optional original note cues remain available.
+
+Review artifacts: `docs/previews/memory-films-preview.mp4` samples three seconds
+from each film. The normal test command runs 20 regression tests, including all
+film chapters. Set `RENDER_FILMS=/absolute/output/path` to export chapter stills;
+set `FILM_TRAILER=/absolute/output.mp4` to additionally export a reel (requires
+FFmpeg). The gallery and browser game themselves need neither FFmpeg nor Node.
+
 The Speed Force run now ends in **Our Little World**, a personal memory neighborhood. The existing forest swing still lands in **Skyroot Grounds**. Its artwork, spawn, collision, lift, prayer spaces, and events are retained. Only the **upper treehouse artwork and activities** and the **running sequence’s final destination** change among the existing maps. The mall receives the requested necklace moment and Atelier entrance; all maps share custom outfits.
 
 ## Places and scale
