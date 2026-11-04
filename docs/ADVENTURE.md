@@ -6,6 +6,37 @@ the matching place with E. A replay link returns to the existing film gallery.
 The original mall still holds the Flash necklace/photo-booth sequence and Atelier.
 The original ground landing and forest swing have no changes in this release.
 
+The Places menu is also the map-to-memory guide: every card names the actual
+occasion that its map represents. Homecoming, the Puja ring, and pumpkin carving
+share the apartment; the five sky memories share the Birmingham overlook.
+
+## Photo-matched homecoming and occasion outfits
+
+The apartment's central living room now follows the newer `IMG_8484.jpeg` and
+`IMG_8488.jpeg` references: cream wall, black leather sofa, beige cushion, two
+gold fringe curtains, gold WELCOME, large white HOME, and gold love balloon.
+The coffee table carries the sticker-covered laptop, red roses, red soda can,
+plates, pink curry bowl, rice pot, and sweets tray. The pink striped bag sits
+beside the sofa. Peripheral activity nooks keep the ring, wardrobe, and carving
+interactions reachable. The room opens with the full setup in view.
+
+Tanima's homecoming scene uses her light-blue T-shirt and patterned shorts from
+the photos. Pool entry changes the couple into a teal bikini and navy swim
+trunks; climbing out or leaving the pool restores their selected walking
+outfits. These scene changes do not overwrite the saved wardrobe. The film
+replays use the corresponding occasion outfits too.
+
+More controls → Occasion outfits offers each of the three looks with a preview
+and an explicit Wear everywhere action. The same collection is in Tanima's
+Atelier. Ready-made looks retain their original art; fabric painting remains
+available for custom designs. All three new sheets are transparent 1024 × 1024,
+4 × 4 atlases with a fixed feet baseline and four walking directions.
+
+The environment is a game-art recreation of the visible living room. Spaces
+outside the supplied photos remain playable interpretations rather than claims
+about the apartment's full floor plan. Artwork briefs and packing details are
+recorded in `OCCASION_ART.json`.
+
 These are places to walk around, with actions and scenes staged on their own
 floors, benches, water, roads, and stages. Photographs do not supply the maps or
 performers. The supplied photos inform the scenery. Game characters retain the
@@ -61,18 +92,32 @@ intact; there is no new account or cross-device cloud save.
 
 ## Layout, scale, and artwork
 
-Each map is 1536 × 1024 with a 64-pixel visible character height. Transparent atlas
-padding is excluded when sizing actors. Furniture, paths, entrances, water, and
-interaction nodes share authored coordinates in `js/adventure-places.js`.
+Each map is 1536 × 1024. Visible character height is 74 pixels outdoors, 96
+pixels in most interiors, and 128 in the photo-based apartment to fit its sofa.
+These proportions follow the original forest and cabin scales. Transparent
+atlas padding is excluded when sizing actors. `js/adventure-places.js` retains
+memory and save IDs; `js/adventure-layouts.js` aligns footprints, paths, seats,
+water, stage positions, and interaction nodes with the replacement artwork.
 `js/adventure-geometry.js` supplies solid footprints and pathfinding. Painted WebP
 scenery follows those layouts; changing zoom preserves the world scale. Four
 full-size map images are cached at once, with small atlas thumbnails. Dynamic
 pumpkins, flowers, gifts, water ripples, floats, lamps, stage lights, band members,
 reflections, baseball flight, stars, and fireworks render over the artwork.
 
-The generated maps were transformed from exact layout references. Prompts and
-asset paths are recorded in `ADVENTURE_ART_PROMPTS.json`. A procedural version of
-the same layout is a fallback if an artwork download fails.
+The replacement artwork uses the original cabin, mall, forest grounds, and main
+map as direct style references: textured timber and stone, dense irregular
+foliage, layered furniture, amber lanterns, and deep shadows. Full prompts and
+targeted edits are recorded in `ART_STYLE_RESTORE.json`. Three transparent 4 × 4
+atlases provide animated performers, baseball players, and detailed collectibles.
+`scripts/pack-adventure-atlases.cjs` normalizes supporting atlases without changing
+the original player sheets. If artwork fails to download, a retry curtain keeps
+the unfinished map hidden. There is no schematic scenery fallback.
+
+The compact brown-and-gold HUD follows the original game's monospace controls.
+Scenes fade the navigation away. The default camera shows more scenery; the
+additional overview, sound, and replay buttons sit under the ⋯ menu. World and
+scene pauses preserve character pose time. Grid routes snap precisely to safe
+waypoints so floating-point drift cannot catch characters at furniture corners.
 
 These are stylized playable interpretations, rather than measured real venues.
 The trip currently has show rows, a drive, ducks, vendors, and an overlook; an
@@ -90,12 +135,15 @@ homecoming; and any exact dialogue the couple wants preserved.
 
 ## Verification and preview
 
-`npm test` runs 28 checks for the existing game and new adventure. It covers all
+`npm test` runs 32 checks for the existing game and new adventure. It covers all
 map entrances and activity routes, character scale, bag and coin persistence,
 duplicate rewards, two-pumpkin carrying, scene prerequisites, native swimming,
 five scored golf flights, all ten ordered Astra stops, animated performers and
-reflections, and camera coverage of skies/fireworks. Existing film, wardrobe,
+reflections, full transparent atlas cells, physical traversal of every new route,
+and camera coverage of skies/fireworks. Existing film, wardrobe,
 original necklace, run destination, swing, and ground-map regressions are included.
+Occasion checks also verify all sixteen transparent walking cells, fixed feet,
+saved preset outfits, temporary swim/homecoming clothes, and wardrobe restoration.
 
 `RENDER_MAPS=/absolute/folder npm test` exports map stills. To export the actual
 map-engine tour with FFmpeg installed:

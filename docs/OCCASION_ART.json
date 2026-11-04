@@ -1,0 +1,32 @@
+{
+  "version": "20261104-4",
+  "generation": "Built-in image generation with existing game sprites and the supplied photographs as references.",
+  "assets": [
+    {
+      "path": "assets/sprites/her_outfit12.png",
+      "brief": "Preserve the adult Tanima game character's face, wavy brown hair, eyes, proportions, textured pixel style and outlines. Replace her clothing with a teal two-piece bikini, dark teal edging and bare feet. Four walking frames per direction, south/west/north/east, in a transparent 4-by-4 atlas; no sexual pose or emphasis. Keep every silhouette complete and consistently centered."
+    },
+    {
+      "path": "assets/sprites/him_outfit12.png",
+      "brief": "Preserve the adult Ashton game character's face, tousled brown hair, eyes, proportions, textured pixel style and outlines. Navy swim trunks with narrow gold side stripes and drawstring, ordinary shirtless adult torso and bare feet. Four walking frames per direction, south/west/north/east, in a transparent 4-by-4 atlas; no exaggerated muscles or sexual pose."
+    },
+    {
+      "path": "assets/sprites/her_outfit13.png",
+      "brief": "Preserve Tanima's existing character design. Use the newer welcome-home photograph only as the clothing reference: loose light-blue short-sleeved T-shirt, black shorts with a fine white floral pattern, bare feet and no jewelry. Four walking frames per direction in a transparent 4-by-4 atlas."
+    },
+    {
+      "path": "assets/our-year/places/apartment.webp",
+      "references": ["IMG_8484.jpeg", "IMG_8488.jpeg", "previous apartment map as an art-style reference"],
+      "brief": "1536-by-1024 playable elevated cutaway room, no people or UI. Faithfully recreate the photographs' cream wall, black leather sofa, beige cushion, two gold foil fringe curtains, gold WELCOME letters, large white serif HOME and gold cursive love balloon. Match the orange-brown coffee table with black frame, sticker-covered laptop front-left, red roses, red soda can, plates, pink curry bowl and wooden spoon, rice pot, pink bowl and clear sweets tray. Include the pink striped bag to the left. Preserve the game's detailed textured pixel art and retain small peripheral kitchen, wardrobe and gift/carving workstations with clear walking lanes. Do not replace the cream living-room wall with rustic wood or add invented wall decorations."
+    }
+  ],
+  "packing": {
+    "script": "scripts/pack-occasion-outfits.cjs",
+    "size": [1024, 1024],
+    "grid": [4, 4],
+    "cell_size": [256, 256],
+    "directions": ["south", "west", "north", "east"],
+    "feet_baseline": 240,
+    "operations": ["trim transparent margins per cell", "normalize each direction's scale", "center each complete silhouette", "correct the man's generated left-profile row", "remove saturated red matte remnants", "retain transparent alpha"]
+  }
+}

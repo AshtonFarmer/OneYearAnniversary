@@ -17,7 +17,7 @@
   function grid(){
     $('filmGrid').replaceChildren();Y.memories.filter(m=>filter==='all'||m.area===filter).forEach(m=>{
       const i=Y.memories.indexOf(m),b=document.createElement('button');b.type='button';b.className='film-card';b.dataset.film=m.id;b.setAttribute('aria-pressed',String(index===i));b.setAttribute('aria-label','Watch '+m.title);
-      const art=document.createElement('canvas');art.width=480;art.height=285;const full=document.createElement('canvas');full.width=960;full.height=570;const preview=window.OurYearCinema.renderer(full,{images:m.id==='addams'&&costumes.addams?costumes.addams:images,backdrops});const shots=F.get(m.id),shot=shots[Math.min(2,shots.length-1)];preview.render(m.id,shot.start+shot.duration*.57,{thumbnail:true,reducedMotion:true});art.getContext('2d').drawImage(full,0,0,480,285);b.appendChild(art);
+      const art=document.createElement('canvas');art.width=480;art.height=285;const full=document.createElement('canvas');full.width=960;full.height=570;const preview=window.OurYearCinema.renderer(full,{images:costumes[m.id]||images,backdrops});const shots=F.get(m.id),shot=shots[Math.min(2,shots.length-1)];preview.render(m.id,shot.start+shot.duration*.57,{thumbnail:true,reducedMotion:true});art.getContext('2d').drawImage(full,0,0,480,285);b.appendChild(art);
       const meta=document.createElement('span');meta.className='film-card-meta';const n=document.createElement('span');n.textContent=String(i+1).padStart(2,'0')+' / '+m.eyebrow;const duration=document.createElement('span');const d=F.duration(m.id);duration.textContent=Math.floor(d/60)+':'+String(d%60).padStart(2,'0');meta.append(n,duration);
       const title=document.createElement('strong');title.textContent=m.title;const play=document.createElement('span');play.className='film-card-play';play.textContent='▶';b.append(meta,title,play);b.onclick=()=>open(m.id,true);$('filmGrid').appendChild(b);
     });
@@ -32,8 +32,10 @@
   addEventListener('pagehide',()=>{if(active)active.dispose();});
   function loop(now){const dt=last?Math.min(.05,(now-last)/1000):0;last=now;if(active&&!document.hidden){active.update(dt);active.draw();if(advance){advance=false;if(index<Y.memories.length-1)open(Y.memories[index+1].id);else{$('watchAll').checked=false;$('filmStatus').textContent='Our whole year, kept together. ♥';}}}requestAnimationFrame(loop);}
   async function init(){try{
-    const loaded=await Promise.all(['him','her'].map(async who=>{let n=Number(localStorage.getItem(who+'Outfit'))||1;if(n<1||n>11||!Number.isInteger(n))n=1;return[who,await load('assets/sprites/'+who+(n===1?'_atlas':'_outfit'+n)+'.png')];}));loaded.forEach(([who,im])=>images[who]=im);
+    const loaded=await Promise.all(['him','her'].map(async who=>{let n=Number(localStorage.getItem(who+'Outfit'))||1;if(n<1||n>(who==='her'?13:12)||!Number.isInteger(n))n=1;return[who,await load('assets/sprites/'+who+(n===1?'_atlas':'_outfit'+n)+'.png')];}));loaded.forEach(([who,im])=>images[who]=im);
     try{const [him,her]=await Promise.all([window.SharedWardrobe.render({who:'him',kind:'suit',color:'#171b2e',trim:'#b5c9d2',pattern:'stripes'},false),window.SharedWardrobe.render({who:'her',kind:'dress',color:'#17131e',trim:'#9b7fa7'},false)]);costumes.addams={him,her};}catch(e){/* The player reports a costume failure; gallery still opens. */}
+    const [apartment,swimHim,swimHer,homeHer]=await Promise.all([load('assets/our-year/places/apartment.webp?v=20261104-4'),window.SharedWardrobe.occasionSheet('him','swimming'),window.SharedWardrobe.occasionSheet('her','swimming'),window.SharedWardrobe.occasionSheet('her','homecoming')]);
+    backdrops.apartment=apartment;costumes.swimming={him:swimHim,her:swimHer};costumes.homecoming={...images,her:homeHer};
     ready=true;$('filmLoading').hidden=true;grid();open(query.get('film')||'homecoming');requestAnimationFrame(loop);
   }catch(e){$('filmLoading').textContent=e.message;}}
   init();

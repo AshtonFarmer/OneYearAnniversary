@@ -1,17 +1,22 @@
 (function(){
  'use strict';
  function contains(r,x,y,pad=0){const a=Array.isArray(r)?r:[r.x,r.y,r.w,r.h];return x>a[0]-pad&&x<a[0]+a[2]+pad&&y>a[1]-pad&&y<a[1]+a[3]+pad;}
+ function polygon(points,x,y){let inside=false;for(let i=0,j=points.length-1;i<points.length;j=i++){const a=points[i],b=points[j];if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])inside=!inside;}return inside;}
+ function segmentDistance(x,y,a,b){const dx=b[0]-a[0],dy=b[1]-a[1],t=Math.max(0,Math.min(1,((x-a[0])*dx+(y-a[1])*dy)/(dx*dx+dy*dy||1)));return Math.hypot(x-a[0]-t*dx,y-a[1]-t*dy);}
+ function onPath(route,x,y){return route.points.some((b,i)=>i&&segmentDistance(x,y,route.points[i-1],b)<=route.radius);}
  function canStand(place,x,y,swimming=false){
-  if(x<155||x>1380||y<(place.id==='pool'?196:212)||y>958)return false;
-  if(['home','concert','haunt','halloween'].includes(place.theme)&&y>895&&(x<704||x>831))return false;
+  const art=place.art,b=art&&art.bounds||[155,212,1225,746];if(!contains(b,x,y))return false;
+  if(art&&(art.walkAreas||art.paths)){const inArea=(art.walkAreas||[]).some(a=>contains(a,x,y)),inPath=(art.paths||[]).some(p=>onPath(p,x,y));if(!inArea&&!inPath)return false;}
+  else if(['home','concert','haunt','halloween'].includes(place.theme)&&y>895&&(x<704||x>831))return false;
   if(place.water&&contains(place.water,x,y,8)&&!swimming)return false;
-  if(place.floors.some(f=>f[0]==='water'&&contains(f.slice(1),x,y,8)))return false;
-  if(place.id==='golf'&&contains([150,165,1240,455],x,y,5))return false;
-  return !place.props.some(p=>p.solid!==false&&contains(p,x,y,11));
+  if(art&&art.waterShape&&polygon(art.waterShape,x,y))return false;
+  if(!art&&place.floors.some(f=>f[0]==='water'&&contains(f.slice(1),x,y,8)))return false;
+  if(place.id==='golf'&&y<650)return false;
+  return !place.props.some(p=>p.solid!==false&&contains(p,x,y,p.pad===undefined?10:p.pad));
  }
  function nearest(place,x,y,swimming=false){
-  const cx=Math.max(165,Math.min(1370,x)),cy=Math.max(225,Math.min(945,y));if(canStand(place,cx,cy,swimming))return {x:cx,y:cy};
-  for(let r=16;r<230;r+=16)for(let k=0;k<24;k++){const a=k*Math.PI/12,xx=cx+Math.cos(a)*r,yy=cy+Math.sin(a)*r;if(canStand(place,xx,yy,swimming))return {x:xx,y:yy};}return null;
+  const b=place.art&&place.art.bounds||[155,212,1225,746],cx=Math.max(b[0]+5,Math.min(b[0]+b[2]-5,x)),cy=Math.max(b[1]+5,Math.min(b[1]+b[3]-5,y));if(canStand(place,cx,cy,swimming))return {x:cx,y:cy};
+  for(let r=12;r<250;r+=12)for(let k=0;k<32;k++){const a=k*Math.PI/16,xx=cx+Math.cos(a)*r,yy=cy+Math.sin(a)*r;if(canStand(place,xx,yy,swimming))return {x:xx,y:yy};}return null;
  }
  function pathfind(place,from,to,swimming=false){
   const step=16,cols=96,rows=64,goalPoint=nearest(place,to.x,to.y,swimming);if(!goalPoint)return [];
@@ -25,5 +30,5 @@
   if(prev[dst]===-2)return [];
   const route=[];for(let n=dst;n!==src&&n>=0;n=prev[n])route.push({x:n%cols*step+8,y:Math.floor(n/cols)*step+8});route.reverse();return route;
  }
- window.AdventureGeometry={contains,canStand,nearest,pathfind};
+ window.AdventureGeometry={contains,polygon,canStand,nearest,pathfind};
 })();

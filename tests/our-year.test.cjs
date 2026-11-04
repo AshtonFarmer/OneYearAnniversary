@@ -17,7 +17,7 @@ function storage(){const data=new Map();return {getItem:k=>data.get(k)||null,set
 const decoded=new Map();
 before(async()=>{
  const sharp=require(require.resolve('sharp',{paths:modulePaths}));
- const files=['assets/sprites/her_atlas.png','assets/sprites/him_atlas.png','assets/sprites/her_outfit5.png','assets/sprites/him_outfit6.png',...['neighborhood','mountains','festival'].map(n=>'assets/our-year/'+n+'.webp'),'assets/our-year/photos/usha-concert-1.jpg','assets/our-year/photos/usha-concert-2.jpg'];
+ const files=['assets/sprites/her_atlas.png','assets/sprites/him_atlas.png','assets/sprites/her_outfit5.png','assets/sprites/him_outfit6.png','assets/sprites/her_outfit12.png','assets/sprites/him_outfit12.png','assets/sprites/her_outfit13.png',...['neighborhood','mountains','festival'].map(n=>'assets/our-year/'+n+'.webp'),'assets/our-year/photos/usha-concert-1.jpg','assets/our-year/photos/usha-concert-2.jpg',...['detail','performance','sports'].map(n=>'assets/our-year/'+n+'-atlas.png')];
  if(fs.existsSync(path.join(ROOT,'assets/our-year/places')))files.push(...fs.readdirSync(path.join(ROOT,'assets/our-year/places')).filter(f=>f.endsWith('.webp')).map(f=>'assets/our-year/places/'+f));
  await Promise.all(files.map(async file=>{decoded.set(file,await sharp(path.join(ROOT,file)).ensureAlpha().raw().toBuffer({resolveWithObject:true}));}));
 });
@@ -33,7 +33,7 @@ class Image{
 function canvas(w=960,h=570){const c=canvasLib.createCanvas(w,h);c.listeners={};c.style={};c.addEventListener=(k,v)=>(c.listeners[k]||=[]).push(v);c.removeEventListener=(k,v)=>c.listeners[k]=(c.listeners[k]||[]).filter(x=>x!==v);c.getBoundingClientRect=()=>({left:0,top:0,width:c.width,height:c.height});c.setPointerCapture=()=>{};return c;}
 function context(search=''){
   const elements=new Map(),events={};
-  const document={hidden:false,activeElement:new Element(),getElementById:id=>{if(!elements.has(id))elements.set(id,id==='world'||id==='adventureCanvas'?canvas():new Element());return elements.get(id);},createElement:tag=>tag==='canvas'?canvas(1,1):new Element(tag),querySelectorAll:()=>[],addEventListener(){}};
+  const document={body:new Element('body'),hidden:false,activeElement:new Element(),getElementById:id=>{if(!elements.has(id))elements.set(id,id==='world'||id==='adventureCanvas'?canvas():new Element());return elements.get(id);},createElement:tag=>tag==='canvas'?canvas(1,1):new Element(tag),querySelectorAll:()=>[],addEventListener(){}};
   const location={href:'https://example.test/memory-world.html'+search,search};
   const s={window:null,document,localStorage:storage(),sessionStorage:storage(),location,Image,URL,URLSearchParams,CustomEvent:class{constructor(type,init){this.type=type;this.detail=init&&init.detail;}},dispatchEvent:e=>(events[e.type]||[]).forEach(f=>f(e)),addEventListener:(type,fn)=>(events[type]||=[]).push(fn),requestAnimationFrame:()=>1,cancelAnimationFrame(){},innerWidth:1366,innerHeight:900,devicePixelRatio:1,performance,history:{replaceState(){}},console,setTimeout,clearTimeout};s.window=s;vm.createContext(s);return s;
 }
@@ -135,26 +135,26 @@ test('all ten Astra installations and the necklace gift order are staged as sepa
 });
 
 test('all 14 adventure maps have reachable entrances, activities, and correctly scaled characters',()=>{
- const s=load(context(),'js/adventure-places.js','js/adventure-geometry.js');assert.equal(Object.keys(s.AdventurePlaces.places).length,14);
+ const s=load(context(),'js/adventure-places.js','js/adventure-layouts.js','js/adventure-geometry.js');assert.equal(Object.keys(s.AdventurePlaces.places).length,14);
  for(const place of Object.values(s.AdventurePlaces.places)){
-  assert.equal(place.actorHeight,64);const spawn=s.AdventureGeometry.nearest(place,...place.spawn);assert.ok(spawn,place.id+' has a safe spawn');
+  assert.equal(place.actorHeight,place.id==='apartment'?128:['concert','halloween','haunt','community'].includes(place.id)?96:74);const spawn=s.AdventureGeometry.nearest(place,...place.spawn);assert.ok(spawn,place.id+' has a safe spawn');
   for(const n of place.nodes){const route=s.AdventureGeometry.pathfind(place,spawn,n);assert.ok(route.length||Math.hypot(n.x-spawn.x,n.y-spawn.y)<n.r,place.id+'/'+n.id+' has a route');const end=route[route.length-1]||spawn;assert.ok(Math.hypot(n.x-end.x,n.y-end.y)<n.r,place.id+'/'+n.id+' can be activated');assert.ok(route.every(p=>s.AdventureGeometry.canStand(place,p.x,p.y)),place.id+'/'+n.id+' route avoids obstacles');}
  }
  const pool=s.AdventurePlaces.places.pool;assert.equal(s.AdventureGeometry.canStand(pool,750,500),false);assert.equal(s.AdventureGeometry.canStand(pool,750,500,true),true);
 });
 test('adventure coins, unique collectibles, snacks, and cross-map inventory persist without duplicate rewards',()=>{
- const s=load(context(),'js/adventure-places.js','js/adventure-state.js');const S=s.AdventureState;assert.equal(S.read().coins,120);S.task('first-visit',null,8);S.task('first-visit',null,8);assert.equal(S.read().coins,128);
+ const s=load(context(),'js/adventure-places.js','js/adventure-layouts.js','js/adventure-state.js');const S=s.AdventureState;assert.equal(S.read().coins,120);S.task('first-visit',null,8);S.task('first-visit',null,8);assert.equal(S.read().coins,128);
  assert.equal(S.purchase('pool-float',15).ok,true);assert.equal(S.purchase('pool-float',15).ok,false);assert.equal(S.read().coins,113);assert.equal(S.purchase('festival-fabric',999).ok,false);assert.equal(S.read().coins,113);
  S.collect('pumpkin','pumpkin-0');S.collect('pumpkin','pumpkin-0');S.collect('pumpkin','pumpkin-1');assert.equal(S.read().bag.pumpkin,2);assert.equal(S.purchase('popcorn',8).ok,true);assert.equal(S.consume('popcorn'),true);assert.equal(S.consume('popcorn'),false);S.markVisited('apartment');assert.equal(S.read().bag.pumpkin,2);assert.equal(S.read().visited.apartment,true);
  assert.throws(()=>S.purchase('popcorn',-10));S.score(125);assert.equal(S.read().scores[0].score,125);assert.equal(S.read().bag['golf-scorecard'],1);
 });
 test('each adventure map renders its own spatial layout and visible props',async()=>{
- const s=load(context(),'js/our-year-data.js','js/adventure-places.js','js/adventure-art.js');const hashes=new Set(),crypto=require('node:crypto');s.AdventureArt.pin('apartment');
+ const s=load(context(),'js/our-year-data.js','js/adventure-places.js','js/adventure-layouts.js','js/adventure-art.js');const hashes=new Set(),crypto=require('node:crypto');s.AdventureArt.pin('apartment');
  for(const place of Object.values(s.AdventurePlaces.places)){const im=await s.AdventureArt.load(place);assert.equal(im.naturalWidth,1536);assert.equal(im.naturalHeight,1024);const c=canvas(1536,1024),p=c.getContext('2d');p.drawImage(s.AdventureArt.base(place),0,0);const state={flags:{},bag:{},sky:0};place.props.forEach(o=>s.AdventureArt.mapProp(p,place,o,1,state));s.AdventureArt.effects(p,place,1,state,null);const data=c.toBuffer('image/png');assert.ok(data.length>10000,place.id+' has scenery');hashes.add(crypto.createHash('sha256').update(data).digest('hex'));if(process.env.RENDER_MAPS){fs.mkdirSync(process.env.RENDER_MAPS,{recursive:true});fs.writeFileSync(path.join(process.env.RENDER_MAPS,place.id+'.png'),data);}}
  assert.equal(hashes.size,14,'every map has distinct artwork');assert.equal(s.AdventureArt.isPainted('apartment'),true,'atlas thumbnails never evict the active map');
 });
 test('map events stage scenes in the world and complete prerequisites before saving keepsakes',async()=>{
- const s=load(context('?place=apartment'),'js/shared-wardrobe.js','js/our-year-data.js','js/our-year-films.js','js/our-year-cinema.js','js/our-year-activities.js','js/adventure-places.js','js/adventure-state.js','js/adventure-geometry.js','js/adventure-art.js');
+ const s=load(context('?place=apartment'),'js/shared-wardrobe.js','js/our-year-data.js','js/our-year-films.js','js/our-year-cinema.js','js/our-year-activities.js','js/adventure-places.js','js/adventure-layouts.js','js/adventure-state.js','js/adventure-geometry.js','js/adventure-art.js');
  vm.runInContext(src('js/memory-adventure.js').replace('window.memoryAdventure={','window.__adventureTest={act,travel,update,draw,players,placeAt,endScene};window.memoryAdventure={'),s);await new Promise(resolve=>setImmediate(resolve));assert.equal(s.memoryAdventure.getState().ready,true);
  const access=s.__adventureTest,place=s.AdventurePlaces.places.apartment;
  access.act(place.nodes.find(n=>n.id==='reunion'));assert.equal(s.memoryAdventure.getState().scene,null,'reunion waits for its preparations');
@@ -184,15 +184,25 @@ if(process.env.FILM_TRAILER)test('export a short scene from each of the 17 films
 });
 
 async function adventureFixture(id='park'){
- const s=load(context('?place='+id),'js/shared-wardrobe.js','js/our-year-data.js','js/our-year-films.js','js/our-year-cinema.js','js/our-year-activities.js','js/adventure-places.js','js/adventure-state.js','js/adventure-geometry.js','js/adventure-art.js');
+ const s=load(context('?place='+id),'js/shared-wardrobe.js','js/our-year-data.js','js/our-year-films.js','js/our-year-cinema.js','js/our-year-activities.js','js/adventure-places.js','js/adventure-layouts.js','js/adventure-state.js','js/adventure-geometry.js','js/adventure-art.js');
  vm.runInContext(src('js/memory-adventure.js').replace('window.memoryAdventure={','window.__adventureTest={act,travel,update,draw,players,placeAt,endScene,shoot};window.memoryAdventure={'),s);await new Promise(resolve=>setImmediate(resolve));
  const a=s.__adventureTest;return {s,a,tick:seconds=>{for(let i=0;i<Math.ceil(seconds*60);i++)a.update(1/60);},act:id=>a.act(s.memoryAdventure.getMap().nodes.find(n=>n.id===id)),travel:async id=>{await a.travel(id);},state:()=>s.memoryAdventure.getState()};
 }
+test('support atlases have 16 complete transparent cells with consistent feet and distinct animation frames',()=>{
+ for(const name of ['detail','performance','sports']){const raw=decoded.get('assets/our-year/'+name+'-atlas.png');assert.equal(raw.info.width,1024);assert.equal(raw.info.height,1024);let transparent=0;const signatures=[];
+  for(let cell=0;cell<16;cell++){let count=0,minX=256,maxX=0,minY=256,maxY=0,signature=0;for(let y=0;y<256;y++)for(let x=0;x<256;x++){const i=((Math.floor(cell/4)*256+y)*1024+cell%4*256+x)*4,a=raw.data[i+3];if(!a)transparent++;if(a>32){count++;minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);signature=(signature+raw.data[i]*(x+1)+raw.data[i+1]*(y+1))%2147483647;}}
+   assert.ok(count>400,name+' cell '+cell+' contains art');assert.ok(minX>2&&maxX<253&&minY>2&&maxY<251,name+' cell '+cell+' keeps its full silhouette');assert.ok(maxY>=235&&maxY<=241,name+' cell '+cell+' has a stable feet baseline');signatures.push(signature);
+  }assert.ok(transparent>250000,name+' is really transparent');if(name!=='detail')for(let row=0;row<4;row++)assert.equal(new Set(signatures.slice(row*4,row*4+4)).size,4,name+' row '+row+' animates');
+ }
+});
+test('both characters physically follow every new art-aligned route without getting caught on furniture',async()=>{
+ const f=await adventureFixture();for(const place of Object.values(f.s.AdventurePlaces.places)){await f.travel(place.id);for(const n of place.nodes){if(n.action==='dry')continue;f.a.placeAt(...place.spawn);for(const [i,a] of Object.values(f.a.players).entries())a.path=f.s.AdventureGeometry.pathfind(place,a,{x:n.x+(i?29:-29),y:n.y});f.tick(50);for(const a of Object.values(f.a.players)){assert.equal(a.path.length,0,place.id+'/'+n.id+'/'+a.who+' reaches the end: '+JSON.stringify({x:a.x,y:a.y,next:a.path[0],last:a.path[a.path.length-1]}));assert.ok(Math.hypot(a.x-n.x,a.y-n.y)<n.r,place.id+'/'+n.id+'/'+a.who+' can interact');}}}
+});
 test('the explorable pool can be crossed and climbed out of; a native golf round records exactly five flights',async()=>{
  const f=await adventureFixture('pool');f.a.placeAt(430,735);f.act('swim');f.a.placeAt(1100,835);f.tick(.1);assert.equal(f.s.AdventureState.read().flags['pool-crossed'],undefined,'walking around the deck does not count as swimming');f.a.placeAt(430,735);f.act('swim');f.tick(5);assert.equal(f.state().swimming,true);
  for(const a of Object.values(f.a.players))a.path=f.s.memoryAdventure.pathfind(a,{x:a.who==='him'?1060:1110,y:500});
- f.tick(15);assert.ok(f.s.AdventureState.read().flags['pool-crossed']);f.a.draw();f.act('exit-water');assert.equal(f.state().swimming,false);assert.ok(Object.values(f.a.players).every(a=>f.s.memoryAdventure.canStand(a.x,a.y)));f.a.placeAt(350,310);f.act('rest');f.tick(20);assert.ok(f.s.OUR_YEAR.read().completed.swimming);
- await f.travel('golf');f.a.placeAt(768,775);f.act('play');const controls=f.s.document.getElementById('sceneControls'),aim=controls.children.find(e=>e.textContent==='Aim').children[0],power=controls.children.find(e=>e.textContent==='Power').children[0];aim.value=-92;aim.oninput();power.value=60;power.oninput();
+ f.tick(15);assert.ok(f.s.AdventureState.read().flags['pool-crossed']);f.a.draw();f.act('exit-water');assert.equal(f.state().swimming,false);assert.ok(Object.values(f.a.players).every(a=>f.s.memoryAdventure.canStand(a.x,a.y)));f.a.placeAt(600,400);f.act('rest');f.tick(20);assert.ok(f.s.OUR_YEAR.read().completed.swimming);
+ await f.travel('golf');f.a.placeAt(768,775);f.act('play');const controls=f.s.document.getElementById('sceneControls'),aim=controls.children.find(e=>e.textContent==='Aim').children[0],power=controls.children.find(e=>e.textContent==='Power').children[0];aim.value=-54.5;aim.oninput();power.value=74;power.oninput();
  for(let i=0;i<5;i++){f.a.shoot();f.a.shoot();f.tick(1.6);f.a.draw();}assert.equal(f.state().scene,null);assert.equal(f.s.AdventureState.read().scores.length,1);assert.equal(f.s.AdventureState.read().scores[0].score,250);assert.ok(f.s.AdventureState.read().bag['golf-scorecard']);assert.ok(f.s.OUR_YEAR.read().completed.topgolf);
 });
 test('all ten walkable Astra stations enforce order, animate, and save the completed trail once',async()=>{
@@ -216,10 +226,10 @@ if(process.env.MAP_TRAILER)test('export an adventure tour from the live map engi
  f.s.document.getElementById('overviewButton').click();const shots=[['apartment','reunion'],['observatory','blanket'],['park','bench'],['stadium','game'],['stadium','fireworks'],['pool','swim'],['golf','play'],['jeep','road'],['astra','station4'],['concert','seat'],['puja','quiet'],['community','culture'],['pumpkins','pumpkin0'],['haunt','mirror'],['halloween','dance']];
  for(const [index,[place,id]] of shots.entries()){
   await f.travel(place);if(f.s.document.getElementById('overviewButton').textContent!=='Walk view')f.s.document.getElementById('overviewButton').click();const n=f.s.memoryAdventure.getMap().nodes.find(n=>n.id===id);(n.needsFlags||[]).forEach(flag=>f.s.AdventureState.task(flag));if(place==='astra')for(let i=0;i<4;i++)f.s.AdventureState.task('astra-'+i);if(place==='halloween'){f.s.SharedWardrobe.addams();await new Promise(resolve=>setImmediate(resolve));}
-  f.a.placeAt(n.x,n.y);f.act(id);f.tick(place==='pool'?5:2);if(place==='pool')for(const a of Object.values(f.a.players))a.path=f.s.memoryAdventure.pathfind(a,{x:a.who==='him'?1080:1120,y:520});
+  f.a.placeAt(n.x,n.y);f.act(id);if(place==='pool')f.tick(5);else{for(let tries=0;tries<1000&&f.state().scene&&f.state().scene.phase==='approach';tries++)f.tick(1/60);f.tick(.4);}if(place==='pool')for(const a of Object.values(f.a.players))a.path=f.s.memoryAdventure.pathfind(a,{x:a.who==='him'?1080:1120,y:520});
   for(let i=0;i<75;i++){
    if(i===18)f.s.document.getElementById('overviewButton').click();
-   if(place==='golf'&&i%26===0)f.a.shoot();f.tick(1/15);f.a.draw();p.drawImage(world,0,0,768,506);p.fillStyle='#142c29ed';p.fillRect(0,0,768,48);p.fillStyle='#e5cca1';p.font='12px Georgia';p.textAlign='left';p.fillText(String(index+1).padStart(2,'0')+' / '+shots.length+'  ·  '+f.s.memoryAdventure.getMap().chapter,18,18);p.fillStyle='#f1e5c6';p.font='19px Georgia';p.fillText(f.s.memoryAdventure.getMap().title,18,39);const caption=f.s.document.getElementById('sceneText').textContent;if(caption&&f.state().scene){p.fillStyle='#142c29ed';p.fillRect(0,470,768,36);p.fillStyle='#f1e5c6';p.font='14px Georgia';p.textAlign='center';p.fillText(caption,384,493);}
+   if(place==='golf'&&i%26===0)f.a.shoot();f.tick(1/15);f.a.draw();p.drawImage(world,0,0,768,506);p.fillStyle='#211811ed';p.fillRect(0,0,768,48);p.fillStyle='#d8b66b';p.font='11px monospace';p.textAlign='left';p.fillText(String(index+1).padStart(2,'0')+' / '+shots.length+'  ·  '+f.s.memoryAdventure.getMap().chapter,18,18);p.fillStyle='#fff0c5';p.font='16px monospace';p.fillText(f.s.memoryAdventure.getMap().title,18,39);const caption=f.s.document.getElementById('sceneText').textContent;if(caption&&f.state().scene){p.fillStyle='#211811ed';p.fillRect(0,470,768,36);p.fillStyle='#fff0c5';p.font='12px monospace';p.textAlign='center';p.fillText(caption,384,493);}
    const pixels=p.getImageData(0,0,768,506).data;await new Promise((resolve,reject)=>ff.stdin.write(Buffer.from(pixels.buffer),error=>error?reject(error):resolve()));
   }f.a.endScene(false);
  }
@@ -228,4 +238,30 @@ if(process.env.MAP_TRAILER)test('export an adventure tour from the live map engi
 
 test('the Things to do guide routes both characters to a real stand and purchases persist in the shared bag',async()=>{
  const f=await adventureFixture('pool'),doc=f.s.document;doc.getElementById('openHere').click();assert.equal(doc.getElementById('adventurePanel').open,true);const grid=doc.getElementById('panelContent').children.find(c=>c.className==='adventure-grid'),stand=grid.children.find(c=>c.children.some(e=>e.textContent==='Pool-day supplies'));assert.ok(stand);stand.children.find(c=>c.tagName==='BUTTON').click();assert.equal(doc.getElementById('adventurePanel').open,false);f.tick(10);assert.equal(f.state().near,'float');doc.getElementById('interact').click();const shop=doc.getElementById('panelContent').children.find(c=>c.className==='adventure-grid'),float=shop.children.find(c=>c.children.some(e=>e.textContent==='Pool-day float'));float.children.find(c=>c.tagName==='BUTTON').click();assert.equal(f.s.AdventureState.read().bag['pool-float'],1);assert.equal(f.s.AdventureState.read().coins,105);await f.travel('apartment');assert.equal(f.s.AdventureState.read().bag['pool-float'],1);
+});
+
+test('occasion outfits keep all sixteen full transparent walking cells and can be worn across maps',async()=>{
+ const s=load(context(),'js/shared-wardrobe.js');
+ for(const p of s.SharedWardrobe.presets()){
+  const file='assets/sprites/'+p.who+'_outfit'+p.base+'.png',raw=decoded.get(file);assert.equal(raw.info.width,1024);assert.equal(raw.info.height,1024);
+  for(let row=0;row<4;row++)for(let col=0;col<4;col++){
+   let bottom=0,top=256,left=256,right=0,clear=0;
+   for(let y=0;y<256;y++)for(let x=0;x<256;x++){const alpha=raw.data[((row*256+y)*1024+col*256+x)*4+3];if(alpha>32){bottom=Math.max(bottom,y);top=Math.min(top,y);left=Math.min(left,x);right=Math.max(right,x);}else clear++;}
+   assert.ok(top>=8&&left>3&&right<252,p.id+' keeps its full silhouette');assert.ok(bottom>=237&&bottom<=240,p.id+' feet do not jump');assert.ok(clear>20000,p.id+' has true alpha');
+  }
+  const before=JSON.stringify(s.SharedWardrobe.read());await s.SharedWardrobe.occasionSheet(p.who,p.occasion);assert.equal(JSON.stringify(s.SharedWardrobe.read()),before,'a scene preview never equips a look');
+  const d=s.SharedWardrobe.wearPreset(p.id);assert.equal(s.localStorage.getItem(p.who+'Outfit'),String(p.base));assert.equal(s.SharedWardrobe.read().equipped[p.who],d.id);
+  const rendered=await s.SharedWardrobe.render(d,false);assert.equal(rendered.width,1024);assert.equal(rendered.height,1024);
+  const restored=load(context(),'js/shared-wardrobe.js');restored.localStorage.setItem(restored.SharedWardrobe.KEY,JSON.stringify(s.SharedWardrobe.read()));load(restored,'js/shared-wardrobe.js');assert.equal(restored.SharedWardrobe.read().equipped[p.who],d.id);
+ }
+});
+
+test('pool and photo homecoming use their occasion clothes and restore the saved wardrobe afterward',async()=>{
+ const f=await adventureFixture('pool'),original=JSON.stringify(f.s.SharedWardrobe.read()),walking=JSON.stringify(f.state().outfits);
+ f.act('swim');assert.match(f.state().outfits.her,/her_outfit12/);assert.match(f.state().outfits.him,/him_outfit12/);f.tick(2);f.a.draw();
+ assert.equal(JSON.stringify(f.s.SharedWardrobe.read()),original);f.act('exit-water');assert.equal(JSON.stringify(f.state().outfits),walking);
+ f.act('swim');await f.travel('park');assert.equal(JSON.stringify(f.state().outfits),walking,'leaving the pool restores the selected clothes');
+ await f.travel('apartment');for(const flag of ['home-banner','home-flowers','home-dinner'])f.s.AdventureState.task(flag);
+ const n=f.s.memoryAdventure.getMap().nodes.find(n=>n.id==='reunion');f.a.placeAt(n.x,n.y);f.act('reunion');assert.match(f.state().outfits.her,/her_outfit13/);f.tick(12);f.a.draw();
+ assert.equal(f.s.memoryAdventure.getMap().art.photoHomecoming,true);assert.equal(JSON.stringify(f.s.SharedWardrobe.read()),original);f.a.endScene(false);assert.equal(JSON.stringify(f.state().outfits),walking);
 });
