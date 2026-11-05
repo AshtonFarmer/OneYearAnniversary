@@ -4,6 +4,7 @@
  const canvas=$('adventureCanvas'),ctx=canvas.getContext('2d'),images={},wardrobeImages={},occasionImages={},bounds=new Map(),query=new URLSearchParams(location.search);
  let place=D.places[query.get('place')]||D.places.park,ready=false,width=1,height=1,dpr=1,scale=1.4,elapsed=0,last=0,near=null,scene=null,craft=null,overview=false,swimming=false,toastTime=0,returnFocus=null,poses=null,sound=false,audio=null;
  let keys={},camera={x:768,y:650},state=S.read();
+ let carrying=false,carrySprite=null;
  const players={him:{who:'him',x:730,y:880,dir:0,frame:0,path:[]},her:{who:'her',x:805,y:880,dir:0,frame:0,path:[]}};
  const clamp=(n,a=0,b=1)=>Math.max(a,Math.min(b,n)),ease=u=>{u=clamp(u);return u*u*(3-2*u);};
  const icons={flower:'❀',pumpkin:'◉',photo:'▧',ring:'◇',star:'✦',ticket:'▰',ribbon:'✧',card:'▤',badge:'✺',duck:'◕',lamp:'♧',snack:'◒',float:'◎',fabric:'✿',ball:'●'};
@@ -18,7 +19,7 @@
  function updateGoal(){
   if(place.id==='pumpkins'){const count=Object.keys(state.flags).filter(k=>k.startsWith('pumpkin-')&&state.flags[k]).length,portrait=!!state.flags['pumpkins-wagon'];$('placeGoal').textContent=count+' / 2 pumpkins · '+(portrait?'Our wagon portrait is kept.':count<2?'Choose our pair in the patch.':'Meet by the wagon, then take them home.');return;}
   if(place.id==='observatory'){const count=[0,1,2,3,4].filter(i=>state.flags['sky-'+i]).length;$('placeGoal').textContent=count+' / 5 skies watched · '+(count<5?'Choose at the telescope; watch on our blanket.':'Every sky, together.');return;}
-  const tasks=place.nodes.filter(n=>!['travel','link','shop','sky','dry'].includes(n.action)),done=tasks.filter(n=>n.action==='golf'?state.flags['golf-round']:nodeDone(n)).length,next=tasks.find(n=>!(n.action==='golf'?state.flags['golf-round']:nodeDone(n)));$('placeGoal').textContent=done+' / '+tasks.length+' discoveries'+(next?' · '+next.name:' · This little chapter is ours.');
+  const tasks=place.nodes.filter(n=>!['travel','link','shop','sky','dry','carry'].includes(n.action)),done=tasks.filter(n=>n.action==='golf'?state.flags['golf-round']:nodeDone(n)).length,next=tasks.find(n=>!(n.action==='golf'?state.flags['golf-round']:nodeDone(n)));$('placeGoal').textContent=done+' / '+tasks.length+' discoveries'+(next?' · '+next.name:' · This little chapter is ours.');
  }
  function savePosition(){try{sessionStorage.setItem('adventure-position-'+place.id,JSON.stringify(players));}catch(e){}}
  function loadImage(src){return new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=()=>reject(Error('Could not load one of our character outfits.'));im.src=src;});}
@@ -26,21 +27,21 @@
  async function loadOccasionOutfits(id){const occasion=id==='pool'?'swimming':id==='apartment'?'homecoming':null;if(!occasion||occasionImages[occasion])return;const cast=occasion==='swimming'?['him','her']:['her'],sheets=await Promise.all(cast.map(who=>window.SharedWardrobe.occasionSheet(who,occasion)));occasionImages[occasion]=Object.fromEntries(cast.map((who,i)=>[who,sheets[i]]));}
  async function refreshOutfits(){for(const who of ['him','her']){let n=Number(localStorage.getItem(who+'Outfit'))||1;if(!Number.isInteger(n)||n<1||n>(who==='her'?13:12))n=1;wardrobeImages[who]=await loadImage('assets/sprites/'+who+(n===1?'_atlas':'_outfit'+n)+'.png');}applyOccasionOutfits();}
  function resize(){width=innerWidth;height=innerHeight;dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);positionGoal();}
- function canStand(x,y){return G.canStand(place,x,y,swimming);}
+ function canStand(x,y){return (!carrying||G.contains(place.water,x,y,-18))&&G.canStand(place,x,y,swimming);}
  function walkTo(x,y){Object.values(players).forEach((a,i)=>a.path=G.pathfind(place,a,{x:x+(i?29:-29),y},swimming));}
  function placeAt(x,y){Object.values(players).forEach((a,i)=>{const q=G.nearest(place,x+(i?35:-35),y,swimming);if(q){a.x=q.x;a.y=q.y;}a.path=[];a.dir=0;a.frame=0;});}
  function travel(id,initial=false){
   if(!D.places[id]){savePosition();location.href='memory-world.html'+(id==='home'?'':'?area='+id);return;}
-  if(!initial)savePosition();closePanel(false);endScene(false);swimming=false;place=D.places[id];applyOccasionOutfits();A.pin(id);placeAt(...place.spawn);keys={};near=null;$('interact').hidden=true;
+  if(!initial)savePosition();closePanel(false);endScene(false);carrying=false;swimming=false;place=D.places[id];applyOccasionOutfits();A.pin(id);placeAt(...place.spawn);keys={};near=null;$('interact').hidden=true;
   try{const saved=JSON.parse(sessionStorage.getItem('adventure-position-'+id)||'null');if(saved)Object.keys(players).forEach(who=>{if(saved[who]&&canStand(saved[who].x,saved[who].y)){players[who].x=saved[who].x;players[who].y=saved[who].y;}});}catch(e){}
   camera=place.id==='apartment'?{x:768,y:512}:{x:(players.him.x+players.her.x)/2,y:(players.him.y+players.her.y)/2};if(place.id==='apartment')scale=Math.min(width/1536,height/1024)*.97;
   $('placeTitle').textContent=place.title;$('placeChapter').textContent=place.chapter;$('placeSubtitle').textContent=place.subtitle;document.title=place.title+' · Our Adventure';
-  S.markVisited(id);sync();$('adventureLoading').hidden=false;const scenery=Promise.all([A.load(place),loadOccasionOutfits(id)]).then(([im])=>{if(place.id===id){applyOccasionOutfits();$('adventureLoading').hidden=true;$('retryAdventure').hidden=true;}return im;}).catch(e=>{if(place.id===id){$('adventureLoading').querySelector('p').textContent=e.message;$('retryAdventure').hidden=false;}throw e;});const url=new URL(location.href);url.searchParams.set('place',id);url.searchParams.delete('focus');history.replaceState(null,'',url);if(!initial)toast(place.subtitle);tone(5);return scenery;
+  S.markVisited(id);sync();$('adventureLoading').hidden=false;const scenery=Promise.all([A.load(place),loadOccasionOutfits(id),id==='pool'&&!carrySprite?loadImage('assets/sprites/pool-carry.webp').then(im=>{carrySprite=im;}):null]).then(([im])=>{if(place.id===id){applyOccasionOutfits();$('adventureLoading').hidden=true;$('retryAdventure').hidden=true;}return im;}).catch(e=>{if(place.id===id){$('adventureLoading').querySelector('p').textContent=e.message;$('retryAdventure').hidden=false;}throw e;});const url=new URL(location.href);url.searchParams.set('place',id);url.searchParams.delete('focus');history.replaceState(null,'',url);if(!initial)toast(place.subtitle);tone(5);return scenery;
  }
  function openPanel(title,eyebrow){returnFocus=document.activeElement;$('panelTitle').textContent=title;$('panelEyebrow').textContent=eyebrow||'OUR LITTLE ADVENTURE';$('panelContent').replaceChildren();if(!$('adventurePanel').open)$('adventurePanel').showModal();keys={};$('closePanel').focus();return $('panelContent');}
  function closePanel(reload=true){if(ready&&reload!==false&&!A.isPainted(place.id))A.load(place).catch(e=>toast(e.message));if(craft){craft.dispose();craft=null;}$('adventurePanel').close();keys={};if(returnFocus&&returnFocus.isConnected)returnFocus.focus();}
  function card(parent,title,body,small){const c=text('div','','adventure-card');if(small)c.appendChild(text('small',small));c.append(text('strong',title),text('p',body));parent.appendChild(c);return c;}
- function here(){const content=openPanel('Things to do here',place.title),grid=text('div','','adventure-grid');content.appendChild(text('p','Pick a spot and we will walk there together. Use E when we arrive. You can also explore freely with the movement controls.'));content.appendChild(grid);place.nodes.filter(n=>n.action!=='dry'||swimming).forEach(n=>{const done=nodeDone(n),missing=(n.needsFlags||[]).filter(f=>!state.flags[f]),body=missing.length?'There is another part of this day to do first.':n.needs&&(state.bag[n.needs]||0)<(n.needsAmount||1)?'Bring '+D.items[n.needs][0].toLowerCase()+' from our other adventures.':n.action==='shop'?'A stand with optional date treats or souvenirs.':n.action==='travel'?'A path into another place.':done?'We can return to this little moment.':'A little part of our day to discover.',c=card(grid,n.name,body,done?'KEPT ♥':'EXPLORE');button('Walk here →',()=>{endScene(false);closePanel();walkTo(n.x,n.y);toast('Walking to '+n.name.toLowerCase()+'. Use E when we arrive.');},c);});}
+ function here(){const content=openPanel('Things to do here',place.title),grid=text('div','','adventure-grid');content.appendChild(text('p','Pick a spot and we will walk there together. Use E when we arrive. You can also explore freely with the movement controls.'));content.appendChild(grid);place.nodes.filter(n=>!['dry','carry'].includes(n.action)||swimming).forEach(n=>{const done=nodeDone(n),missing=(n.needsFlags||[]).filter(f=>!state.flags[f]),body=missing.length?'There is another part of this day to do first.':n.needs&&(state.bag[n.needs]||0)<(n.needsAmount||1)?'Bring '+D.items[n.needs][0].toLowerCase()+' from our other adventures.':n.action==='carry'?'Swim here together and press E. Move with Ashton’s controls and press E again to set Tanima down.':n.action==='shop'?'A stand with optional date treats or souvenirs.':n.action==='travel'?'A path into another place.':done?'We can return to this little moment.':'A little part of our day to discover.',c=card(grid,n.name,body,done?'KEPT ♥':'EXPLORE');button('Walk here →',()=>{endScene(false);closePanel();walkTo(n.x,n.y);toast('Walking to '+n.name.toLowerCase()+'. Use E when we arrive.');},c);});}
  function atlas(){const content=openPanel('Every place in our adventure','OUR MAP & MEMORY GUIDE');content.appendChild(text('p','Each place brings one of our memories to life. Homecoming, the Puja ring, and pumpkin carving share our apartment.'));const grid=text('div','','adventure-grid');content.appendChild(grid);Object.values(D.places).forEach(p=>{const c=card(grid,p.title,p.memoryOf||p.subtitle,state.visited[p.id]?'VISITED ♥':'A NEW PLACE');const preview=document.createElement('canvas');preview.width=384;preview.height=256;const pp=preview.getContext('2d');A.load(p).then(im=>{pp.drawImage(im,0,0,384,256);pp.save();pp.scale(.25,.25);p.props.forEach(o=>A.mapProp(pp,p,o,0,state));pp.restore();}).catch(()=>{pp.drawImage(A.base(p),0,0,384,256);});c.insertBefore?c.insertBefore(preview,c.firstChild):c.appendChild(preview);button('Go there →',()=>travel(p.id),c);});const c=card(grid,'The original Love Mall','The photo booth, the Flash necklace, and Tanima’s Atelier.','OUR EXISTING MALL');button('Walk into the mall ↗',()=>location.href='shopping.html',c);}
  function occasionLooks(){const content=openPanel('Outfits for our memories','OUR OCCASION CLOSET'),grid=text('div','','adventure-grid');content.appendChild(text('p','Our swim outfits appear when we enter the pool. Tanima’s photo outfit appears during the homecoming scene. Choose Wear everywhere to keep a look on across the game.'));content.appendChild(grid);window.SharedWardrobe.presets().forEach(p=>{const c=card(grid,p.name,p.description),preview=document.createElement('canvas');preview.width=192;preview.height=192;window.SharedWardrobe.render(window.SharedWardrobe.presetDesign(p.id),false).then(im=>preview.getContext('2d').drawImage(im,0,0,256,256,0,0,192,192)).catch(e=>toast(e.message));c.appendChild(preview);button('Wear everywhere →',()=>{try{window.SharedWardrobe.wearPreset(p.id);toast(p.name+' is ready to wear across our game.');closePanel();}catch(e){toast(e.message);}},c);});}
  function bag(){
@@ -65,8 +66,30 @@
   if(n.needs&&(state.bag[n.needs]||0)<(n.needsAmount||1)){toast(n.needs==='pumpkin'?'Pick our pair of pumpkins at The Great Pumpkin Patch first.':'Find '+D.items[n.needs][0]+' first. It will be in our bag.');return false;}
   const missing=(n.needsFlags||[]).filter(f=>!state.flags[f]);if(missing.length){const target=place.nodes.find(x=>missing.includes(flagFor(x)));toast(target?'First: '+target.name+'.':'There is a little more to explore here first.');return false;}return true;
  }
+ function atCarrySpot(n){
+  return swimming&&Object.values(players).every(a=>G.contains(place.water,a.x,a.y)&&Math.hypot(a.x-n.x,a.y-n.y)<n.r);
+ }
+ function releaseCarry(){
+  carrying=false;keys={};
+  const [left,,width]=place.water, {him,her}=players;
+  const x=him.x+34<left+width-10?him.x+34:him.x-34;
+  Object.assign(her,G.nearest(place,x,him.y,true));
+  him.path=[];her.path=[];
+  toast('Back to swimming together.');
+ }
  function act(n){
-  if(!ready||!n)return;if(scene){if(scene.kind==='golf')shoot();else{scene.paused=!scene.paused;sceneControls();}return;}if(!requires(n))return;keys={};tone(2);
+  if(!ready)return;
+  if(carrying){releaseCarry();return;}
+  if(!n)return;
+  if(n.action==='carry'){
+   if(!carrySprite||!atCarrySpot(n))return;
+   keys={};Object.values(players).forEach(a=>{a.path=[];});
+   Object.assign(players.him,{x:n.x,y:n.y});
+   Object.assign(players.her,{x:n.x,y:n.y});
+   carrying=true;near=null;
+   toast('WASD to wade together. Press E to set Tanima down.');
+   return;
+  }if(scene){if(scene.kind==='golf')shoot();else{scene.paused=!scene.paused;sceneControls();}return;}if(!requires(n))return;keys={};tone(2);
   if(n.action==='travel'){travel(n.to);return;}if(n.action==='link'){savePosition();location.href=n.href;return;}if(n.action==='shop'){shop(n);return;}if(n.action==='sky'){chooseSky();return;}if(n.action==='activity'){activity(n);return;}
   if(n.action==='costume'){window.SharedWardrobe.addams();S.task(flagFor(n));refreshOutfits().then(()=>beginScene({...n,scene:'portrait'}));toast('Our Addams looks are equipped across the game.');sync();return;}
   if(n.action==='collect'){const got=S.collect(n.item,flagFor(n));sync();toast(got?D.items[n.item][0]+' is in our bag.':'We already kept this one.');return;}
@@ -119,7 +142,7 @@
  }
  function beginGolf(n){document.body.classList.add('adventure-cinematic');scene={kind:'golf',node:n,anchor:{x:768,y:775},age:0,aim:0,power:65,shots:0,score:0,flight:null};walkTo(765,770);$('sceneCaption').hidden=false;$('sceneTitle').textContent='OUR TOPGOLF ROUND';sceneControls();}
  function shoot(){if(!scene||scene.kind!=='golf'||scene.flight)return;const f=scene;f.flight={age:0,x0:(place.art.golfOrigin||[768,680])[0],y0:(place.art.golfOrigin||[768,680])[1],x:768+f.aim*4,y:650-f.power*4};tone(4);}
- function movement(a,dt,scripted=false){let dx=scripted?0:(keys[a.who==='him'?'d':'arrowright']?1:0)-(keys[a.who==='him'?'a':'arrowleft']?1:0),dy=scripted?0:(keys[a.who==='him'?'s':'arrowdown']?1:0)-(keys[a.who==='him'?'w':'arrowup']?1:0);if(dx||dy)a.path=[];else if(a.path.length){const q=a.path[0],dist=Math.hypot(q.x-a.x,q.y-a.y);if(dist<3){a.x=q.x;a.y=q.y;a.path.shift();a.walking=false;return;}dx=q.x-a.x;dy=q.y-a.y;}const dist=Math.hypot(dx,dy);a.walking=dist>0;if(!a.walking){a.frame=0;return;}dx/=dist;dy/=dist;a.dir=Math.abs(dx)>Math.abs(dy)?dx<0?1:3:dy<0?2:0;const speed=(swimming&&place.water&&G.contains(place.water,a.x,a.y)?78:135)*dt;if(canStand(a.x+dx*speed,a.y))a.x+=dx*speed;if(canStand(a.x,a.y+dy*speed))a.y+=dy*speed;a.frame=Math.floor(elapsed*8)%4;}
+ function movement(a,dt,scripted=false){let dx=scripted?0:(keys[a.who==='him'?'d':'arrowright']?1:0)-(keys[a.who==='him'?'a':'arrowleft']?1:0),dy=scripted?0:(keys[a.who==='him'?'s':'arrowdown']?1:0)-(keys[a.who==='him'?'w':'arrowup']?1:0);if(dx||dy)a.path=[];else if(a.path.length){const q=a.path[0],dist=Math.hypot(q.x-a.x,q.y-a.y);if(dist<3){a.x=q.x;a.y=q.y;a.path.shift();a.walking=false;return;}dx=q.x-a.x;dy=q.y-a.y;}const dist=Math.hypot(dx,dy);a.walking=dist>0;if(!a.walking){a.frame=0;return;}dx/=dist;dy/=dist;a.dir=Math.abs(dx)>Math.abs(dy)?dx<0?1:3:dy<0?2:0;const speed=(carrying?55:swimming&&place.water&&G.contains(place.water,a.x,a.y)?78:135)*dt;if(canStand(a.x+dx*speed,a.y))a.x+=dx*speed;if(canStand(a.x,a.y+dy*speed))a.y+=dy*speed;a.frame=Math.floor(elapsed*8)%4;}
  function updateScene(dt){
   const s=scene;if(!s||s.paused)return;Object.values(players).forEach(a=>movement(a,dt,true));
   if(s.kind==='golf'){
@@ -133,10 +156,10 @@
   if(s.node.scene==='drive'){const road=place.art.drivePath||[[550,830],[1200,830]],lengths=road.slice(1).map((b,i)=>Math.hypot(b[0]-road[i][0],b[1]-road[i][1])),total=lengths.reduce((a,b)=>a+b,0);let distance=ease(s.age/10)*total,segment=0;while(segment<lengths.length-1&&distance>lengths[segment])distance-=lengths[segment++];const a=road[segment],b=road[segment+1],v=distance/lengths[segment];s.anchor={x:a[0]+(b[0]-a[0])*v,y:a[1]+(b[1]-a[1])*v};placeAt(s.anchor.x,s.anchor.y+22);}
  }
  function updateCamera(dt){const wide=place.id==='apartment'||scene&&['sky','fireworks','drive'].includes(scene.node.scene),stage=scene&&['concert','prayer','reunion'].includes(scene.node.scene),shot=place.art.camera||{x:790,y:410,zoom:1.12},middle=wide?{x:768,y:512}:stage&&scene.phase!=='approach'?shot:scene&&scene.phase!=='approach'?scene.anchor:{x:(players.him.x+players.her.x)/2,y:(players.him.y+players.her.y)/2};const sx=Math.abs(players.him.x-players.her.x),sy=Math.abs(players.him.y-players.her.y),wanted=overview||wide?Math.min(width/1536,height/1024)*.97:Math.max(.45,Math.min(stage?shot.zoom:scene?1.3:1.1,(width-90)/(sx+180),(height-250)/(sy+180)));scale+=(wanted-scale)*Math.min(1,dt*6);const hx=width/(2*scale),hy=height/(2*scale),xx=1536>hx*2?clamp(middle.x,hx,1536-hx):768,yy=1024>hy*2?clamp(middle.y,hy,1024-hy):512;camera.x+=(xx-camera.x)*Math.min(1,dt*5);camera.y+=(yy-camera.y)*Math.min(1,dt*5);}
- function update(dt){elapsed+=dt;if(toastTime>0){toastTime-=dt;if(toastTime<=0)$('adventureToast').classList.remove('visible');}if(!$('adventureLoading').hidden)return;if(craft){craft.update(dt);return;}if($('adventurePanel').open)return;if(scene)updateScene(dt);else Object.values(players).forEach(a=>movement(a,dt));
-  if(swimming&&!state.flags['pool-crossed']&&Object.values(players).every(a=>a.x>place.water[0]+place.water[2]*.78&&G.contains(place.water,a.x,a.y))){S.task('pool-crossed',null,15);sync();toast('You both made it across! Climb out and meet by the loungers.');}
-  near=null;if(!scene){let distance=Infinity;place.nodes.forEach(n=>{if(['collect','duck','pumpkin'].includes(n.action)&&nodeDone(n)||n.action==='pumpkin'&&(state.bag.pumpkin||0)>=2||n.action==='dry'&&!swimming||n.action==='swim'&&swimming)return;const d=Math.min(...Object.values(players).map(a=>Math.hypot(a.x-n.x,a.y-n.y)));if(d<n.r&&d<distance){near=n;distance=d;}});}
-  $('interact').hidden=!near;if(near)$('interactLabel').textContent=near.name;updateCamera(dt);
+ function update(dt){elapsed+=dt;if(toastTime>0){toastTime-=dt;if(toastTime<=0)$('adventureToast').classList.remove('visible');}if(!$('adventureLoading').hidden)return;if(craft){craft.update(dt);return;}if($('adventurePanel').open)return;if(scene)updateScene(dt);else if(carrying){movement(players.him,dt);Object.assign(players.her,{x:players.him.x,y:players.him.y});}else Object.values(players).forEach(a=>movement(a,dt));
+  if(swimming&&!carrying&&!state.flags['pool-crossed']&&Object.values(players).every(a=>a.x>place.water[0]+place.water[2]*.78&&G.contains(place.water,a.x,a.y))){S.task('pool-crossed',null,15);sync();toast('You both made it across! Climb out and meet by the loungers.');}
+  near=null;if(!scene&&!carrying){let distance=Infinity;place.nodes.forEach(n=>{if(['collect','duck','pumpkin'].includes(n.action)&&nodeDone(n)||n.action==='pumpkin'&&(state.bag.pumpkin||0)>=2||n.action==='dry'&&!swimming||n.action==='swim'&&swimming||n.action==='carry'&&!atCarrySpot(n))return;const d=Math.min(...Object.values(players).map(a=>Math.hypot(a.x-n.x,a.y-n.y)));if(d<n.r&&d<distance){near=n;distance=d;}});}
+  $('interact').hidden=!near&&!carrying;if(carrying||near)$('interactLabel').textContent=carrying?'Set Tanima down':near.name;updateCamera(dt);
  }
  function spriteBounds(im,dir,col){const key=im.src+'|'+dir+'|'+col;if(bounds.has(key))return bounds.get(key);const c=document.createElement('canvas');c.width=256;c.height=256;const p=c.getContext('2d',{willReadFrequently:true});p.drawImage(im,col*256,dir*256,256,256,0,0,256,256);const a=p.getImageData(0,0,256,256).data;let x0=256,y0=256,x1=0,y1=0;for(let y=0;y<256;y++)for(let x=0;x<256;x++)if(a[(y*256+x)*4+3]>35){x0=Math.min(x,x0);y0=Math.min(y,y0);x1=Math.max(x,x1);y1=Math.max(y,y1);}const b={x:x0,y:y0,w:x1-x0+1,h:y1-y0+1};bounds.set(key,b);return b;}
  function drawActor(a){
@@ -151,9 +174,26 @@
   if(swimming&&place.water&&G.contains(place.water,a.x,a.y)){poses.drawPose(a.who,a.x,a.y,h,'swim',elapsed,a.who==='her');return;}
   const im=images[a.who];if(!im||!im.complete)return;const mirror=a.who==='him'&&a.dir===1&&!/him_outfit12\.png/.test(im.src),dir=mirror?3:a.dir,b=spriteBounds(im,dir,a.frame),w=b.w*h/b.h;ctx.save();ctx.translate(a.x,a.y);if(mirror)ctx.scale(-1,1);ctx.fillStyle='#173a3635';ctx.beginPath();ctx.ellipse(0,2,13,4,0,0,Math.PI*2);ctx.fill();ctx.imageSmoothingEnabled=false;ctx.drawImage(im,a.frame*256+b.x,dir*256+b.y,b.w,b.h,-w/2,-h,w,h);ctx.restore();
  }
+ function carryRipples(x,y,gold){
+  ctx.save();ctx.strokeStyle=gold?'#f6da8e':'#d8fbff';ctx.lineWidth=2;
+  for(let i=0;i<2;i++){
+   const phase=(elapsed*.9+i*.5)%1;
+   ctx.globalAlpha=(1-phase)*.75;ctx.beginPath();
+   ctx.ellipse(x,y,13+phase*26,4+phase*8,0,0,Math.PI*2);ctx.stroke();
+  }
+  ctx.restore();
+ }
+ function drawCarry(){
+  const {x,y,dir}=players.him,h=108,w=h*carrySprite.naturalWidth/carrySprite.naturalHeight,bob=Math.sin(elapsed*5)*2;
+  ctx.save();ctx.translate(x,y);if(dir===1)ctx.scale(-1,1);
+  ctx.beginPath();ctx.rect(-w/2,-h,w,h+3);ctx.clip();
+  ctx.drawImage(carrySprite,-w/2,-h*.69+bob,w,h);
+  ctx.restore();carryRipples(x,y+4,false);
+ }
  function draw(){
   if(!ready)return;ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#070b09';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.setTransform(scale*dpr,0,0,scale*dpr,(width/2-camera.x*scale)*dpr,(height/2-camera.y*scale)*dpr);ctx.imageSmoothingEnabled=false;ctx.drawImage(A.base(place),0,0);A.effects(ctx,place,elapsed,state,scene);
-  const entities=place.props.map(o=>({y:o.y+o.h,draw:()=>A.mapProp(ctx,place,o,elapsed,state)}));Object.values(players).forEach(a=>entities.push({y:scene&&scene.phase==='playing'?scene.anchor.y:a.y,draw:()=>drawActor(a)}));entities.sort((a,b)=>a.y-b.y).forEach(e=>e.draw());
+  const entities=place.props.map(o=>({y:o.y+o.h,draw:()=>A.mapProp(ctx,place,o,elapsed,state)}));if(swimming&&!carrying){const spot=place.nodes.find(n=>n.action==='carry');if(spot)carryRipples(spot.x,spot.y,true);}
+  if(carrying)entities.push({y:players.him.y,draw:drawCarry});else Object.values(players).forEach(a=>entities.push({y:scene&&scene.phase==='playing'?scene.anchor.y:a.y,draw:()=>drawActor(a)}));entities.sort((a,b)=>a.y-b.y).forEach(e=>e.draw());
   if(scene&&scene.node.scene==='drive'&&scene.phase!=='approach'){const x=scene.anchor.x,y=scene.anchor.y;A.prop(ctx,{kind:'jeep',x:x-85,y:y-70,w:170,h:90},scene.age,state);}
   if(scene&&scene.node.scene==='haunt-mirror'&&scene.phase!=='approach'){const [x,y,w,h]=place.art.mirrorArea;ctx.save();ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();ctx.globalAlpha=.32;poses.drawPose('him',x+w*.3,y+h,60,'hold',scene.age,true);poses.drawPose('her',x+w*.7,y+h,60,'hold',scene.age,false);ctx.restore();}
   A.effects(ctx,place,elapsed,state,scene,'over');
@@ -161,16 +201,16 @@
   if(craft)craft.draw();
  }
  function loop(now){const dt=last?Math.min(.05,(now-last)/1000):0;last=now;if(!document.hidden){if(ready)update(dt);draw();}requestAnimationFrame(loop);}
- $('openBag').onclick=bag;$('openHere').onclick=here;$('openAtlas').onclick=atlas;$('openLooks').onclick=occasionLooks;$('interact').onclick=()=>act(near);$('touchAction').onclick=()=>act(scene?scene.node:near);$('closePanel').onclick=closePanel;$('adventurePanel').addEventListener('cancel',e=>{e.preventDefault();closePanel();});
+ $('openBag').onclick=()=>{if(!carrying)bag();};$('openHere').onclick=()=>{if(!carrying)here();};$('openAtlas').onclick=atlas;$('openLooks').onclick=occasionLooks;$('interact').onclick=()=>act(near);$('touchAction').onclick=()=>act(scene?scene.node:near);$('closePanel').onclick=closePanel;$('adventurePanel').addEventListener('cancel',e=>{e.preventDefault();closePanel();});
  $('watchFilm').onclick=()=>{savePosition();location.href='memory-theater.html?film='+place.memory;};
  $('overviewButton').onclick=()=>{overview=!overview;$('overviewButton').setAttribute('aria-pressed',String(overview));$('overviewButton').textContent=overview?'Walk view':'Whole map';};
  $('adventureSound').onclick=()=>{try{if(!audio)audio=new(window.AudioContext||window.webkitAudioContext)();audio.resume();sound=!sound;$('adventureSound').textContent=sound?'Sound on ♫':'Sound off ♫';$('adventureSound').setAttribute('aria-pressed',String(sound));tone(4);}catch(e){toast('Sound is unavailable here.');}};
- addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;if($('adventurePanel').open){if(k==='e'&&craft){e.preventDefault();craft.activate();}return;}if(k==='escape'&&scene){endScene(false);return;}if(k==='e'&&!e.repeat){e.preventDefault();act(scene?scene.node:near);return;}if(k===' '&&scene&&e.target.tagName!=='BUTTON'){e.preventDefault();act(scene.node);return;}if(k==='b'&&!scene){bag();return;}if(k==='m'&&!scene){$('overviewButton').click();return;}if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();keys[k]=true;});
+ addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;if($('adventurePanel').open){if(k==='e'&&craft){e.preventDefault();craft.activate();}return;}if(k==='escape'&&carrying){releaseCarry();return;}if(k==='escape'&&scene){endScene(false);return;}if(k==='e'&&!e.repeat){e.preventDefault();act(scene?scene.node:near);return;}if(k===' '&&scene&&e.target.tagName!=='BUTTON'){e.preventDefault();act(scene.node);return;}if(k==='b'&&!scene&&!carrying){bag();return;}if(k==='m'&&!scene){$('overviewButton').click();return;}if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();keys[k]=true;});
  addEventListener('keyup',e=>delete keys[e.key.toLowerCase()]);addEventListener('blur',()=>keys={});document.addEventListener('visibilitychange',()=>{last=0;keys={};});
  document.querySelectorAll('[data-key]').forEach(b=>{const end=()=>delete keys[b.dataset.key];b.onpointerdown=e=>{e.preventDefault();b.setPointerCapture(e.pointerId);keys[b.dataset.key]=true;};b.onpointerup=end;b.onpointercancel=end;b.onlostpointercapture=end;});
- canvas.addEventListener('pointerup',e=>{if(!ready||scene||$('adventurePanel').open)return;const x=camera.x+(e.clientX-width/2)/scale,y=camera.y+(e.clientY-height/2)/scale;walkTo(x,y);});
+ canvas.addEventListener('pointerup',e=>{if(!ready||scene||carrying||$('adventurePanel').open)return;const x=camera.x+(e.clientX-width/2)/scale,y=camera.y+(e.clientY-height/2)/scale;walkTo(x,y);});
  addEventListener('resize',resize);addEventListener('pagehide',savePosition);addEventListener('adventurechange',sync);addEventListener('wardrobechange',()=>refreshOutfits().catch(e=>toast(e.message)));addEventListener('focus',()=>{if(ready)refreshOutfits().catch(()=>{});});
  async function init(){try{await refreshOutfits();resize();await travel(place.id,true);ready=true;$('adventureLoading').hidden=true;}catch(e){$('adventureLoading').querySelector('p').textContent=e.message;$('retryAdventure').hidden=false;}}
  $('retryAdventure').onclick=init;resize();init();requestAnimationFrame(loop);
- window.memoryAdventure={getState:()=>({ready,place:place.id,players:JSON.parse(JSON.stringify(players)),outfits:Object.fromEntries(Object.entries(images).map(([who,im])=>[who,im.src])),camera:{...camera,scale},near:near&&near.id,swimming,scene:scene&&{kind:scene.kind,phase:scene.phase,age:scene.age,action:scene.current&&scene.current.pose},adventure:S.read()}),getMap:()=>place,canStand,pathfind:(from,to)=>G.pathfind(place,from,to,swimming)};
+ window.memoryAdventure={getState:()=>({ready,place:place.id,players:JSON.parse(JSON.stringify(players)),outfits:Object.fromEntries(Object.entries(images).map(([who,im])=>[who,im.src])),camera:{...camera,scale},near:near&&near.id,swimming,carrying,scene:scene&&{kind:scene.kind,phase:scene.phase,age:scene.age,action:scene.current&&scene.current.pose},adventure:S.read()}),getMap:()=>place,canStand,pathfind:(from,to)=>G.pathfind(place,from,to,swimming)};
 })();

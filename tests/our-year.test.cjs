@@ -17,7 +17,7 @@ function storage(){const data=new Map();return {getItem:k=>data.get(k)||null,set
 const decoded=new Map();
 before(async()=>{
  const sharp=require(require.resolve('sharp',{paths:modulePaths}));
- const files=['assets/sprites/her_atlas.png','assets/sprites/him_atlas.png','assets/sprites/her_outfit5.png','assets/sprites/him_outfit6.png','assets/sprites/her_outfit12.png','assets/sprites/him_outfit12.png','assets/sprites/her_outfit13.png',...['neighborhood','mountains','festival'].map(n=>'assets/our-year/'+n+'.webp'),'assets/our-year/photos/usha-concert-1.jpg','assets/our-year/photos/usha-concert-2.jpg',...['detail','performance','sports'].map(n=>'assets/our-year/'+n+'-atlas.png')];
+ const files=['assets/sprites/her_atlas.png','assets/sprites/him_atlas.png','assets/sprites/her_outfit5.png','assets/sprites/him_outfit6.png','assets/sprites/her_outfit12.png','assets/sprites/him_outfit12.png','assets/sprites/her_outfit13.png','assets/sprites/pool-carry.webp',...['neighborhood','mountains','festival'].map(n=>'assets/our-year/'+n+'.webp'),'assets/our-year/photos/usha-concert-1.jpg','assets/our-year/photos/usha-concert-2.jpg',...['detail','performance','sports'].map(n=>'assets/our-year/'+n+'-atlas.png')];
  if(fs.existsSync(path.join(ROOT,'assets/our-year/places')))files.push(...fs.readdirSync(path.join(ROOT,'assets/our-year/places')).filter(f=>f.endsWith('.webp')).map(f=>'assets/our-year/places/'+f));
  await Promise.all(files.map(async file=>{decoded.set(file,await sharp(path.join(ROOT,file)).ensureAlpha().raw().toBuffer({resolveWithObject:true}));}));
 });
@@ -138,7 +138,7 @@ test('all 14 adventure maps have reachable entrances, activities, and correctly 
  const s=load(context(),'js/adventure-places.js','js/adventure-layouts.js','js/adventure-geometry.js');assert.equal(Object.keys(s.AdventurePlaces.places).length,14);
  for(const place of Object.values(s.AdventurePlaces.places)){
   assert.equal(place.actorHeight,place.id==='apartment'?128:['concert','halloween','haunt','community'].includes(place.id)?96:74);const spawn=s.AdventureGeometry.nearest(place,...place.spawn);assert.ok(spawn,place.id+' has a safe spawn');
-  for(const n of place.nodes){const route=s.AdventureGeometry.pathfind(place,spawn,n);assert.ok(route.length||Math.hypot(n.x-spawn.x,n.y-spawn.y)<n.r,place.id+'/'+n.id+' has a route');const end=route[route.length-1]||spawn;assert.ok(Math.hypot(n.x-end.x,n.y-end.y)<n.r,place.id+'/'+n.id+' can be activated');assert.ok(route.every(p=>s.AdventureGeometry.canStand(place,p.x,p.y)),place.id+'/'+n.id+' route avoids obstacles');}
+  for(const n of place.nodes){if(n.action==='carry')continue;const route=s.AdventureGeometry.pathfind(place,spawn,n);assert.ok(route.length||Math.hypot(n.x-spawn.x,n.y-spawn.y)<n.r,place.id+'/'+n.id+' has a route');const end=route[route.length-1]||spawn;assert.ok(Math.hypot(n.x-end.x,n.y-end.y)<n.r,place.id+'/'+n.id+' can be activated');assert.ok(route.every(p=>s.AdventureGeometry.canStand(place,p.x,p.y)),place.id+'/'+n.id+' route avoids obstacles');}
  }
  const pool=s.AdventurePlaces.places.pool;assert.equal(s.AdventureGeometry.canStand(pool,750,500),false);assert.equal(s.AdventureGeometry.canStand(pool,750,500,true),true);
 });
@@ -196,7 +196,28 @@ test('support atlases have 16 complete transparent cells with consistent feet an
  }
 });
 test('both characters physically follow every new art-aligned route without getting caught on furniture',async()=>{
- const f=await adventureFixture();for(const place of Object.values(f.s.AdventurePlaces.places)){await f.travel(place.id);for(const n of place.nodes){if(n.action==='dry')continue;f.a.placeAt(...place.spawn);for(const [i,a] of Object.values(f.a.players).entries())a.path=f.s.AdventureGeometry.pathfind(place,a,{x:n.x+(i?29:-29),y:n.y});f.tick(50);for(const a of Object.values(f.a.players)){assert.equal(a.path.length,0,place.id+'/'+n.id+'/'+a.who+' reaches the end: '+JSON.stringify({x:a.x,y:a.y,next:a.path[0],last:a.path[a.path.length-1]}));assert.ok(Math.hypot(a.x-n.x,a.y-n.y)<n.r,place.id+'/'+n.id+'/'+a.who+' can interact');}}}
+ const f=await adventureFixture();for(const place of Object.values(f.s.AdventurePlaces.places)){await f.travel(place.id);for(const n of place.nodes){if(['dry','carry'].includes(n.action))continue;f.a.placeAt(...place.spawn);for(const [i,a] of Object.values(f.a.players).entries())a.path=f.s.AdventureGeometry.pathfind(place,a,{x:n.x+(i?29:-29),y:n.y});f.tick(50);for(const a of Object.values(f.a.players)){assert.equal(a.path.length,0,place.id+'/'+n.id+'/'+a.who+' reaches the end: '+JSON.stringify({x:a.x,y:a.y,next:a.path[0],last:a.path[a.path.length-1]}));assert.ok(Math.hypot(a.x-n.x,a.y-n.y)<n.r,place.id+'/'+n.id+'/'+a.who+' can interact');}}}
+});
+test('the pool carry requires both swimmers at the marker and can be released and repeated',async()=>{
+ const f=await adventureFixture('pool'),spot=f.s.memoryAdventure.getMap().nodes.find(n=>n.id==='carry');
+ const press=(type,key)=>f.s.dispatchEvent({type,key,target:{tagName:'CANVAS'},preventDefault(){}});
+ const interact=f.s.document.getElementById('interact');
+ f.act('carry');assert.equal(f.state().carrying,false);
+ f.act('swim');f.tick(5);
+ const [x,y]=[spot.x,spot.y];
+ const {him,her}=f.a.players;
+ for(const [a,dx] of [[him,-29],[her,29]])a.path=f.s.memoryAdventure.pathfind(a,{x:x+dx,y});
+ f.tick(8);assert.equal(f.state().near,'carry','both can swim to the marker from the ladder');
+ her.x=x+spot.r+10;f.tick(.1);assert.notEqual(f.state().near,'carry');
+ her.x=x+29;f.tick(.1);press('keydown','e');assert.equal(f.state().carrying,true);
+ press('keydown','d');f.tick(1);press('keyup','d');
+ assert.ok(him.x>x);assert.equal(her.x,him.x);assert.equal(her.y,him.y);
+ f.a.draw();
+ press('keydown','s');f.tick(6);press('keyup','s');
+ assert.ok(him.y<720&&her.y===him.y,'the carrying pair stays in the pool');
+ interact.click();f.tick(.1);assert.equal(f.state().carrying,false);assert.equal(f.state().swimming,true);assert.notEqual(him.x,her.x);
+ f.a.placeAt(x,y);f.tick(.1);interact.click();assert.equal(f.state().carrying,true);
+ await f.travel('park');assert.equal(f.state().carrying,false);assert.equal(f.state().swimming,false);
 });
 test('the explorable pool can be crossed and climbed out of; a native golf round records exactly five flights',async()=>{
  const f=await adventureFixture('pool');f.a.placeAt(430,735);f.act('swim');f.a.placeAt(1100,835);f.tick(.1);assert.equal(f.s.AdventureState.read().flags['pool-crossed'],undefined,'walking around the deck does not count as swimming');f.a.placeAt(430,735);f.act('swim');f.tick(5);assert.equal(f.state().swimming,true);
