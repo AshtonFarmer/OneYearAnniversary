@@ -6,6 +6,7 @@
  let keys={},camera={x:768,y:650},state=S.read();
  let carrying=false,carrySprite=null;
  const players={him:{who:'him',x:730,y:880,dir:0,frame:0,path:[]},her:{who:'her',x:805,y:880,dir:0,frame:0,path:[]}};
+ const debug=window.MapDebug.create(canvas,()=>({ready,...camera,width,height,scale,dpr,mapWidth:1536,mapHeight:1024,id:place.id}));
  const clamp=(n,a=0,b=1)=>Math.max(a,Math.min(b,n)),ease=u=>{u=clamp(u);return u*u*(3-2*u);};
  const icons={flower:'❀',pumpkin:'◉',photo:'▧',ring:'◇',star:'✦',ticket:'▰',ribbon:'✧',card:'▤',badge:'✺',duck:'◕',lamp:'♧',snack:'◒',float:'◎',fabric:'✿',ball:'●'};
  function text(tag,copy,cls){const e=document.createElement(tag);e.textContent=copy;if(cls)e.className=cls;return e;}
@@ -33,7 +34,7 @@
  function travel(id,initial=false){
   if(!D.places[id]){savePosition();location.href='memory-world.html'+(id==='home'?'':'?area='+id);return;}
   window.SkyfallPlayer?.setAvailable(id==='concert');
-  if(!initial)savePosition();closePanel(false);endScene(false);carrying=false;swimming=false;place=D.places[id];applyOccasionOutfits();A.pin(id);placeAt(...place.spawn);keys={};near=null;$('interact').hidden=true;
+  if(!initial)savePosition();closePanel(false);endScene(false);carrying=false;swimming=false;debug.clear();place=D.places[id];applyOccasionOutfits();A.pin(id);placeAt(...place.spawn);keys={};near=null;$('interact').hidden=true;
   try{const saved=JSON.parse(sessionStorage.getItem('adventure-position-'+id)||'null');if(saved)Object.keys(players).forEach(who=>{if(saved[who]&&canStand(saved[who].x,saved[who].y)){players[who].x=saved[who].x;players[who].y=saved[who].y;}});}catch(e){}
   camera=place.id==='apartment'?{x:768,y:512}:{x:(players.him.x+players.her.x)/2,y:(players.him.y+players.her.y)/2};if(place.id==='apartment')scale=Math.min(width/1536,height/1024)*.97;
   $('placeTitle').textContent=place.title;$('placeChapter').textContent=place.chapter;$('placeSubtitle').textContent=place.subtitle;document.title=place.title+' · Our Adventure';
@@ -332,6 +333,10 @@
   if(scene&&scene.node.scene==='haunt-mirror'&&scene.phase!=='approach'){const [x,y,w,h]=place.art.mirrorArea;ctx.save();ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();ctx.globalAlpha=.32;poses.drawPose('him',x+w*.3,y+h,60,'hold',scene.age,true);poses.drawPose('her',x+w*.7,y+h,60,'hold',scene.age,false);ctx.restore();}
   A.effects(ctx,place,elapsed,state,scene,'over');
   if(near&&!scene){const {R}=A.painter(ctx),q=near.y-8+Math.sin(elapsed*3)*2;R(near.x-3,q,6,2,'#edcd82');R(near.x-1,q+2,2,2,'#edcd82');}
+  if(debug.visible())debug.draw({
+   id:place.id,collision:place.id+'|'+swimming+'|'+carrying,canStand,targets:place.nodes,spawn:place.spawn,
+   players:Object.values(players),solidRects:place.props.filter(p=>p.solid!==false).map(p=>[p.x,p.y,p.w,p.h])
+  });
   if(craft)craft.draw();
  }
  function loop(now){const dt=last?Math.min(.05,(now-last)/1000):0;last=now;if(!document.hidden){if(ready)update(dt);draw();}requestAnimationFrame(loop);}
@@ -339,12 +344,12 @@
  $('watchFilm').onclick=()=>{savePosition();location.href='memory-theater.html?film='+place.memory;};
  $('overviewButton').onclick=()=>{overview=!overview;$('overviewButton').setAttribute('aria-pressed',String(overview));$('overviewButton').textContent=overview?'Walk view':'Whole map';};
  $('adventureSound').onclick=()=>{try{if(!audio)audio=new(window.AudioContext||window.webkitAudioContext)();audio.resume();sound=!sound;$('adventureSound').textContent=sound?'Sound on ♫':'Sound off ♫';$('adventureSound').setAttribute('aria-pressed',String(sound));tone(4);}catch(e){toast('Sound is unavailable here.');}};
- addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;if($('adventurePanel').open){if(k==='e'&&craft){e.preventDefault();craft.activate();}return;}if(k==='escape'&&carrying){releaseCarry();return;}if(k==='escape'&&scene){endScene(false);return;}if(scene?.drive&&['a','d','arrowleft','arrowright'].includes(k)){e.preventDefault();if(!e.repeat)steerDrive(['a','arrowleft'].includes(k)?-1:1);return;}if(k==='e'&&!e.repeat){e.preventDefault();act(scene?scene.node:near);return;}if(k===' '&&scene&&e.target.tagName!=='BUTTON'){e.preventDefault();act(scene.node);return;}if(k==='b'&&!scene&&!carrying){bag();return;}if(k==='m'&&!scene){$('overviewButton').click();return;}if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();keys[k]=true;});
+ addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;if($('adventurePanel').open){if(k==='e'&&craft){e.preventDefault();craft.activate();}return;}if(k==='escape'&&carrying){releaseCarry();return;}if(k==='escape'&&scene){endScene(false);return;}if(!scene&&!carrying&&debug.key(e))return;if(scene?.drive&&['a','d','arrowleft','arrowright'].includes(k)){e.preventDefault();if(!e.repeat)steerDrive(['a','arrowleft'].includes(k)?-1:1);return;}if(k==='e'&&!e.repeat){e.preventDefault();act(scene?scene.node:near);return;}if(k===' '&&scene&&e.target.tagName!=='BUTTON'){e.preventDefault();act(scene.node);return;}if(k==='i'&&!scene&&!carrying&&!e.repeat){bag();return;}if(k==='m'&&!scene){$('overviewButton').click();return;}if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();keys[k]=true;});
  addEventListener('keyup',e=>delete keys[e.key.toLowerCase()]);addEventListener('blur',()=>keys={});document.addEventListener('visibilitychange',()=>{last=0;keys={};});
  document.querySelectorAll('[data-key]').forEach(b=>{const end=()=>delete keys[b.dataset.key];b.onpointerdown=e=>{e.preventDefault();b.setPointerCapture(e.pointerId);keys[b.dataset.key]=true;};b.onpointerup=end;b.onpointercancel=end;b.onlostpointercapture=end;});
- canvas.addEventListener('pointerup',e=>{if(!ready||scene||carrying||$('adventurePanel').open)return;const x=camera.x+(e.clientX-width/2)/scale,y=camera.y+(e.clientY-height/2)/scale;walkTo(x,y);});
+ canvas.addEventListener('pointerup',e=>{if(!ready||scene||carrying||$('adventurePanel').open||debug.boxActive())return;const rect=canvas.getBoundingClientRect();const x=camera.x+((e.clientX-rect.left)*width/rect.width-width/2)/scale,y=camera.y+((e.clientY-rect.top)*height/rect.height-height/2)/scale;walkTo(x,y);});
  addEventListener('resize',resize);addEventListener('pagehide',savePosition);addEventListener('adventurechange',sync);addEventListener('wardrobechange',()=>refreshOutfits().catch(e=>toast(e.message)));addEventListener('focus',()=>{if(ready)refreshOutfits().catch(()=>{});});
  async function init(){try{await refreshOutfits();resize();await travel(place.id,true);ready=true;$('adventureLoading').hidden=true;}catch(e){$('adventureLoading').querySelector('p').textContent=e.message;$('retryAdventure').hidden=false;}}
  $('retryAdventure').onclick=init;resize();init();requestAnimationFrame(loop);
- window.memoryAdventure={getState:()=>({ready,place:place.id,players:JSON.parse(JSON.stringify(players)),outfits:Object.fromEntries(Object.entries(images).map(([who,im])=>[who,im.src])),camera:{...camera,scale},near:near&&near.id,swimming,carrying,scene:scene&&{kind:scene.kind,phase:scene.phase,age:scene.age,action:scene.current&&scene.current.pose,checkpoints:scene.drive?.gate,timedCheers:scene.cheers||0},adventure:S.read()}),getMap:()=>place,canStand,pathfind:(from,to)=>G.pathfind(place,from,to,swimming)};
+ window.memoryAdventure={getState:()=>({ready,debug:debug.state(),place:place.id,players:JSON.parse(JSON.stringify(players)),outfits:Object.fromEntries(Object.entries(images).map(([who,im])=>[who,im.src])),camera:{...camera,scale},near:near&&near.id,swimming,carrying,scene:scene&&{kind:scene.kind,phase:scene.phase,age:scene.age,action:scene.current&&scene.current.pose,checkpoints:scene.drive?.gate,timedCheers:scene.cheers||0},adventure:S.read()}),getMap:()=>place,canStand,pathfind:(from,to)=>G.pathfind(place,from,to,swimming)};
 })();

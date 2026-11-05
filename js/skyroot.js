@@ -417,7 +417,7 @@
   }
 
   function drawDebugZones(){
-    if(!debugMode)return;
+    if(!debugMode&&!boxSelectMode)return;
     ctx.save();
     if(currentConfig.walkable)currentConfig.walkable.forEach(function(shape){drawDebugShape(shape,'rgba(44,255,126,.13)','rgba(83,255,145,.72)');});
     currentConfig.solids.forEach(function(shape){drawDebugShape(shape,'rgba(255,45,62,.24)','rgba(255,89,101,.82)');});
@@ -449,7 +449,7 @@
     }else if(boxStart){
       drawDebugCircle(boxStart.x,boxStart.y,9,'rgba(0,213,255,.25)','#00d5ff');
     }
-    var panelY=debugMode?216:68,panelWidth=Math.min(canvas.width-24,650);
+    var panelY=216,panelWidth=Math.min(canvas.width-24,650);
     ctx.fillStyle='rgba(4,10,18,.9)';ctx.fillRect(12,panelY,panelWidth,42);
     ctx.strokeStyle='#00d5ff';ctx.lineWidth=2;ctx.strokeRect(12,panelY,panelWidth,42);
     ctx.fillStyle='#fff';ctx.font='12px monospace';ctx.fillText(boxText||'B BOX TOOL ON - drag on the map, then check Console',22,panelY+26,panelWidth-20);
