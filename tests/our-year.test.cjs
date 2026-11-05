@@ -412,16 +412,22 @@ test('saree sections save independently and color the existing walking sprites',
 
 test('layered saree motifs and the selected drape survive a saved outfit round trip',async()=>{
  const s=load(context(),'js/shared-wardrobe.js'),w=s.SharedWardrobe;
- const saved=w.save({who:'her',kind:'saree',drape:'gujarati',saree:{
+ const saved=w.save({who:'her',kind:'saree',drape:'gujarati',blouse:{match:false,color:'#854f84',trim:'#efc887',neck:'square',sleeve:'elbow',back:'keyhole'},saree:{
   body:{color:'#236359',motif:'elephant',secondMotif:'jasmine',secondInk:'#f3b98b'},
-  pallu:{color:'#b83051',motif:'diya',marks:[{stamp:'jeep',color:'#ffae44',size:.18,points:[[.5,.5]]}]},
+  pallu:{color:'#b83051',motif:'diya',marks:[{stamp:'jeep',color:'#ffae44',size:.18,angle:90,mirror:true,points:[[.5,.5]]}]},
   border:{color:'#f5c06a',motif:'coin'}
  }});
  const draft=w.normalize(JSON.parse(JSON.stringify(saved)));
  assert.equal(draft.drape,'gujarati');
  assert.equal(draft.saree.body.secondMotif,'jasmine');
  assert.equal(draft.saree.pallu.marks[0].stamp,'jeep');
+ assert.equal(draft.saree.pallu.marks[0].angle,90);
+ assert.equal(draft.saree.pallu.marks[0].mirror,true);
+ assert.equal(draft.blouse.neck,'square');
+ assert.equal(draft.blouse.back,'keyhole');
  const swatch=zone=>w.sareeTexture(zone).getContext('2d').getImageData(0,0,256,320).data;
+ const pallu=draft.saree.pallu;
+ assert.notDeepEqual(swatch(pallu),swatch({...pallu,marks:pallu.marks.map(mark=>({...mark,angle:0,mirror:false}))}));
  assert.notDeepEqual(swatch(draft.saree.body),swatch({...draft.saree.body,secondMotif:'none'}));
  const pixels=async drape=>(await w.render({...draft,drape},false)).getContext('2d').getImageData(0,0,1024,1024).data;
  const [classic,bengali,gujarati]=await Promise.all(['classic','bengali','gujarati'].map(pixels));
