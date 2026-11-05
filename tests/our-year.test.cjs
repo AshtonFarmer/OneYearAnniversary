@@ -237,6 +237,52 @@ test('map scenes animate the ballgame, band, festival and mirror; skies and fire
  for(const [place,id] of [['observatory','blanket'],['stadium','fireworks']]){await f.travel(place);const n=f.s.memoryAdventure.getMap().nodes.find(n=>n.id===id);(n.needsFlags||[]).forEach(flag=>f.s.AdventureState.task(flag));f.a.placeAt(n.x,n.y);f.act(id);f.tick(5);f.a.draw();const c=f.state().camera;assert.ok(c.y-450/c.scale<100,'sky is in frame');assert.ok(c.y+450/c.scale>n.y,'both characters stay in frame');f.a.endScene(false);}
 });
 
+test('Charizard must clear three lanes before the drive is marked complete',async()=>{
+ const f=await adventureFixture('jeep'),doc=f.s.document;
+ const click=label=>{const b=doc.getElementById('sceneControls').children.find(x=>x.textContent.startsWith(label));assert.ok(b,label);b.click();};
+ f.a.placeAt(550,900);f.act('road');f.tick(2);
+ f.tick(2);assert.equal(f.state().scene.checkpoints,0);
+ click('Drive / brake');f.tick(3);assert.equal(f.state().scene.checkpoints,0,'wrong lane stops the drive');
+ click('Lane left');f.tick(.5);assert.equal(f.state().scene.checkpoints,1);
+ click('Lane right');click('Lane right');f.tick(2);assert.equal(f.state().scene.checkpoints,2);
+ click('Lane left');f.tick(3);assert.equal(f.state().scene,null);assert.equal(f.state().adventure.flags['jeep-road'],true);
+ assert.match(doc.getElementById('adventureToast').textContent,/turnout/);
+});
+
+test('audience inputs cheer on a hit and change the seated concert pose',async()=>{
+ const f=await adventureFixture('stadium'),doc=f.s.document;
+ const click=label=>{const b=doc.getElementById('sceneControls').children.find(x=>x.textContent.startsWith(label));assert.ok(b,label);b.click();};
+ const seat=async(place)=>{await f.travel(place);const n=f.s.memoryAdventure.getMap().nodes.find(n=>n.id===(place==='stadium'?'game':'seat'));f.a.placeAt(n.x,n.y);f.act(n.id);for(let i=0;i<600&&f.state().scene.phase==='approach';i++)f.tick(1/60);};
+ await seat('stadium');f.tick(.5);click('Cheer');assert.equal(f.state().scene.timedCheers,0);
+ f.tick(1.65);assert.match(doc.getElementById('sceneText').textContent,/HIT!/);click('Cheer');click('Cheer');
+ assert.equal(f.state().scene.timedCheers,1);assert.equal(f.state().adventure.flags['baseball-timed-cheer'],true);
+ f.tick(12);assert.equal(f.state().adventure.flags['baseball-game'],true);
+ await seat('concert');f.tick(7);f.a.draw();
+ const c=doc.getElementById('adventureCanvas'),seated=c.toBuffer('image/png');
+ click('Sway together');f.a.draw();const sway=c.toBuffer('image/png');assert.notDeepEqual(sway,seated);
+ click('Clap');f.a.draw();assert.notDeepEqual(c.toBuffer('image/png'),sway);
+});
+
+test('the festival plate needs one dish per group and survives canceling the table scene',async()=>{
+ const f=await adventureFixture('community'),doc=f.s.document;
+ for(const flag of ['community-culture','community-drama','community-music'])f.s.AdventureState.task(flag);
+ f.act('feast');assert.equal(f.state().scene,null);
+ f.act('food');const content=doc.getElementById('panelContent');
+ content.children.find(el=>el.textContent==='Build a vegetarian plate').click();
+ const pack=content.children.find(el=>el.textContent==='Pack our plate');
+ assert.equal(pack.disabled,true);
+ const groups=content.children.find(el=>el.className==='adventure-grid').children;
+ for(const [i,choice] of ['Roti','Chana masala','Samosa'].entries())groups[i].children.find(el=>el.textContent===choice).click();
+ assert.equal(pack.disabled,false);pack.click();
+ assert.deepEqual(Array.from(f.state().adventure.feastPlate),['Roti','Chana masala','Samosa']);
+ await f.travel('park');await f.travel('community');
+ f.a.placeAt(760,760);f.act('feast');f.tick(2);f.a.endScene(false);
+ assert.equal(f.state().adventure.feastPlate.length,3);
+ f.act('feast');f.tick(15);assert.equal(f.state().adventure.feastPlate.length,0);
+ assert.equal(f.state().adventure.bag['community-keepsake'],1);
+ assert.ok(f.s.OUR_YEAR.read().completed.community);
+});
+
 // A reproducible preview of the actual walkable maps and their native scenes.
 // The web game has no dependency on Node or FFmpeg.
 if(process.env.MAP_TRAILER)test('export an adventure tour from the live map engine',async()=>{
@@ -250,6 +296,15 @@ if(process.env.MAP_TRAILER)test('export an adventure tour from the live map engi
   f.a.placeAt(n.x,n.y);f.act(id);if(place==='pool')f.tick(5);else{for(let tries=0;tries<1000&&f.state().scene&&f.state().scene.phase==='approach';tries++)f.tick(1/60);f.tick(.4);}if(place==='pool')for(const a of Object.values(f.a.players))a.path=f.s.memoryAdventure.pathfind(a,{x:a.who==='him'?1080:1120,y:520});
   for(let i=0;i<75;i++){
    if(i===18)f.s.document.getElementById('overviewButton').click();
+   if(place==='jeep'&&i===0){
+    const controls=f.s.document.getElementById('sceneControls').children;
+    controls.find(b=>b.textContent.startsWith('Lane left')).click();
+    controls.find(b=>b.textContent.startsWith('Drive / brake')).click();
+   }
+   if(place==='jeep'&&i===31){
+    const right=f.s.document.getElementById('sceneControls').children.find(b=>b.textContent.startsWith('Lane right'));
+    right.click();right.click();
+   }
    if(place==='golf'&&i%26===0)f.a.shoot();f.tick(1/15);f.a.draw();p.drawImage(world,0,0,768,506);p.fillStyle='#211811ed';p.fillRect(0,0,768,48);p.fillStyle='#d8b66b';p.font='11px monospace';p.textAlign='left';p.fillText(String(index+1).padStart(2,'0')+' / '+shots.length+'  ·  '+f.s.memoryAdventure.getMap().chapter,18,18);p.fillStyle='#fff0c5';p.font='16px monospace';p.fillText(f.s.memoryAdventure.getMap().title,18,39);const caption=f.s.document.getElementById('sceneText').textContent;if(caption&&f.state().scene){p.fillStyle='#211811ed';p.fillRect(0,470,768,36);p.fillStyle='#fff0c5';p.font='12px monospace';p.textAlign='center';p.fillText(caption,384,493);}
    const pixels=p.getImageData(0,0,768,506).data;await new Promise((resolve,reject)=>ff.stdin.write(Buffer.from(pixels.buffer),error=>error?reject(error):resolve()));
   }f.a.endScene(false);

@@ -20,7 +20,7 @@
       shot('Our corner of the universe', 'All those skies. One person to share them with.', 7, 'lean')
     ],
     park: [
-      shot('Railroad Park after dark', 'A quiet path through the lights of Birmingham.', 7, 'establish'),
+      shot('Railroad Park Foundation after dark', 'A quiet path through the lights of Birmingham.', 7, 'establish'),
       shot('No need to hurry', 'Walking together from one pool of lamplight to the next.', 10, 'walk'),
       shot('A bench for two', 'We stop, sit down, and let the city carry on around us.', 8, 'sit'),
       shot('Stay a little longer', 'A shoulder to lean on. The moon above the trees.', 9, 'lean', [545, 330, 1.13])
