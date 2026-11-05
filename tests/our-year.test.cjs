@@ -518,3 +518,29 @@ test('map dev tools toggle circles, measure map coordinates, and keep the advent
   assert.equal(hub.memoryWorld.getState().debug.zones,true,'box mode keeps the circles visible');
  }
 });
+
+test('seating and clapping keep the same foot anchor through the pose transition',()=>{
+ const s=load(context(),'js/our-year-films.js','js/our-year-cinema.js');
+ const c=canvas(320,260),p=c.getContext('2d'),images={him:new Image()};
+ images.him.src='assets/sprites/him_atlas.png';
+ const performance=s.OurYearCinema.renderer(c,{images});
+ function frame(pose,transition){
+  p.clearRect(0,0,320,260);
+  performance.drawPose('him',160,220,142,pose,.4,false,transition);
+  const pixels=p.getImageData(0,0,320,260).data;
+  let top=260,bottom=0;
+  for(let y=0;y<260;y++)for(let x=0;x<320;x++)if(pixels[(y*320+x)*4+3]>160){
+   top=Math.min(top,y);bottom=Math.max(bottom,y);
+  }
+  return {top,bottom,pixels};
+ }
+ const standing=frame('sit',{from:'idle',amount:0});
+ const halfway=frame('sit',{from:'idle',amount:.5});
+ const sitting=frame('sit',{from:'idle',amount:1});
+ const clapping=frame('seated-clap');
+ assert.ok(standing.top<halfway.top&&halfway.top<sitting.top);
+ assert.equal(sitting.top,clapping.top);
+ assert.ok(Math.abs(standing.bottom-sitting.bottom)<=1);
+ assert.equal(sitting.bottom,clapping.bottom);
+ assert.notDeepEqual(sitting.pixels,clapping.pixels);
+});
