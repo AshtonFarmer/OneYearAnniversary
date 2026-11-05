@@ -20,8 +20,15 @@
 .motif-fields{grid-column:1/-1;margin-bottom:13px}
 .motif-fields span{display:block;font-size:13px;color:#d9d5c5;margin-bottom:7px}
 .motif-fields button{width:100%;padding:8px 7px;min-height:40px;text-align:left}
-#drapeTools label{margin-bottom:5px}
-#drapeNote{min-height:30px;margin:0 0 12px}
+#drapeTools{margin:15px auto 0;max-width:420px}
+#drapeTools h2{margin:0 0 8px;font-size:16px;color:#394e44}
+.drape-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.drape-choices button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:3px 4px 7px;background:#f4ebd8;border-color:#b3a589;color:#3c493d;font-size:12px;min-height:64px}
+.drape-choices button[aria-pressed=true]{background:#394f44;border-color:#394f44;color:#fff4db}
+.artboard .drape-choices canvas{width:37px;height:41px;margin:0;cursor:inherit;touch-action:manipulation}
+#drapeNote{margin:6px 0 0;font-size:12px;font-style:normal;color:#4c614c}
+#drapeTools+.artboard-modes{margin-top:10px}
+@media(min-width:1001px) and (max-height:900px){.artboard{position:relative;top:auto}}
 #walkPreview{padding:6px 10px;font-size:13px}
 #motifGallery{width:min(660px,calc(100% - 28px));max-height:85vh;padding:20px 24px;border:1px solid #9c8865;border-radius:12px;background:#222c2d;color:#f4ebd8;box-shadow:0 20px 90px #0009}
 #motifGallery::backdrop{background:#101816bc}

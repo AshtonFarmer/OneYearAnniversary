@@ -49,6 +49,27 @@
   };
   const drapeAreas={classic:sketchAreas,bengali:{...sketchAreas,pallu:[92,44,141,168],border:[87,160,187,272]},
     gujarati:{...sketchAreas,pallu:[103,41,137,234],border:[87,231,187,201]}};
+  const drapeLabels={classic:'Classic',bengali:'Bengali-inspired',gujarati:'Gujarati-inspired'};
+  function buildDrapeChoices(){
+    for(const [key,label] of Object.entries(drapeLabels)){
+      const button=document.createElement('button'),icon=document.createElement('canvas'),name=document.createElement('span');
+      button.type='button';button.dataset.drape=key;button.setAttribute('aria-pressed','false');
+      icon.width=44;icon.height=49;icon.setAttribute('aria-hidden','true');
+      const ctx=icon.getContext('2d'),paths=drapeSketches[key];
+      ctx.translate(2,0);ctx.scale(.111,.111);
+      for(const [part,path] of Object.entries(paths)){
+        ctx.fillStyle=part==='pallu'?'#b14b63':part==='border'?'#dbab63':part==='pleats'?'#50756a':'#31554e';
+        ctx.fill(path);
+      }
+      name.textContent=label;button.append(icon,name);
+      button.onclick=()=>{
+        draft.drape=key;
+        closeUp=false;fabric.style.cursor='pointer';
+        updateZone();queueRender();
+      };
+      $('drapeChoices').append(button);
+    }
+  }
   const motifGroups={
     'Flowers and foliage':['lotus','flowers','jasmine','marigold','fern','vine','lotuspond','paisley'],
     'Birds and animals':['peacock','parrot','elephant','swan','fish'],
@@ -114,7 +135,9 @@
     $('zoneMotif').textContent=W.sareeOptions.motifs[zone.motif];
     $('zoneSecond').textContent=zone.secondMotif&&zone.secondMotif!=='none'?W.sareeOptions.motifs[zone.secondMotif]:'No accent';
     $('secondInkField').hidden=!zone.secondMotif||zone.secondMotif==='none';
-    $('drapeStyle').value=draft.drape;
+    for(const button of $('drapeChoices').children){
+      button.setAttribute('aria-pressed',button.dataset.drape===draft.drape);
+    }
     $('drapeNote').textContent=drapeNotes[draft.drape];
     $('zoneLabel').textContent=zoneNames[selectedZone].toUpperCase();
     $('spacingField').hidden=(zone.motif==='none'&&(!zone.secondMotif||zone.secondMotif==='none'))||zone.layout==='panel';
@@ -239,13 +262,12 @@
   $('zoneMotif').onclick=()=>openMotifs('motif');
   $('zoneSecond').onclick=()=>openMotifs('secondMotif');
   $('paintTool').onclick=()=>openMotifs('stamp');
-  $('drapeStyle').onchange=e=>{draft.drape=e.target.value;setZone(selectedZone,false);queueRender();};
   $('walkPreview').onclick=()=>{
     walking=!walking;$('walkPreview').setAttribute('aria-pressed',walking);
     $('walkPreview').textContent=walking?'Walking':'Standing';
   };
   fillOptions('zoneFinish',W.sareeOptions.finishes);fillOptions('zoneAccent',W.sareeOptions.accents);
-  fillOptions('zoneLayout',W.sareeOptions.layouts);fillOptions('drapeStyle',W.sareeOptions.drapes);
+  fillOptions('zoneLayout',W.sareeOptions.layouts);buildDrapeChoices();
   fillOptions('sareeRecipe',recipes.map(([name])=>name+' inspired'));
   function showRecipe(){$('sareeRecipeNote').textContent=recipes[Number($('sareeRecipe').value)][1];}
   $('sareeRecipe').onchange=showRecipe;
