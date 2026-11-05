@@ -48,3 +48,23 @@
 #palluTools>label{grid-column:span 2}
 .artboard-controls input[type=range]{accent-color:#7a495e}
 @media(max-width:475px){.artboard-controls{grid-template-columns:repeat(2,minmax(0,1fr))}#palluTools>label{grid-column:auto}}
+
+.atelier-jump{display:flex;justify-content:center;gap:8px;max-width:1330px;margin:12px auto 0;padding:0 16px}
+.atelier-jump a{padding:7px 12px;border:1px solid #59685a;border-radius:999px;font:12px system-ui,sans-serif}
+#designTools,#designCanvas,#fittingRoom{scroll-margin-top:12px}
+#fabricTools,#dressTools{grid-column:1/-1}
+.workbench-section{border:1px solid #59685a;border-radius:10px;padding:11px;margin:4px 0 14px;background:#26342e}
+.workbench-section .eyebrow{margin-bottom:8px}
+.workbench-section label{margin-bottom:6px}
+.workbench-section button{width:100%}
+#dressShapes{max-width:420px;margin:15px auto 0}
+#dressShapes h2{margin:0 0 8px;font-size:16px;color:#394e44}
+.dress-choices{grid-template-columns:repeat(6,minmax(0,1fr));gap:5px}
+.dress-choices button{font-size:11px;min-height:60px}
+#dressShapes:not([hidden])~#fabric{width:min(100%,382px)}
+#dressShapes:not([hidden])~#artboardCaption{padding:0 4px}
+@media(max-width:650px){.atelier-jump{position:sticky;z-index:3;top:0;padding:7px 10px;background:#171f21ed}.atelier-jump a{padding:6px 9px}#designTools,#designCanvas,#fittingRoom{scroll-margin-top:48px}.dress-choices{grid-template-columns:repeat(3,minmax(0,1fr))}#dressShapes:not([hidden])~#fabric{width:min(100%,280px)}}
+#garmentShortcuts{margin:12px auto 0}
+#garmentShortcuts button{min-width:70px}
+.motif-search{margin:0 0 13px}
+.motif-search input{max-width:350px}

@@ -438,3 +438,21 @@ test('layered saree motifs and the selected drape survive a saved outfit round t
   assert.equal(bengali[i],classic[i]);
  }
 });
+
+test('dress cuts and fabric details survive a wardrobe round trip and render on the walking sheet',async()=>{
+ const session=load(context(),'js/shared-wardrobe.js'),w=session.SharedWardrobe;
+ const legacy=w.normalize({kind:'dress',who:'her',color:'#91458b',pattern:'flowers',strokes:[]});
+ assert.equal(legacy.dress,undefined);
+ const dress=w.save({...legacy,dress:{shape:'mermaid',neck:'sweetheart',sleeve:'long',waist:'bow',trim:'#e6be77',
+  fabric:{color:'#2f395f',ink:'#ebd3a6',motif:'stars',finish:'velvet',marks:[{stamp:'moon',color:'#fff1be',size:.15,points:[[.5,.6]]}]}
+ }});
+ const restored=w.normalize(JSON.parse(JSON.stringify(dress)));
+ assert.equal(restored.dress.shape,'mermaid');
+ assert.equal(restored.dress.neck,'sweetheart');
+ assert.equal(restored.dress.sleeve,'long');
+ assert.equal(restored.dress.fabric.marks[0].stamp,'moon');
+ const pixels=async design=>(await w.render(design,false)).getContext('2d').getImageData(0,0,1024,1024).data;
+ const [oldSheet,newSheet]=await Promise.all([pixels(legacy),pixels(restored)]);
+ assert.notDeepEqual(oldSheet,newSheet);
+ for(let i=3;i<oldSheet.length;i+=4)assert.equal(oldSheet[i],newSheet[i]);
+});
