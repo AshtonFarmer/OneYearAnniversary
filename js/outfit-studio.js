@@ -1,29 +1,203 @@
 (function(){
   'use strict';
   const W=window.SharedWardrobe,$=id=>document.getElementById(id),fabric=$('fabric'),fc=fabric.getContext('2d'),preview=$('fittingPreview'),pc=preview.getContext('2d');
-  let draft=W.normalize({name:'My first saree',who:'her',kind:'saree',color:'#728d77',trim:'#e5ba65',pattern:'none',strokes:[]}),sprite=null,row=0,auto=true,painting=false,renderTimer=0,revision=0,turnStart=performance.now();
+  let draft=W.normalize({name:'My first saree',who:'her',kind:'saree',saree:{},color:'#728d77',trim:'#e5ba65',pattern:'none',strokes:[]}),sprite=null,row=0,auto=true,painting=false,renderTimer=0,revision=0,turnStart=performance.now();
+  const recipes=[
+    ['Dhaka Jamdani','Airy colors with spaced, woven motifs.','#246d66','#e8e2c0','#17605b','buti','lotus','vine','cotton','none','scattered'],
+    ['Tangail','Light cloth with a contrasting border and a banded pallu.','#f2d7ae','#912c44','#993751','flowers','stripes','checks','cotton','none','bands'],
+    ['Banarasi brocade','Jewel-toned brocade, paisleys, and gold vines.','#791b42','#f6c46c','#482052','paisley','vine','vine','brocade','gold','bands'],
+    ['Kanchipuram silk','A contrasting pallu, gold checks, and temple-point edges.','#772035','#f8bd62','#28456c','checks','peacock','temple','silk','gold','bands'],
+    ['Paithani','A jewel-toned body with a peacock as the pallu centerpiece.','#352659','#efbd70','#105858','buti','peacock','vine','silk','gold','panel'],
+    ['Baluchari','A story-panel feel with an arch centerpiece and floral edges.','#592a55','#ebb987','#842b4e','buti','arch','flowers','silk','none','panel'],
+    ['Patola','Repeated double-ikat-inspired diamonds in contrasting colors.','#a42d4c','#f4bf76','#155c57','ikat','ikat','temple','silk','none','repeat'],
+    ['Bandhani','Small clusters of tie-dye dots and brighter festive edges.','#be355e','#fff3cc','#b54e23','bandhani','bandhani','buti','cotton','none','scattered'],
+    ['Kantha embroidery','A warm ground with running-stitch designs.','#e3bc92','#812f49','#c79577','kantha','vine','kantha','cotton','none','bands'],
+    ['Chanderi','A light-looking finish with scattered buti and a fine gold detail.','#9a759a','#f2d69b','#624b82','buti','lotus','stripes','tissue','gold','scattered'],
+    ['Sambalpuri ikat','Bold contrast, stepped diamonds, and strong bands.','#374964','#f6c69a','#ac4b3b','ikat','ikat','checks','cotton','none','bands'],
+    ['Kasavu','Ivory cloth and a distinct gold edge.','#f5ebd3','#bd8e32','#ece0b9','none','stripes','stripes','cotton','gold','bands'],
+    ['Crimson Puja','Cream and red with a lotus pallu and temple-point border.','#f2dcbd','#bd3346','#8c2542','lotus','lotus','temple','silk','gold','panel'],
+    ['Gallery Heirloom','An ornate centerpiece inspired by the record saree’s woven artwork.','#2c254f','#f6cf81','#58334e','vine','arch','peacock','brocade','ruby','panel']
+  ];
+  const zoneNames={body:'Body',pleats:'Pleats',pallu:'Pallu',border:'Border'};
+  const zoneHelp={body:'The main wrap of the saree.',pleats:'The gathered folds at the front.',pallu:'The decorated end draped over the shoulder.',border:'The edging around the saree.'};
+  const zoneFields={zoneColor:'color',zoneInk:'ink',zoneFinish:'finish',zoneAccent:'accent',zoneMotif:'motif',zoneLayout:'layout',zoneSpacing:'spacing'};
+  const zoneButtons=document.querySelectorAll('[data-zone]');
+  let selectedZone='body',closeUp=false,paintPointer=null,activeMark=null;
+  const swatch={x:49,y:49,w:262,h:328};
+  const outline=path=>new Path2D(path);
+  const sketch={
+    blouse:outline('M140 45 Q159 61 183 60 Q202 59 218 44 L249 61 L275 109 L240 128 L228 109 L226 167 Q177 188 131 161 L128 108 L113 130 L76 111 L102 61 Z'),
+    body:outline('M128 151 Q177 184 228 154 L271 401 Q181 432 88 400 L122 230 Z'),
+    pleats:outline('M168 173 Q183 177 201 173 L224 415 Q187 424 145 415 Z'),
+    pallu:outline('M210 45 Q228 40 247 56 Q255 94 256 139 L279 277 Q248 302 222 283 L215 179 L160 207 Q147 182 144 157 Z'),
+    border:outline('M89 396 Q182 425 271 398 L273 415 Q183 445 87 413 Z M223 276 Q251 288 278 268 L281 282 Q248 308 222 289 Z')
+  };
+  const sketchAreas={body:[88,151,183,270],pleats:[145,173,79,252],pallu:[144,45,137,257],border:[87,268,194,167]};
+  function fillOptions(id,options){
+    for(const [value,label] of Object.entries(options)){
+      const option=document.createElement('option');
+      option.value=value;option.textContent=label;$(id).append(option);
+    }
+  }
+  function applyRecipe(index,announce=true){
+    const [name,,color,ink,palluColor,motif,palluMotif,borderMotif,finish,accent,palluLayout]=recipes[index];
+    const edits={
+      body:{color,ink,motif,finish,spacing:53,layout:'scattered'},
+      pleats:{color,ink,motif:motif==='none'?'none':'stripes',finish,spacing:34,layout:'repeat'},
+      pallu:{color:palluColor,ink,motif:palluMotif,finish,accent,layout:palluLayout,spacing:48},
+      border:{color:ink,ink:color,motif:borderMotif,finish,accent,layout:'bands',spacing:35}
+    };
+    for(const [key,zone] of Object.entries(edits))draft.saree[key]={...zone,marks:draft.saree[key].marks};
+    sync();
+    if(announce)say(name+' applied. Your brushwork and stamps are still here.');
+  }
+  function updateZone(){
+    const zone=draft.saree[selectedZone];
+    for(const [id,field] of Object.entries(zoneFields))$(id).value=zone[field];
+    $('zoneLabel').textContent=zoneNames[selectedZone].toUpperCase();
+    $('spacingField').hidden=zone.motif==='none'||zone.layout==='panel';
+    $('swatchView').setAttribute('aria-pressed',closeUp);
+    zoneButtons.forEach(b=>b.setAttribute('aria-pressed',b.dataset.zone===selectedZone));
+    $('artboardCaption').textContent=closeUp?zoneHelp[selectedZone]+' Paint or stamp the swatch.':zoneHelp[selectedZone]+' Click a section or open its paint close-up.';
+  }
+  function setZone(key,open=closeUp){
+    selectedZone=key;closeUp=open;
+    fabric.style.cursor=closeUp?'crosshair':'pointer';
+    updateZone();drawFabric();
+  }
+  function drawSaree(){
+    if(closeUp){
+      const {x,y,w,h}=swatch;
+      fc.fillStyle='#a89572';fc.fillRect(x-3,y-3,w+6,h+6);
+      fc.drawImage(W.sareeTexture(draft.saree[selectedZone]),x,y,w,h);
+      fc.fillStyle='#4e4939';fc.textAlign='center';fc.font='12px Georgia';
+      fc.fillText(zoneNames[selectedZone]+' · fabric close-up',180,402);
+      return;
+    }
+    for(const [key,part] of Object.entries(sketch)){
+      fc.save();fc.clip(part);
+      if(key==='blouse'){
+        fc.fillStyle=draft.saree.body.color;fc.fillRect(0,0,360,440);
+      }else fc.drawImage(W.sareeTexture(draft.saree[key]),...sketchAreas[key]);
+      fc.restore();
+      fc.strokeStyle=key===selectedZone?'#fbecbf':'#342d3b99';
+      fc.lineWidth=key===selectedZone?2.7:1.1;fc.stroke(part);
+    }
+    fc.save();fc.clip(sketch.pleats);
+    fc.strokeStyle='#1a152452';fc.lineWidth=2;
+    for(const hem of [151,168,183,198,213]){
+      fc.beginPath();fc.moveTo(180+(hem-180)*.37,179);fc.lineTo(hem,414);fc.stroke();
+    }
+    fc.restore();
+    fc.strokeStyle='#e8d4aeaa';fc.lineWidth=1;
+    fc.beginPath();fc.moveTo(225,58);fc.quadraticCurveTo(190,120,155,171);fc.stroke();
+    fc.beginPath();fc.moveTo(240,63);fc.quadraticCurveTo(237,155,258,277);fc.stroke();
+  }
   function say(s){$('studioStatus').textContent=s;}
   function silhouette(){const p=new Path2D();if(draft.kind==='saree'){p.moveTo(140,42);p.lineTo(98,61);p.lineTo(77,131);p.lineTo(117,151);p.lineTo(112,199);p.lineTo(77,405);p.quadraticCurveTo(180,437,283,405);p.lineTo(236,199);p.lineTo(240,148);p.lineTo(280,132);p.lineTo(259,62);p.lineTo(215,42);p.quadraticCurveTo(180,73,140,42);}else if(draft.kind==='dress'){p.moveTo(137,42);p.lineTo(111,76);p.lineTo(104,129);p.lineTo(132,157);p.lineTo(132,187);p.lineTo(53,404);p.quadraticCurveTo(180,445,307,404);p.lineTo(228,187);p.lineTo(228,157);p.lineTo(256,129);p.lineTo(249,76);p.lineTo(222,42);p.quadraticCurveTo(180,78,137,42);}else{p.moveTo(144,45);p.lineTo(96,63);p.lineTo(67,239);p.lineTo(108,249);p.lineTo(127,153);p.lineTo(125,260);p.lineTo(123,408);p.lineTo(170,408);p.lineTo(180,281);p.lineTo(190,408);p.lineTo(237,408);p.lineTo(235,260);p.lineTo(233,153);p.lineTo(252,249);p.lineTo(293,239);p.lineTo(264,63);p.lineTo(216,45);p.closePath();}return p;}
   function drawFabric(){
-    fc.clearRect(0,0,360,440);const path=silhouette();fc.save();fc.shadowColor='#29342a44';fc.shadowBlur=15;fc.shadowOffsetY=8;fc.fillStyle=draft.color;fc.fill(path);fc.restore();fc.save();fc.clip(path);fc.drawImage(W.texture(draft),0,0,360,440);const light=fc.createLinearGradient(30,0,320,0);light.addColorStop(0,'#0004');light.addColorStop(.4,'#ffffff15');light.addColorStop(.6,'#0000');light.addColorStop(1,'#0003');fc.fillStyle=light;fc.fillRect(0,0,360,440);fc.strokeStyle=draft.trim;fc.lineWidth=7;fc.stroke(path);if(draft.kind==='saree'){fc.lineWidth=14;fc.beginPath();fc.moveTo(250,48);fc.lineTo(115,230);fc.lineTo(94,412);fc.stroke();fc.lineWidth=2;fc.strokeStyle='#fff5';fc.beginPath();fc.moveTo(255,47);fc.lineTo(123,233);fc.lineTo(102,412);fc.stroke();}else if(draft.kind==='dress'){fc.fillStyle=draft.trim;fc.fillRect(125,175,110,10);fc.lineWidth=2;fc.strokeRect(161,173,37,13);}fc.restore();fc.strokeStyle='#243c3555';fc.lineWidth=1;fc.stroke(path);
+    fc.clearRect(0,0,360,440);if(draft.saree){drawSaree();return;}const path=silhouette();fc.save();fc.shadowColor='#29342a44';fc.shadowBlur=15;fc.shadowOffsetY=8;fc.fillStyle=draft.color;fc.fill(path);fc.restore();fc.save();fc.clip(path);fc.drawImage(W.texture(draft),0,0,360,440);const light=fc.createLinearGradient(30,0,320,0);light.addColorStop(0,'#0004');light.addColorStop(.4,'#ffffff15');light.addColorStop(.6,'#0000');light.addColorStop(1,'#0003');fc.fillStyle=light;fc.fillRect(0,0,360,440);fc.strokeStyle=draft.trim;fc.lineWidth=7;fc.stroke(path);if(draft.kind==='saree'){fc.lineWidth=14;fc.beginPath();fc.moveTo(250,48);fc.lineTo(115,230);fc.lineTo(94,412);fc.stroke();fc.lineWidth=2;fc.strokeStyle='#fff5';fc.beginPath();fc.moveTo(255,47);fc.lineTo(123,233);fc.lineTo(102,412);fc.stroke();}else if(draft.kind==='dress'){fc.fillStyle=draft.trim;fc.fillRect(125,175,110,10);fc.lineWidth=2;fc.strokeRect(161,173,37,13);}fc.restore();fc.strokeStyle='#243c3555';fc.lineWidth=1;fc.stroke(path);
   }
   function queueRender(){drawFabric();clearTimeout(renderTimer);const ticket=++revision;renderTimer=setTimeout(()=>W.render(draft,$('necklace').checked).then(c=>{if(ticket===revision)sprite=c;}).catch(e=>say(e.message)),100);}
-  function sync(){$('wearer').value=draft.who;$('garment').value=draft.kind;$('garment').querySelector('[value=suit]').hidden=draft.who!=='him';$('garment').querySelector('[value=saree]').hidden=draft.who==='him';$('garment').querySelector('[value=dress]').hidden=draft.who==='him';$('fabricColor').value=draft.color;$('trimColor').value=draft.trim;$('lookName').value=draft.name;$('kindLabel').textContent=draft.kind.toUpperCase()+' · YOUR DESIGN';document.querySelectorAll('[data-pattern]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.pattern===draft.pattern));queueRender();}
-  function point(e){const r=fabric.getBoundingClientRect();return [(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height];}
-  fabric.addEventListener('pointerdown',e=>{const p=point(e);if(!fc.isPointInPath(silhouette(),p[0]*360,p[1]*440))return;if(draft.strokes.length>=350){say('That is a lot of lovely detail. Save this look, or undo a stroke.');return;}e.preventDefault();painting=true;fabric.setPointerCapture(e.pointerId);draft.strokes.push({color:$('paintColor').value,size:Number($('brushSize').value)/360,points:[p]});queueRender();});
-  fabric.addEventListener('pointermove',e=>{if(!painting)return;const p=point(e),s=draft.strokes[draft.strokes.length-1];if(s.points.length<240&&p.every(n=>n>=0&&n<=1)){s.points.push(p);drawFabric();}});
-  function endPaint(){if(painting){painting=false;queueRender();}}fabric.addEventListener('pointerup',endPaint);fabric.addEventListener('pointercancel',endPaint);
-  $('fabricColor').addEventListener('input',e=>{draft.color=e.target.value;queueRender();});$('trimColor').addEventListener('input',e=>{draft.trim=e.target.value;queueRender();});$('wearer').addEventListener('change',e=>{draft.who=e.target.value;draft.kind=draft.who==='him'?'suit':'saree';sync();});$('garment').addEventListener('change',e=>{draft.kind=e.target.value;sync();});$('lookName').addEventListener('input',e=>draft.name=e.target.value);
-  document.querySelectorAll('[data-pattern]').forEach(b=>b.onclick=()=>{draft.pattern=b.dataset.pattern;sync();});$('undoPaint').onclick=()=>{draft.strokes.pop();queueRender();};$('clearPaint').onclick=()=>{draft.strokes=[];queueRender();};
+  function sync(){
+    const advanced=!!draft.saree;
+    $('wearer').value=draft.who;$('garment').value=draft.kind;
+    $('garment').querySelector('[value=suit]').hidden=draft.who!=='him';
+    $('garment').querySelector('[value=saree]').hidden=draft.who==='him';
+    $('garment').querySelector('[value=dress]').hidden=draft.who==='him';
+    $('fabricColor').value=draft.color;$('trimColor').value=draft.trim;$('lookName').value=draft.name;
+    $('kindLabel').textContent=advanced?'SAREE DESIGN WORKBENCH':draft.kind.toUpperCase()+' · YOUR DESIGN';
+    fabric.style.cursor=advanced&&!closeUp?'pointer':'crosshair';
+    $('sareeTools').hidden=!advanced;$('sareeModes').hidden=!advanced;$('stampField').hidden=!advanced;
+    $('legacyTools').hidden=advanced;$('upgradeSaree').hidden=advanced||draft.kind!=='saree';
+    $('paintHint').textContent=advanced?'Choose a section and open Paint close-up. Brush and stamps stay on that section.':'Paint directly on the fabric.';
+    $('artboardCaption').textContent='Colors, little flowers, a scribble. It’s yours.';
+    document.querySelectorAll('[data-pattern]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.pattern===draft.pattern));
+    if(advanced)updateZone();
+    queueRender();
+  }
+  function point(e){
+    const r=fabric.getBoundingClientRect();
+    return [(e.clientX-r.left)*360/r.width,(e.clientY-r.top)*440/r.height];
+  }
+  function paintPoint(x,y){
+    return draft.saree?[(x-swatch.x)/swatch.w,(y-swatch.y)/swatch.h]:[x/360,y/440];
+  }
+  function marks(){return draft.saree?draft.saree[selectedZone].marks:draft.strokes;}
+  function inside(point){return point.every(n=>n>=0&&n<=1);}
+  fabric.addEventListener('pointerdown',e=>{
+    if(paintPointer!==null||e.button!==0)return;
+    const [x,y]=point(e);
+    if(draft.saree&&!closeUp){
+      const part=['border','pallu','pleats','body'].find(key=>fc.isPointInPath(sketch[key],x,y));
+      if(part)setZone(part);
+      return;
+    }
+    const pt=paintPoint(x,y),list=marks(),limit=draft.saree?80:350;
+    if(!inside(pt)||!draft.saree&&!fc.isPointInPath(silhouette(),x,y))return;
+    if(list.length>=limit){say('This section is full. Undo or clear marks to add more.');return;}
+    e.preventDefault();
+    const stamp=draft.saree&&$('paintTool').value;
+    const size=Number($('brushSize').value);
+    activeMark={color:$('paintColor').value,size:stamp?size/100:size/360,points:[pt],...(stamp?{stamp}:{})};
+    list.push(activeMark);
+    if(stamp){activeMark=null;queueRender();return;}
+    painting=true;paintPointer=e.pointerId;fabric.setPointerCapture(e.pointerId);drawFabric();
+  });
+  fabric.addEventListener('pointermove',e=>{
+    if(!painting||paintPointer!==e.pointerId||activeMark.points.length>=240)return;
+    const pt=paintPoint(...point(e));
+    if(inside(pt)){activeMark.points.push(pt);drawFabric();}
+  });
+  function endPaint(e){
+    if(paintPointer!==e.pointerId)return;
+    painting=false;paintPointer=null;activeMark=null;queueRender();
+  }
+  for(const event of ['pointerup','pointercancel','lostpointercapture'])fabric.addEventListener(event,endPaint);
+  $('fabricColor').addEventListener('input',e=>{draft.color=e.target.value;queueRender();});
+  $('trimColor').addEventListener('input',e=>{draft.trim=e.target.value;queueRender();});
+  function switchGarment(who,kind){
+    draft=W.normalize({who,kind,name:draft.name,color:draft.color,trim:draft.trim,...(kind==='saree'?{saree:{}}:{})});
+    selectedZone='body';closeUp=false;sync();
+  }
+  $('wearer').addEventListener('change',e=>switchGarment(e.target.value,e.target.value==='him'?'suit':'saree'));
+  $('garment').addEventListener('change',e=>switchGarment(draft.who,e.target.value));
+  $('lookName').addEventListener('input',e=>draft.name=e.target.value);
+  document.querySelectorAll('[data-pattern]').forEach(b=>b.onclick=()=>{draft.pattern=b.dataset.pattern;sync();});
+  $('undoPaint').onclick=()=>{marks().pop();queueRender();};
+  $('clearPaint').onclick=()=>{marks().length=0;queueRender();};
+  for(const [id,field] of Object.entries(zoneFields))$(id).addEventListener('input',e=>{
+    draft.saree[selectedZone][field]=field==='spacing'?Number(e.target.value):e.target.value;
+    updateZone();queueRender();
+  });
+  zoneButtons.forEach(b=>b.onclick=()=>setZone(b.dataset.zone));
+  $('swatchView').onclick=()=>setZone(selectedZone,!closeUp);
+  $('paintTool').onchange=()=>{if(draft.saree)setZone(selectedZone,true);};
+  fillOptions('zoneFinish',W.sareeOptions.finishes);fillOptions('zoneAccent',W.sareeOptions.accents);
+  fillOptions('zoneMotif',W.sareeOptions.motifs);fillOptions('zoneLayout',W.sareeOptions.layouts);
+  const {none,...stamps}=W.sareeOptions.motifs;
+  fillOptions('paintTool',{'':'Freehand brush',...stamps});
+  fillOptions('sareeRecipe',recipes.map(([name])=>name+' inspired'));
+  function showRecipe(){$('sareeRecipeNote').textContent=recipes[Number($('sareeRecipe').value)][1];}
+  $('sareeRecipe').onchange=showRecipe;
+  $('applyRecipe').onclick=()=>applyRecipe(Number($('sareeRecipe').value));
+  $('upgradeSaree').onclick=()=>{
+    const original=draft;
+    draft=W.normalize({...original,id:'',name:(original.name.slice(0,42)+' · copy'),strokes:[],saree:{
+      body:{motif:original.pattern,marks:original.strokes}
+    }});
+    sync();say('Working on a new copy. The saved original stays in your closet.');
+  };
+  showRecipe();
   function save(wear){try{draft=W.save(draft);if(wear){W.equip(draft.id);W.setNecklace($('necklace').checked);}say(wear?'Your original is saved and ready to wear across the game.':'Saved to your little closet.');buildCloset();}catch(e){say('Could not save: '+e.message);}}
   $('saveLook').onclick=()=>save(false);$('wearLook').onclick=()=>save(true);$('necklace').checked=W.read().necklace;$('necklace').onchange=queueRender;
-  $('newLook').onclick=()=>{draft=W.normalize({name:'My next little original',who:draft.who,kind:draft.kind,color:draft.color,trim:draft.trim,strokes:[]});sync();say('A fresh canvas, just for you.');};
+  $('newLook').onclick=()=>{draft=W.normalize({name:'My next little original',who:draft.who,kind:draft.kind,color:draft.color,trim:draft.trim,strokes:[],...(draft.kind==='saree'?{saree:{}}:{})});selectedZone='body';closeUp=false;sync();say('A fresh canvas, just for you.');};
   document.querySelectorAll('[data-dir]').forEach(b=>b.onclick=()=>{row=Number(b.dataset.dir);auto=false;$('turnPreview').setAttribute('aria-pressed','false');});$('turnPreview').onclick=()=>{auto=!auto;turnStart=performance.now();$('turnPreview').setAttribute('aria-pressed',auto);};
   function previewPreset(id){clearTimeout(renderTimer);const ticket=++revision;W.render(W.presetDesign(id),false).then(c=>{if(ticket===revision)sprite=c;}).catch(e=>say(e.message));say(W.presetDesign(id).name+' · a ready-made occasion look.');}
   function buildOccasions(){const closet=$('occasionLooks');closet.replaceChildren();W.presets().forEach(p=>{const el=document.createElement('div');el.className='closet-look';const title=document.createElement('strong');title.textContent=p.name;const note=document.createElement('p');note.className='hint';note.textContent=p.description;const row=document.createElement('div');row.className='row';[['Preview',()=>previewPreset(p.id)],['Wear everywhere',()=>{try{W.wearPreset(p.id);previewPreset(p.id);buildCloset();say(p.name+' is saved and ready to wear across the game.');}catch(e){say(e.message);}}]].forEach(([label,fn])=>{const b=document.createElement('button');b.textContent=label;b.onclick=fn;row.appendChild(b);});el.append(title,note,row);closet.appendChild(el);});}
   function buildCloset(){const closet=$('closet');closet.replaceChildren();const saved=W.read();if(!saved.designs.length){const p=document.createElement('p');p.className='hint';p.textContent='Your first original will live here.';closet.appendChild(p);}saved.designs.forEach(d=>{const el=document.createElement('div');el.className='closet-look';const title=document.createElement('strong');title.textContent=d.name+(saved.equipped[d.who]===d.id?' · wearing':'');el.appendChild(title);const r=document.createElement('div');r.className='row';[[d.preset?'Preview':'Edit',()=>{if(d.preset)previewPreset(d.preset);else{draft=W.normalize(d);sync();}}],['Wear',()=>{try{W.equip(d.id);buildCloset();say(d.name+' is now on.');}catch(e){say(e.message);}}],['Remove',()=>{try{W.remove(d.id);buildCloset();}catch(e){say(e.message);}}]].forEach(([name,fn])=>{const b=document.createElement('button');b.textContent=name;b.onclick=fn;r.appendChild(b);});el.appendChild(r);closet.appendChild(el);});}
   $('exportLook').onclick=()=>{const blob=new Blob([JSON.stringify(W.normalize(draft),null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=(draft.name||'my-outfit').replace(/[^a-z0-9_-]+/gi,'-')+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
-  $('importLook').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{if(f.size>350000)throw new Error('Choose a design file smaller than 350 KB.');const d=JSON.parse(await f.text());if(!d||!['her','him'].includes(d.who)||!Array.isArray(d.strokes))throw new Error('This is not an outfit design file.');draft=W.normalize(d);sync();say('Imported. Save it to keep it in this closet.');}catch(error){say('Could not import: '+error.message);}e.target.value='';};
+  $('importLook').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{if(f.size>4000000)throw new Error('Choose a design file smaller than 4 MB.');const d=JSON.parse(await f.text());if(!d||!['her','him'].includes(d.who)||!Array.isArray(d.strokes))throw new Error('This is not an outfit design file.');draft=W.normalize(d);sync();say('Imported. Save it to keep it in this closet.');}catch(error){say('Could not import: '+error.message);}e.target.value='';};
   const directions=['FRONT','LEFT','BACK','RIGHT'];
   function loop(now){
     pc.clearRect(0,0,256,256);
@@ -33,5 +207,5 @@
     if(sprite)window.WalkingSprites.draw(pc,sprite,row,Math.floor(now/170)%4,128,242,228);
     requestAnimationFrame(loop);
   }
-  sync();buildOccasions();buildCloset();requestAnimationFrame(loop);
+  applyRecipe(0,false);buildOccasions();buildCloset();requestAnimationFrame(loop);
 })();
