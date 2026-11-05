@@ -39,6 +39,14 @@
       const image=sheet(who);if(!image)return null;
       let frames=bounds.get(image);if(!frames){frames={};bounds.set(image,frames);}
       const index=row*4+col%4;if(frames[index])return frames[index];
+      const frame=window.WalkingSprites.frame(image,row,col,true);
+      if(frame){
+        const [x,y,w,h]=frame.box,crop=document.createElement('canvas');
+        crop.width=w;crop.height=h;
+        crop.getContext('2d').drawImage(frame.image,x,y,w,h,0,0,w,h);
+        frames[index]=crop;
+        return crop;
+      }
       const w=(image.naturalWidth||image.width)/4,h=(image.naturalHeight||image.height)/4,c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,(col%4)*w,row*h,w,h,0,0,w,h);
       const data=ctx.getImageData(0,0,w,h).data;let x0=w,y0=h,x1=0,y1=0;
       for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(data[(y*w+x)*4+3]>35){x0=Math.min(x,x0);y0=Math.min(y,y0);x1=Math.max(x,x1);y1=Math.max(y,y1);}
@@ -47,7 +55,14 @@
     }
     // Coordinates use visible body height, rather than the transparent atlas cell.
     function actor(who,x,y,h = 150,pose = 'idle',phase = t,flip = false) {
-      const moving=pose==='walk',im=cell(who,moving?Math.floor(phase*7)%4:0,pose==='hug'||pose==='give'?3:0);if(!im)return;
+      const moving=pose==='walk',column=moving?Math.floor(phase*7)%4:0;
+      if(['idle','walk','look'].includes(pose)){
+        p.save();p.translate(x,y);if(flip)p.scale(-1,1);
+        const drawn=window.WalkingSprites.draw(p,sheet(who),'down',column,0,0,h);
+        p.restore();
+        if(drawn)return;
+      }
+      const im=cell(who,column,pose==='hug'||pose==='give'?3:0);if(!im)return;
       const w=im.width*h/im.height,sw=im.width,sh=im.height;
       p.save();p.translate(x,y);if(flip)p.scale(-1,1);p.imageSmoothingEnabled=false;
       const bob=moving?Math.sin(phase*14)*1.5:Math.sin(phase*1.8)*.55;

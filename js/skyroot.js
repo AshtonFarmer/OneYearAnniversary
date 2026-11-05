@@ -15,16 +15,8 @@
   var closeFaith=document.getElementById('closeFaith');
   var interactButton=document.getElementById('interactButton');
 
-  function selectedOutfit(who){
-    try{
-      var outfit=Number(localStorage.getItem(who+'Outfit')||1);
-      var maxOutfit=11;
-      return Number.isInteger(outfit)&&outfit>=1&&outfit<=maxOutfit?outfit:1;
-    }catch(error){return 1;}
-  }
-
   function selectedOutfitPath(who){
-    var outfit=selectedOutfit(who);
+    var outfit=window.WalkingSprites.selectOutfit(who);
     return outfit===1?'assets/sprites/'+who+'_atlas.png':'assets/sprites/'+who+'_outfit'+outfit+'.png';
   }
 
@@ -51,7 +43,6 @@
   var boxCurrent=null;
   var boxResult=null;
   var boxText='';
-  var spriteBoundsCache=new Map();
   var BLESSING_STORAGE_KEY='skyrootBlessingOfTwoPaths';
   var BLESSING_DOOR={x:764,y:361,r:98};
   var PRAYER_TARGETS={
@@ -143,7 +134,6 @@
     var replacement=new Image();
     replacement.src=expected;
     replacement.decode().then(function(){
-      cacheSpriteBounds(replacement);
       images[who]=replacement;
       players[who].img=replacement;
     }).catch(function(){});
@@ -384,72 +374,14 @@
   function screenX(x){return canvas.width>worldWidth?x+(canvas.width-worldWidth)/2:x-camera.x;}
   function screenY(y){return canvas.height>worldHeight?y+(canvas.height-worldHeight)/2:y-camera.y;}
 
-  function spriteBounds(image,sx,sy,sw,sh){
-    var key=(image.currentSrc||image.src||'sprite')+':'+sx+':'+sy+':'+sw+':'+sh;
-    if(spriteBoundsCache.has(key))return spriteBoundsCache.get(key);
-    try{
-      var sample=document.createElement('canvas');
-      sample.width=sw;sample.height=sh;
-      var sampleContext=sample.getContext('2d',{willReadFrequently:true});
-      sampleContext.clearRect(0,0,sw,sh);
-      sampleContext.drawImage(image,sx,sy,sw,sh,0,0,sw,sh);
-      var pixels=sampleContext.getImageData(0,0,sw,sh).data;
-      var minX=sw,minY=sh,maxX=-1,maxY=-1;
-      for(var y=0;y<sh;y++){
-        for(var x=0;x<sw;x++){
-          if(pixels[(y*sw+x)*4+3]>10){
-            if(x<minX)minX=x;if(x>maxX)maxX=x;
-            if(y<minY)minY=y;if(y>maxY)maxY=y;
-          }
-        }
-      }
-      if(maxX<0){var empty={x:0,y:0,w:sw,h:sh};spriteBoundsCache.set(key,empty);return empty;}
-      var padding=2;
-      var left=Math.max(0,minX-padding),top=Math.max(0,minY-padding);
-      var right=Math.min(sw,maxX+1+padding),bottom=Math.min(sh,maxY+1+padding);
-      var bounds={
-        x:left,
-        y:top,
-        w:right-left,
-        h:bottom-top
-      };
-      spriteBoundsCache.set(key,bounds);return bounds;
-    }catch(error){
-      var fallback={x:0,y:0,w:sw,h:sh};spriteBoundsCache.set(key,fallback);return fallback;
-    }
-  }
-
-  function cacheSpriteBounds(image){
-    var sw=Math.round(image.naturalWidth/4),sh=Math.round(image.naturalHeight/4);
-    for(var row=0;row<4;row++)for(var frame=0;frame<4;frame++)spriteBounds(image,frame*sw,row*sh,sw,sh);
-  }
-
   function drawSprite(player){
-    var sw=Math.round(player.img.naturalWidth/4),sh=Math.round(player.img.naturalHeight/4);
-    if(!sw||!sh)return;
-    var row=player.rows[player.dir];
-    var frame=clamp(player.frame||0,0,3);
-    var sx=frame*sw,sy=row*sh;
-    var bounds=spriteBounds(player.img,sx,sy,sw,sh);
-    var targetHeight=Math.round(128*player.scale);
-    var targetWidth=Math.max(1,Math.round(bounds.w*(targetHeight/bounds.h)));
-    var drawX=Math.round(screenX(player.x)-targetWidth/2);
-    var drawY=Math.round(screenY(player.y)-targetHeight+10);
-
-    var bow=ceremonyBow(player);
-    if(bow>0){
-      var pivotX=Math.round(screenX(player.x)),pivotY=Math.round(screenY(player.y)+10);
-      ctx.save();ctx.translate(pivotX,pivotY);ctx.rotate((player===players.him?.20:.16)*bow);
-      ctx.drawImage(player.img,sx+bounds.x,sy+bounds.y,bounds.w,bounds.h,-Math.round(targetWidth/2),-targetHeight,targetWidth,targetHeight);
-      ctx.restore();return;
-    }
-
-    if(player===players.him&&player.dir==='left'){
-      ctx.save();ctx.translate(drawX+targetWidth,drawY);ctx.scale(-1,1);
-      ctx.drawImage(player.img,sx+bounds.x,sy+bounds.y,bounds.w,bounds.h,0,0,targetWidth,targetHeight);
-      ctx.restore();return;
-    }
-    ctx.drawImage(player.img,sx+bounds.x,sy+bounds.y,bounds.w,bounds.h,drawX,drawY,targetWidth,targetHeight);
+    var x=Math.round(screenX(player.x)),y=Math.round(screenY(player.y)+10);
+    var h=Math.round(128*player.scale),bow=ceremonyBow(player);
+    ctx.save();
+    ctx.translate(x,y);
+    if(bow>0)ctx.rotate((player===players.him?.20:.16)*bow);
+    window.WalkingSprites.draw(ctx,player.img,player.dir,player.frame,0,0,h);
+    ctx.restore();
   }
 
   function traceDebugShape(shape){
@@ -774,7 +706,6 @@
   bindTouch();bindDebugTools();resize();
 
   Promise.all([images.grounds.decode(),images.treehouse.decode(),images.her.decode(),images.him.decode()]).then(function(){
-    cacheSpriteBounds(images.her);cacheSpriteBounds(images.him);
     restoreState();currentConfig=maps[currentMap];worldWidth=currentConfig.image.naturalWidth||1536;worldHeight=currentConfig.image.naturalHeight||1024;mapTitle.textContent=currentConfig.title;
     loading.classList.add('is-hidden');setTimeout(function(){loading.remove();},560);
     showToast(currentConfig.title,currentMap==='grounds'?'The forest path has brought you beneath the ancient tree.':'Welcome back to your connected canopy home.',210);loop();
