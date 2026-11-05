@@ -1,0 +1,45 @@
+#listenSkyfall[hidden] { display: none; }
+
+.skyfall-player {
+  position: fixed;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  z-index: 20;
+  width: min(calc(100vw - 24px), 480px);
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+  border: 1px solid #bd965b;
+  border-radius: 8px;
+  background: #201b16;
+  color: #f5e8d1;
+  box-shadow: 0 6px 30px #000a;
+  font: 14px/1.4 system-ui, sans-serif;
+}
+
+.skyfall-player header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 10px;
+}
+
+.skyfall-player button {
+  color: inherit;
+  background: #352a20;
+  border: 1px solid #bd965b;
+  border-radius: 5px;
+  padding: 5px 8px;
+  cursor: pointer;
+}
+
+.skyfall-player iframe {
+  display: block;
+  width: 100%;
+  min-height: 200px;
+  aspect-ratio: 16 / 9;
+  border: 0;
+}
+
+.skyfall-player p { margin: 0; padding: 8px 10px; }
+.skyfall-player a { color: #f6d899; }
