@@ -9,6 +9,7 @@
     if(!ready)return;
     index=Math.max(0,Y.memories.findIndex(m=>m.id===id));const m=Y.memories[index];if(active)active.dispose();advance=false;
     $('filmTitle').textContent=m.title;$('filmEyebrow').textContent=m.eyebrow;$('filmNumber').textContent=String(index+1).padStart(2,'0')+' / '+Y.memories.length;$('filmStory').textContent=m.text;const place=window.AdventurePlaces.memoryPlaces[m.id];$('enterPlace').href=place?'memory-adventure.html?place='+place:'shopping.html?memory=first-yes';$('filmPhotos').replaceChildren();
+    window.SkyfallPlayer?.setAvailable(m.id==='concert');
     m.photos.forEach(photo=>$('filmPhotos').appendChild(Y.photoElement(photo,m.title)));
     active=window.OurYearActivities.create(m,{canvas:$('filmScreen'),controls:$('filmControls'),images,backdrops,status:t=>$('filmStatus').textContent=t,tone,open:id=>open(id,true),photo:()=>{const d=document.querySelector('.theater-keepsakes');d.open=true;d.scrollIntoView({behavior:'smooth',block:'nearest'});},complete:(id,extra)=>{try{Y.complete(id,extra);}catch(e){$('filmStatus').textContent='The film finished, but this browser could not save it.';}advance=$('watchAll').checked;}});
     document.querySelectorAll('[data-film]').forEach(b=>{const on=b.dataset.film===m.id;b.setAttribute('aria-pressed',String(on));});

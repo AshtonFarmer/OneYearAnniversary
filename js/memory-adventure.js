@@ -32,6 +32,7 @@
  function placeAt(x,y){Object.values(players).forEach((a,i)=>{const q=G.nearest(place,x+(i?35:-35),y,swimming);if(q){a.x=q.x;a.y=q.y;}a.path=[];a.dir=0;a.frame=0;});}
  function travel(id,initial=false){
   if(!D.places[id]){savePosition();location.href='memory-world.html'+(id==='home'?'':'?area='+id);return;}
+  window.SkyfallPlayer?.setAvailable(id==='concert');
   if(!initial)savePosition();closePanel(false);endScene(false);carrying=false;swimming=false;place=D.places[id];applyOccasionOutfits();A.pin(id);placeAt(...place.spawn);keys={};near=null;$('interact').hidden=true;
   try{const saved=JSON.parse(sessionStorage.getItem('adventure-position-'+id)||'null');if(saved)Object.keys(players).forEach(who=>{if(saved[who]&&canStand(saved[who].x,saved[who].y)){players[who].x=saved[who].x;players[who].y=saved[who].y;}});}catch(e){}
   camera=place.id==='apartment'?{x:768,y:512}:{x:(players.him.x+players.her.x)/2,y:(players.him.y+players.her.y)/2};if(place.id==='apartment')scale=Math.min(width/1536,height/1024)*.97;
@@ -130,7 +131,7 @@
   document.body.classList.add('adventure-cinematic');
   const q=G.nearest(place,n.x,n.y,swimming)||{x:n.x,y:n.y};walkTo(q.x,q.y);const slots=place.art.slots&&place.art.slots[type];if(slots)Object.values(players).forEach((a,i)=>{a.path=G.pathfind(place,a,{x:slots[i][0],y:slots[i][1]+(type==='pool-rest'?65:35)},swimming);});$('sceneCaption').hidden=false;$('sceneTitle').textContent=n.name;$('sceneText').textContent='A little closer together…';sceneControls();if(type==='concert')S.task('concert-performed',null,0);near=null;$('interact').hidden=true;
  }
- function sceneControls(){const c=$('sceneControls');c.replaceChildren();if(!scene)return;if(scene.kind==='golf'){range(c,'Aim',-100,100,scene.aim,v=>scene.aim=v);range(c,'Power',20,100,scene.power,v=>scene.power=v);button('Take the shot · E',shoot,c);button('Finish round',()=>endScene(false),c);return;}button(scene.paused?'Continue ▶':'Pause Ⅱ',()=>{scene.paused=!scene.paused;sceneControls();},c);button('Return to exploring',()=>endScene(false),c);}
+ function sceneControls(){const c=$('sceneControls');c.replaceChildren();if(!scene)return;if(scene.kind==='golf'){range(c,'Aim',-100,100,scene.aim,v=>scene.aim=v);range(c,'Power',20,100,scene.power,v=>scene.power=v);button('Take the shot · E',shoot,c);button('Finish round',()=>endScene(false),c);return;}button(scene.paused?'Continue ▶':'Pause Ⅱ',()=>{scene.paused=!scene.paused;sceneControls();},c);if(scene.node.scene==='concert'&&window.SkyfallPlayer)button('Listen to Skyfall ♫',window.SkyfallPlayer.open,c);button('Return to exploring',()=>endScene(false),c);}
  function range(parent,name,min,max,value,change){const l=text('label',name),i=document.createElement('input');i.type='range';i.min=min;i.max=max;i.value=value;i.setAttribute('aria-label',name);i.oninput=()=>change(Number(i.value));l.appendChild(i);parent.appendChild(l);}
  function endScene(finished){
   if(!scene)return;const old=scene;scene=null;applyOccasionOutfits();document.body.classList.remove('adventure-cinematic');$('sceneCaption').hidden=true;keys={};Object.values(players).forEach(a=>{a.path=[];a.frame=0;});
