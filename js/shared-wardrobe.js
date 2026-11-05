@@ -19,7 +19,25 @@
     chevron:'Chevron',wave:'Scalloped waves',diya:'Puja lamp',eclipse:'Eclipse',fireworks:'Fireworks',
     lotuspond:'Lotus pond',railroad:'Railroad Park skyline',jeep:'Little Jeep'
   };
-  const drapes={classic:'Classic shoulder drape',bengali:'Bengali-inspired wrap',gujarati:'Gujarati-inspired front pallu'};
+  const drapes={
+    classic:'Classic',bengali:'Bengali-inspired',gujarati:'Gujarati-inspired',
+    coorg:'Coorg',thakkar:'Thakkar nine-yard',venuka:'Venukagundaram',
+    parsi:'Parsi',halaki:'Halaki Vokkaliga',gobbe:'Gobbe Seere',
+    mysore:'Mysore Shaili',maar:'Maar Kachha',mohini:'Mohiniattam'
+  };
+  // Each pallu tuple describes center, diagonal slope, half-width and length
+  // in the sprite frame. The back profile starts below the character's hair.
+  const wrapProfiles={
+    coorg:{front:[.33,.43,.16,.23],back:[.49,.14,.24,.18],pleats:2},
+    thakkar:{front:[.75,-1.08,.15,.26],back:[.35,.26,.20,.15],pleats:0,fold:'split'},
+    venuka:{front:[.49,0,.30,.22],back:[.52,-.20,.26,.13],pleats:2,fold:'tulip'},
+    parsi:{front:[.31,.49,.26,.47],back:[.31,.15,.12,.21],pleats:0},
+    halaki:{front:[.29,.65,.20,.27],back:[.53,.05,.27,.17],pleats:-1,fold:'smooth'},
+    gobbe:{front:[.30,.72,.17,.27],back:[.47,.30,.19,.22],pleats:0,fold:'cross'},
+    mysore:{front:[.45,.12,.25,.26],back:[.50,-.28,.25,.21],pleats:0,fold:'pouch'},
+    maar:{front:[.48,.10,.33,.19],back:[.47,.08,.31,.13],pleats:0,fold:'vee'},
+    mohini:{front:[.72,-.88,.18,.25],back:[.39,.27,.15,.16],pleats:0,fold:'fan'}
+  };
   const dressStyles={
     shape:{aline:'A-line',wrap:'Wrap',sheath:'Sheath',tea:'Tea-length',ball:'Ball gown',mermaid:'Mermaid'},
     neck:{round:'Round',square:'Square',vee:'V-neck',sweetheart:'Sweetheart',high:'High neck'},
@@ -299,9 +317,34 @@
     paintMarks(p,marks,color);
     return c;
   }
+  function wrapPoint(profile,row,x,y,border){
+    if(y>.945||border&&y>.925)return ['border',x,(y-.925)/.075];
+    const front=row===0,back=row===2;
+    const [offset,slope,width,length]=(back?profile.back:profile.front);
+    const start=back?.70:.46,depth=front||back?length:Math.min(length,.29);
+    const center=front||back?offset+(y-start)*slope:row===1?.49+(y-start)*slope*.65:.51-(y-start)*slope*.65;
+    const edge=Math.abs(x-center);
+    if(y>=start&&y<start+depth&&edge<width){
+      const u=(x-center+width)/(width*2),v=(y-start)/depth;
+      return [edge>width-.028||v>.92?'border':'pallu',u,v];
+    }
+    if(front){
+      const fold=profile.fold;
+      const waist=.69;
+      if(fold==='cross'&&Math.abs(y-(waist+Math.abs(x-.49)*.19))<.023)return ['border',x,(y-waist)*6];
+      if(fold==='pouch'&&y>.65&&y<.77&&x>.40&&x<.62)return ['pleats',(x-.40)/.22,(y-.65)/.12];
+      if(fold==='vee'&&Math.abs(y-(.79-Math.abs(x-.50)*.29))<.027)return ['border',x,(y-.66)*5];
+      if(fold==='fan'&&y>.71&&y<.91&&Math.abs(x-.49)<.09+(y-.71)*1.1)return ['pleats',x,(y-.71)/.20];
+      if(fold==='tulip'&&y>.79&&Math.abs(x-.49)<(y-.79)*.74)return ['border',x,(y-.79)/.21];
+    }
+    if(row===profile.pleats&&y>.72&&Math.abs(x-.49)<.10+(y-.72)*.23)return ['pleats',(x-.32)/.34,(y-.72)/.28];
+    return ['body',x,(y-.43)/.57];
+  }
   // Keep the original animation and color only garment pixels. The wraps
   // change which portions of the fabric cross the chest, hip, and back.
   function sareePoint(row,x,y,border,drape){
+    const profile=wrapProfiles[drape];
+    if(profile)return wrapPoint(profile,row,x,y,border);
     if(drape==='bengali'||drape==='gujarati'){
       const bengali=drape==='bengali';
       const width=bengali?.17:.29;
@@ -362,7 +405,13 @@
           if(!cloth&&!border)continue;
           if(enhanced){
             const [part,sx,sy]=sareePoint(row,fx,fy,border,d.drape);
-            const shade=.46+lum/285;
+            const split=d.drape==='thakkar'&&(row===0||row===2)&&fy>.82;
+            const legCenter=.49+(col%2?-.012:.012);
+            const gap=Math.abs(fx-legCenter);
+            // A small opening at the cloth hem leaves the source feet and
+            // original frame registration intact.
+            if(split&&fy>.90&&gap<(fy-.90)*.27){a[i+3]=0;continue;}
+            const shade=(.46+lum/285)*(split&&gap<.055?.57:1);
             if(blouse&&row!==2&&fy<.59&&fx>.24&&fx<.80&&part==='body'){
               const thread=fy<.48?blouse.trim:blouse.color;
               for(let k=0;k<3;k++)a[i+k]=Math.min(255,thread[k]*shade);

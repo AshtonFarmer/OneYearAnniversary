@@ -107,7 +107,7 @@
   const zoneFields={zoneColor:'color',zoneInk:'ink',zoneFinish:'finish',zoneAccent:'accent',zoneSecondInk:'secondInk',zoneLayout:'layout',zoneSpacing:'spacing'};
   const zoneButtons=document.querySelectorAll('[data-zone]');
   const garmentButtons=document.querySelectorAll('[data-garment]');
-  let selectedZone='body',closeUp=false,paintPointer=null,activeMark=null,stampTool='',walking=true,blouseView=false,blouseBack=false,selectedStamp=null;
+  let selectedZone='body',closeUp=false,paintPointer=null,activeMark=null,stampTool='',walking=true,blouseView=false,blouseBack=false,selectedStamp=null,drapeBack=false;
   const swatch={x:49,y:49,w:262,h:328};
   const outline=path=>new Path2D(path);
   const sketch={
@@ -134,25 +134,119 @@
   };
   const drapeAreas={classic:sketchAreas,bengali:{...sketchAreas,pallu:[92,44,141,168],border:[87,160,187,272]},
     gujarati:{...sketchAreas,pallu:[103,41,137,234],border:[87,231,187,201]}};
-  const drapeLabels={classic:'Classic',bengali:'Bengali-inspired',gujarati:'Gujarati-inspired'};
+  const refRoot='https://artsandculture.google.com/asset/';
+  const drapeReferences={
+    coorg:['no-46-coorg-drape-karnataka-india/NAHSKWugYP2tJg','Back pleats and a pallu secured near the right shoulder.'],
+    thakkar:['no-56-thakkar-drape-maharashtra-india/ZQGU0ME01J3_jA','A nine-yard wrap with a split lower shape and a shoulder pallu.'],
+    venuka:['no-1-venukagundaram-drape-andhra-pradesh-india/LAFaFhIeUPdZlg','An overlapping tulip front with the pleats at the back.'],
+    parsi:['no-32-parsi-drape-gujarat-india/7AFK47swba5rzg','A broad pallu worn lower across the front.'],
+    halaki:['no-39-halaki-vokkaliga-drape-karnataka-india/8AGk-n86XHv9gQ','A smooth outer layer with pleats concealed underneath.'],
+    gobbe:['no-40-gobbe-seere-drape-karnataka-india/LQEAEXdyNe5Lew','A waist crossover holds the front pleats.'],
+    mysore:['no-41-mysore-shaili-drape-karnataka-india/FQGrfoTii3x_EA','Pleats roll into a pouch at the waist.'],
+    maar:['no-52-maar-kachha-drape-kerala-india/IQEBLDyfdtJzRw','A two-piece-inspired wrap with a V-shaped fold and gathered top.'],
+    mohini:['no-54-mohiniattam-drape-kerala-india/FgFFwufT_b5C6A','A dance-inspired wrap with a fan of pleats and a knee-level border.']
+  };
+  const fullHem='M89 396 Q182 425 271 398 L273 415 Q183 445 87 413 Z';
+  const backPallu='M116 51 Q126 43 148 52 Q176 135 220 216 L204 236 Q160 211 113 167 Z';
+  const backPleats='M163 166 Q181 173 201 166 L238 410 Q183 428 125 410 Z';
+  const splitBody='M128 151 Q177 184 228 154 Q244 268 254 389 Q226 407 201 395 L180 272 L159 395 Q129 408 102 389 Q113 260 128 151 Z';
+  const splitHem='M103 380 Q130 395 161 382 L159 396 Q128 409 101 390 Z M198 382 Q225 396 253 381 L255 392 Q228 409 200 396 Z';
+  const frontShapes={
+    coorg:{
+      pallu:['M108 55 Q125 43 151 58 L155 97 Q188 105 235 140 L220 167 Q162 139 119 143 Z M129 89 L146 115 L151 78 Z',[108,44,128,124]],
+      pleats:null,
+      border:[fullHem+' M117 134 Q165 125 222 157 L219 169 Q164 145 119 145 Z',[87,120,188,310]]
+    },
+    thakkar:{
+      body:[splitBody,[100,150,156,260]],
+      pallu:['M218 46 L246 59 Q218 120 161 181 L133 172 Q179 102 218 46 Z',[133,45,114,140]],
+      pleats:['M138 162 Q184 185 225 158 Q214 221 179 279 Q160 211 125 195 Z',[125,155,100,125]],
+      border:[splitHem,[100,379,156,34]]
+    },
+    venuka:{
+      body:['M126 148 Q180 175 229 149 Q238 265 264 390 Q215 416 177 397 Q146 420 101 394 Q126 257 126 148 Z',[99,148,167,275]],
+      pleats:null,
+      pallu:['M109 56 Q128 45 151 59 Q178 95 214 55 Q234 41 249 57 L244 110 Q215 168 180 172 Q135 151 112 106 Z',[109,44,141,129]],
+      border:['M101 385 Q142 408 179 386 Q218 409 265 380 L267 395 Q217 425 179 400 Q140 425 98 398 Z M128 192 Q200 269 215 370 Q192 395 176 395 Q186 329 122 216 Z',[97,186,172,245]]
+    },
+    parsi:{
+      pallu:['M114 47 Q134 39 152 57 Q163 156 248 287 Q222 335 105 354 Q129 244 107 161 Z',[105,40,145,316]],
+      border:[fullHem+' M105 341 Q202 326 244 275 L251 287 Q213 344 103 356 Z',[87,272,189,161]]
+    },
+    halaki:{
+      pleats:null,
+      pallu:['M106 53 Q124 43 143 55 Q145 101 171 113 Q217 111 235 150 Q203 185 140 193 Q121 140 106 53 Z',[106,42,130,154]],
+      border:[fullHem+' M141 177 Q187 172 231 147 L237 152 Q208 187 140 194 Z',[87,145,189,286]]
+    },
+    gobbe:{
+      pallu:['M111 52 Q124 42 148 57 Q161 100 217 125 L228 154 Q179 163 127 141 Z',[110,42,120,124]],
+      border:[fullHem+' M124 162 Q151 174 229 205 L227 216 Q161 194 121 176 Z M228 162 Q191 179 128 209 L125 197 Q192 170 230 153 Z',[87,152,189,279]]
+    },
+    mysore:{
+      pallu:['M108 54 Q128 43 150 54 Q184 89 214 53 Q233 45 250 60 Q239 132 218 169 Q152 152 112 113 Z',[108,43,142,128]],
+      pleats:['M144 163 Q184 149 220 168 Q227 196 195 218 Q157 219 138 198 Z M169 207 Q184 217 196 208 L217 410 Q185 426 149 409 Z',[137,154,90,273]],
+      border:[fullHem+' M142 179 Q184 197 220 173 L220 184 Q184 210 141 191 Z',[87,172,188,260]]
+    },
+    maar:{
+      pallu:['M111 81 Q145 70 181 88 L243 80 L243 120 Q208 139 181 148 Q140 142 110 125 Z',[109,70,136,79]],
+      border:[fullHem+' M123 152 L179 223 L232 151 L235 167 L180 239 L119 166 Z',[87,150,189,280]]
+    },
+    mohini:{
+      pallu:['M219 49 Q234 41 250 57 Q210 123 157 173 L135 167 Q174 101 219 49 Z',[134,41,117,134]],
+      pleats:['M157 177 Q180 188 197 177 L260 307 Q181 333 100 307 Z',[100,176,161,153]],
+      border:[fullHem+' M101 299 Q181 321 259 298 L265 312 Q181 337 96 312 Z',[87,298,189,132]]
+    }
+  };
+  const backShapes={
+    coorg:{pallu:['M218 47 L248 62 Q225 153 144 176 L116 159 Q187 109 218 47 Z',[115,46,135,131]]},
+    thakkar:{body:[splitBody,[100,150,156,260]],border:[splitHem,[100,379,156,34]],pleats:['M159 157 Q179 166 199 158 L192 248 L179 274 L165 248 Z',[158,156,42,119]]},
+    venuka:{pallu:['M110 54 Q128 43 151 57 Q176 101 213 55 L246 55 Q233 144 179 171 Q129 144 110 54 Z',[108,43,139,130]]},
+    parsi:{pallu:['M220 47 L248 57 L230 188 L198 179 Z',[197,46,52,143]],pleats:null},
+    halaki:{pleats:null},
+    gobbe:{pleats:null,border:[fullHem+' M128 157 Q176 184 232 164 L234 175 Q183 197 125 170 Z',[87,155,189,279]]},
+    mysore:{pleats:null,pallu:['M111 51 Q126 43 147 56 Q183 99 218 55 L247 61 Q226 149 178 168 Q137 143 111 51 Z',[110,42,138,129]]},
+    maar:{pleats:null,pallu:['M113 84 Q181 99 246 82 L241 128 Q177 143 118 126 Z',[112,80,135,64]]},
+    mohini:{pleats:null,border:[fullHem+' M105 298 Q177 321 255 295 L259 307 Q178 336 101 313 Z',[87,295,189,136]]}
+  };
+  const backDefault={
+    pallu:[backPallu,[111,44,111,193]],pleats:[backPleats,[125,165,114,265]],border:[fullHem,[87,395,188,37]]
+  };
+  function makeDrape(key,back){
+    const paths={...(drapeSketches[key]||sketch)},areas={...(drapeAreas[key]||sketchAreas)};
+    const layers=back?{...backDefault,...backShapes[key]}:frontShapes[key];
+    for(const [part,shape] of Object.entries(layers||{})){
+      if(shape){paths[part]=outline(shape[0]);areas[part]=shape[1];}
+      else delete paths[part];
+    }
+    return {paths,areas};
+  }
+  const drapeViews=Object.fromEntries(Object.keys(W.sareeOptions.drapes).map(key=>[
+    key,{front:makeDrape(key,false),back:makeDrape(key,true)}
+  ]));
+  function drapeView(){return drapeViews[draft.drape][drapeBack?'back':'front'];}
+  function chooseDrape(key){
+    draft.drape=key;drapeBack=false;
+    closeUp=false;blouseView=false;fabric.style.cursor='pointer';
+    if($('drapeGallery').open)$('drapeGallery').close();
+    updateZone();queueRender();
+  }
   function buildDrapeChoices(){
-    for(const [key,label] of Object.entries(drapeLabels)){
-      const button=document.createElement('button'),icon=document.createElement('canvas'),name=document.createElement('span');
-      button.type='button';button.dataset.drape=key;button.setAttribute('aria-pressed','false');
-      icon.width=44;icon.height=49;icon.setAttribute('aria-hidden','true');
-      const ctx=icon.getContext('2d'),paths=drapeSketches[key];
-      ctx.translate(2,0);ctx.scale(.111,.111);
-      for(const [part,path] of Object.entries(paths)){
-        ctx.fillStyle=part==='pallu'?'#b14b63':part==='border'?'#dbab63':part==='pleats'?'#50756a':'#31554e';
-        ctx.fill(path);
+    const options=W.sareeOptions.drapes;
+    $('allDrapes').textContent='Browse all '+Object.keys(options).length+' drapes';
+    for(const [container,keys] of [['drapeChoices',['classic','bengali','gujarati']],['allDrapeChoices',Object.keys(options)]]){
+      for(const key of keys){
+        const button=document.createElement('button'),icon=document.createElement('canvas'),name=document.createElement('span');
+        button.type='button';button.dataset.drape=key;button.setAttribute('aria-pressed','false');
+        icon.width=44;icon.height=49;icon.setAttribute('aria-hidden','true');
+        const ctx=icon.getContext('2d');ctx.translate(2,0);ctx.scale(.111,.111);
+        for(const [part,path] of Object.entries(drapeViews[key].front.paths)){
+          ctx.fillStyle=part==='pallu'?'#b14b63':part==='border'?'#dbab63':part==='pleats'?'#50756a':'#31554e';
+          ctx.fill(path);
+        }
+        name.textContent=options[key];button.append(icon,name);
+        button.onclick=()=>chooseDrape(key);
+        $(container).append(button);
       }
-      name.textContent=label;button.append(icon,name);
-      button.onclick=()=>{
-        draft.drape=key;
-        closeUp=false;blouseView=false;fabric.style.cursor='pointer';
-        updateZone();queueRender();
-      };
-      $('drapeChoices').append(button);
     }
   }
   const blouseFields={blouseColor:'color',blouseTrim:'trim',blouseNeck:'neck',blouseSleeve:'sleeve',blouseBack:'back'};
@@ -281,10 +375,15 @@
   }
   function updateZone(){
     updateBlouseTools();updatePalluTools();updateFabricTools();
-    for(const button of $('drapeChoices').children){
+    for(const button of document.querySelectorAll('[data-drape]')){
       button.setAttribute('aria-pressed',button.dataset.drape===draft.drape);
     }
-    $('drapeNote').textContent=drapeNotes[draft.drape];
+    const reference=drapeReferences[draft.drape];
+    $('drapeNote').textContent=W.sareeOptions.drapes[draft.drape]+' · '+(reference?.[1]||drapeNotes[draft.drape]);
+    $('drapeReference').hidden=!reference;
+    if(reference)$('drapeReference').href=refRoot+reference[0];
+    $('drapeBack').textContent=drapeBack?'View front':'View back';
+    $('drapeBack').setAttribute('aria-pressed',drapeBack);
     $('swatchView').setAttribute('aria-pressed',closeUp);
     $('swatchView').textContent=selectedZone==='pallu'?'Pallu layout':'Paint close-up';
     zoneButtons.forEach(b=>b.setAttribute('aria-pressed',b.dataset.zone===selectedZone));
@@ -315,23 +414,25 @@
       fc.fillText(zoneNames[selectedZone]+' · fabric close-up',180,402);
       return;
     }
-    const paths=drapeSketches[draft.drape],areas=drapeAreas[draft.drape];
+    const {paths,areas}=drapeView();
     for(const [key,part] of Object.entries(paths)){
       fc.save();fc.clip(part);
       if(key==='blouse'){
-        fc.restore();drawBlouse();continue;
+        fc.restore();drawBlouse(drapeBack);continue;
       }else fc.drawImage(W.sareeTexture(draft.saree[key]),...areas[key]);
       fc.restore();
       fc.strokeStyle=key===selectedZone?'#fbecbf':'#342d3b99';
       fc.lineWidth=key===selectedZone?2.7:1.1;fc.stroke(part);
     }
-    fc.save();fc.clip(paths.pleats);
-    fc.strokeStyle='#1a152452';fc.lineWidth=2;
-    for(const hem of [151,168,183,198,213]){
-      fc.beginPath();fc.moveTo(180+(hem-180)*.37,179);fc.lineTo(hem,414);fc.stroke();
+    if(paths.pleats){
+      fc.save();fc.clip(paths.pleats);
+      fc.strokeStyle='#1a152452';fc.lineWidth=2;
+      for(const hem of [151,168,183,198,213]){
+        fc.beginPath();fc.moveTo(180+(hem-180)*.37,179);fc.lineTo(hem,414);fc.stroke();
+      }
+      fc.restore();
     }
-    fc.restore();
-    if(draft.drape!=='classic')return;
+    if(draft.drape!=='classic'||drapeBack)return;
     fc.strokeStyle='#e8d4aeaa';fc.lineWidth=1;
     fc.beginPath();fc.moveTo(225,58);fc.quadraticCurveTo(190,120,155,171);fc.stroke();
     fc.beginPath();fc.moveTo(240,63);fc.quadraticCurveTo(237,155,258,277);fc.stroke();
@@ -382,7 +483,8 @@
     if(blouseView||paintPointer!==null||e.button!==0)return;
     const [x,y]=point(e);
     if(draft.saree&&!closeUp){
-      const part=['border','pallu','pleats','body'].find(key=>fc.isPointInPath(drapeSketches[draft.drape][key],x,y));
+      const {paths}=drapeView();
+      const part=['border','pallu','pleats','body'].find(key=>paths[key]&&fc.isPointInPath(paths[key],x,y));
       if(part)setZone(part);
       return;
     }
@@ -506,6 +608,11 @@
     $('walkPreview').textContent=walking?'Walking':'Standing';
   };
   fillOptions('zoneFinish',W.sareeOptions.finishes);fillOptions('zoneAccent',W.sareeOptions.accents);
+  $('allDrapes').onclick=()=>$('drapeGallery').showModal();
+  $('drapeBack').onclick=()=>{
+    drapeBack=!drapeBack;closeUp=false;blouseView=false;fabric.style.cursor='pointer';
+    updateZone();drawFabric();
+  };
   fillOptions('zoneLayout',W.sareeOptions.layouts);buildDrapeChoices();
   fillOptions('sareeRecipe',recipes.map(([name])=>name+' inspired'));
   function showRecipe(){$('sareeRecipeNote').textContent=recipes[Number($('sareeRecipe').value)][1];}
