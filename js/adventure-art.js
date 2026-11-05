@@ -47,7 +47,16 @@
    }
    if(place.id==='jeep')place.nodes.filter(n=>n.action==='duck').forEach(n=>{if(!state.flags['duck-'+n.number])item(p,5,n.x,n.y,24,25);});
    if(place.id==='puja')for(let i=0;i<4;i++){const [x,y]=art.diyas[i];if(state.flags['puja-lamp-'+i]){glow(x,y-10,55,'#f6bd6330');E(x,y-11+Math.sin(t*4+i),2,6,'#ffe0a0');}}
-   if(place.id==='concert')for(const a of art.stage||[{row:0,x:785,y:330,h:104},{row:1,x:565,y:330,h:88},{row:2,x:1005,y:330,h:88}])cast(p,'performance',a.row,a.x,a.y,a.h,clock+a.row*.3);
+   if(place.id==='concert'){
+    const stage=art.stage||[{row:0,x:785,y:330,h:104},{row:1,x:565,y:330,h:88},{row:2,x:1005,y:330,h:88}];
+    if(scene?.node.scene==='concert'&&scene.phase==='playing'&&scene.current?.pose==='dance'){
+     const singer=stage[0],spread=82+18*Math.sin(clock*1.2);
+     P([[singer.x-16,120],[singer.x+16,120],[singer.x+spread,singer.y+12],[singer.x-spread,singer.y+12]],'#a8cfff36');
+     glow(singer.x,singer.y-54,106,'#91bafa48');
+     T('SKYFALL',singer.x,164,22,'#d8eaff');
+    }
+    for(const a of stage)cast(p,'performance',a.row,a.x,a.y,a.h,clock+a.row*.3);
+   }
    if(place.id==='community'){
     const mode=scene&&scene.node.scene||'culture',stage=art.stage||[[425,310],[1120,310],[760,400]];if(mode==='culture')for(let i=0;i<2;i++)cast(p,'performance',3,stage[0][0]-50+i*100,stage[0][1],84,clock+i);if(mode==='drama'){cast(p,'sports',3,stage[1][0]-50,stage[1][1],80,clock);cast(p,'performance',3,stage[1][0]+50,stage[1][1],80,clock+2);}if(mode==='music'){cast(p,'performance',2,stage[2][0],stage[2][1],80,clock);cast(p,'performance',0,stage[2][0]+100,stage[2][1],80,clock+.5);}
    }
