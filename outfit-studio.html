@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Tanima’s Atelier · Our Year</title><link rel="stylesheet" href="css/outfit-studio.css?v=20261105-10"></head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Tanima’s Atelier · Our Year</title><link rel="stylesheet" href="css/outfit-studio.css?v=20261105-11"></head>
 <body>
 <header class="studio-header"><a href="shopping.html">← Love Mall</a><div><span class="eyebrow">A LITTLE PLACE TO MAKE SOMETHING YOURS</span><h1>Tanima’s Atelier <span>✧</span></h1></div><a href="memory-world.html">Our Little World ↗</a></header>
 <nav class="atelier-jump" aria-label="Atelier work areas">
@@ -48,7 +48,12 @@
 </section><section id="drapeTools" aria-labelledby="drapeHeading" hidden>
   <h2 id="drapeHeading">Try a drape</h2>
   <div id="drapeChoices" class="drape-choices" role="group" aria-label="Saree drapes"></div>
+  <div class="drape-actions">
+    <button id="allDrapes" type="button" aria-haspopup="dialog">Browse all drapes</button>
+    <button id="drapeBack" type="button" aria-pressed="false">View back</button>
+  </div>
   <p id="drapeNote" aria-live="polite"></p>
+  <a id="drapeReference" target="_blank" rel="noopener noreferrer" hidden>See the draping reference ↗</a>
 </section><div id="sareeModes" class="artboard-modes" aria-label="Saree design areas">
   <button data-zone="body" aria-pressed="true">Body</button><button data-zone="pleats" aria-pressed="false">Pleats</button>
   <button data-zone="pallu" aria-pressed="false">Pallu</button><button data-zone="border" aria-pressed="false">Border</button>
@@ -77,6 +82,14 @@
 </div><canvas id="fabric" width="360" height="440" aria-label="Paintable garment fabric" tabindex="0"></canvas><p id="artboardCaption">Colors, little flowers, a scribble. It’s yours.</p><div class="artboard-footer"><span>Handmade with love</span><span>✂</span></div></section>
 <section id="fittingRoom" class="fitting" aria-label="Fitting and saved designs"><span class="eyebrow">03 / THE FITTING</span><h2>Take it for a spin.</h2><div class="mirror"><canvas id="fittingPreview" width="256" height="256" aria-label="Your outfit on the original character"></canvas><span id="previewDirection">FRONT · WALKING PREVIEW</span></div><div class="row direction-buttons"><button data-dir="0" aria-label="Front view">↓</button><button data-dir="1" aria-label="Left view">←</button><button data-dir="2" aria-label="Back view">↑</button><button data-dir="3" aria-label="Right view">→</button><button id="turnPreview" aria-pressed="true">↻ Auto</button></div><button id="walkPreview" type="button" aria-pressed="true">Walking</button><label class="necklace-option"><input type="checkbox" id="necklace"> Wear the Flash necklace ⚡</label><label>Name this look<input id="lookName" maxlength="50" placeholder="Something she made…" value="My first saree"></label><button id="wearLook" class="primary">Save & wear everywhere ↗</button><button id="saveLook">Save to my closet</button><p class="hint">Saved in this browser. Your outfit follows you across the game.</p><div id="studioStatus" role="status" aria-live="polite"></div><div class="closet-title"><h3>Our occasion looks</h3></div><div id="occasionLooks"></div><div class="closet-title"><h3>My little closet</h3><button id="newLook">+ New</button></div><div id="closet"></div><div class="row"><button id="exportLook">Export design</button><label class="import-button">Import design<input type="file" id="importLook" accept="application/json,.json"></label></div></section>
 </main>
+<dialog id="drapeGallery" aria-labelledby="drapeGalleryHeading">
+  <header class="motif-header">
+    <div><span class="eyebrow">THE DRAPING ROOM</span><h2 id="drapeGalleryHeading">Ways to wear your saree</h2></div>
+    <form method="dialog"><button type="submit">Close</button></form>
+  </header>
+  <p class="hint">Choose a wrap to try it with the colors and details you already designed.</p>
+  <div id="allDrapeChoices" class="drape-choices" role="group" aria-label="All saree drapes"></div>
+</dialog>
 <dialog id="motifGallery" aria-labelledby="motifHeading">
   <header class="motif-header">
     <div><span class="eyebrow">THE PATTERN LIBRARY</span><h2 id="motifHeading">Choose a motif</h2></div>
@@ -85,4 +98,4 @@
   <label class="motif-search">Find a motif<input id="motifSearch" type="search" placeholder="Try lotus or stars"></label>
   <p id="motifEmpty" hidden>No matching motifs. Try a different search.</p>
   <div id="motifChoices"></div>
-</dialog><script src="js/shared-wardrobe.js?v=20261105-10"></script><script src="js/walking-sprites.js?v=20261105-4"></script><script src="js/outfit-studio.js?v=20261105-10"></script></body></html>
+</dialog><script src="js/shared-wardrobe.js?v=20261105-11"></script><script src="js/walking-sprites.js?v=20261105-4"></script><script src="js/outfit-studio.js?v=20261105-11"></script></body></html>

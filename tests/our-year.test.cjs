@@ -456,3 +456,32 @@ test('dress cuts and fabric details survive a wardrobe round trip and render on 
  assert.notDeepEqual(oldSheet,newSheet);
  for(let i=3;i<oldSheet.length;i+=4)assert.equal(oldSheet[i],newSheet[i]);
 });
+
+test('all saree drapes save and render distinctly without shifting the walking anchor',async()=>{
+ const s=load(context(),'js/shared-wardrobe.js'),w=s.SharedWardrobe;
+ const drapes=Object.keys(w.sareeOptions.drapes);
+ const hashes=new Set();
+ const spec={who:'her',kind:'saree',saree:{
+  body:{color:'#254d83',motif:'jasmine',ink:'#f5daa4'},
+  pleats:{color:'#856fab'},pallu:{color:'#b72f53',motif:'lotus'},border:{color:'#f0c375'}
+ }};
+ let anchors;
+ for(const drape of drapes){
+  const design=w.normalize(JSON.parse(JSON.stringify(w.save({...spec,id:drape,drape}))));
+  assert.equal(design.drape,drape);
+  const canvas=await w.render(design,false);
+  const pixels=canvas.getContext('2d').getImageData(0,0,1024,1024).data;
+  hashes.add(require('node:crypto').createHash('sha256').update(pixels).digest('hex'));
+  const feet=[];
+  for(let row=0;row<4;row++)for(let column=0;column<4;column++){
+   let foot=0;
+   for(let y=0;y<256;y++)for(let x=0;x<256;x++){
+    if(pixels[((row*256+y)*1024+column*256+x)*4+3]>30)foot=y;
+   }
+   feet.push(foot);
+  }
+  if(!anchors)anchors=feet;
+  assert.deepEqual(feet,anchors,drape+' retains the original foot baseline');
+ }
+ assert.equal(hashes.size,12);
+});

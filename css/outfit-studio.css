@@ -68,3 +68,14 @@
 #garmentShortcuts button{min-width:70px}
 .motif-search{margin:0 0 13px}
 .motif-search input{max-width:350px}
+
+.drape-actions{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin-top:8px}
+.drape-actions button{font-size:12px;padding:6px 10px;background:#f4ebd8;color:#3c493d;border-color:#b3a589}
+.drape-actions button[aria-pressed=true]{background:#394f44;color:#fff4db;border-color:#394f44}
+#drapeReference{display:inline-block;margin:4px 0 0;font-size:11px;color:#47624f;text-decoration:underline}
+#drapeGallery{width:min(660px,calc(100% - 28px));max-height:85vh;padding:20px 24px;border:1px solid #9c8865;border-radius:12px;background:#222c2d;color:#f4ebd8;box-shadow:0 20px 90px #0009}
+#drapeGallery::backdrop{background:#101816bc}
+#allDrapeChoices{grid-template-columns:repeat(auto-fit,minmax(112px,1fr))}
+#allDrapeChoices canvas{width:44px;height:49px}
+#allDrapeChoices button{min-height:76px}
+@media(max-width:475px){#drapeGallery{padding:15px}#allDrapeChoices{grid-template-columns:repeat(2,minmax(0,1fr))}}
