@@ -4,7 +4,8 @@
  const canvas=$('adventureCanvas'),ctx=canvas.getContext('2d'),images={},wardrobeImages={},occasionImages={},query=new URLSearchParams(location.search);
  let place=D.places[query.get('place')]||D.places.park,ready=false,width=1,height=1,dpr=1,scale=1.4,elapsed=0,last=0,near=null,scene=null,craft=null,overview=false,swimming=false,toastTime=0,returnFocus=null,poses=null,sound=false,audio=null;
  let keys={},camera={x:768,y:650},state=S.read();
- let carrying=false,carrySprite=null;
+ let carrying=false,carrySprite=null,carryEntry=null,carryExit=null;
+ const feedback=[];
  const players={him:{who:'him',x:730,y:880,dir:0,frame:0,path:[]},her:{who:'her',x:805,y:880,dir:0,frame:0,path:[]}};
  const debug=window.MapDebug.create(canvas,()=>({ready,...camera,width,height,scale,dpr,mapWidth:1536,mapHeight:1024,id:place.id}));
  const clamp=(n,a=0,b=1)=>Math.max(a,Math.min(b,n)),ease=u=>{u=clamp(u);return u*u*(3-2*u);};
@@ -34,7 +35,7 @@
  function travel(id,initial=false){
   if(!D.places[id]){savePosition();location.href='memory-world.html'+(id==='home'?'':'?area='+id);return;}
   window.SkyfallPlayer?.setAvailable(id==='concert');
-  if(!initial)savePosition();closePanel(false);endScene(false);carrying=false;swimming=false;debug.clear();place=D.places[id];applyOccasionOutfits();A.pin(id);placeAt(...place.spawn);keys={};near=null;$('interact').hidden=true;
+  if(!initial)savePosition();closePanel(false);endScene(false);carrying=false;swimming=false;carryEntry=null;carryExit=null;feedback.length=0;debug.clear();place=D.places[id];applyOccasionOutfits();A.pin(id);placeAt(...place.spawn);keys={};near=null;$('interact').hidden=true;
   try{const saved=JSON.parse(sessionStorage.getItem('adventure-position-'+id)||'null');if(saved)Object.keys(players).forEach(who=>{if(saved[who]&&canStand(saved[who].x,saved[who].y)){players[who].x=saved[who].x;players[who].y=saved[who].y;}});}catch(e){}
   camera=place.id==='apartment'?{x:768,y:512}:{x:(players.him.x+players.her.x)/2,y:(players.him.y+players.her.y)/2};if(place.id==='apartment')scale=Math.min(width/1536,height/1024)*.97;
   $('placeTitle').textContent=place.title;$('placeChapter').textContent=place.chapter;$('placeSubtitle').textContent=place.subtitle;document.title=place.title+' · Our Adventure';
@@ -102,7 +103,8 @@
   return swimming&&Object.values(players).every(a=>G.contains(place.water,a.x,a.y)&&Math.hypot(a.x-n.x,a.y-n.y)<n.r);
  }
  function releaseCarry(){
-  carrying=false;keys={};
+  carrying=false;carryEntry=null;keys={};
+  carryExit={x:players.him.x,y:players.him.y,dir:players.him.dir,time:elapsed};
   const [left,,width]=place.water, {him,her}=players;
   const x=him.x+34<left+width-10?him.x+34:him.x-34;
   Object.assign(her,G.nearest(place,x,him.y,true));
@@ -116,6 +118,9 @@
   if(n.action==='carry'){
    if(!carrySprite||!atCarrySpot(n))return;
    keys={};Object.values(players).forEach(a=>{a.path=[];});
+   carryExit=null;
+   carryEntry={x:(players.him.x+players.her.x)/2,y:(players.him.y+players.her.y)/2,time:elapsed,
+    origins:Object.fromEntries(Object.entries(players).map(([who,p])=>[who,{x:p.x,y:p.y,dir:p.dir}]))};
    Object.assign(players.him,{x:n.x,y:n.y});
    Object.assign(players.her,{x:n.x,y:n.y});
    carrying=true;near=null;
@@ -132,9 +137,9 @@
   if(!requires(n))return;keys={};tone(2);
   if(n.action==='travel'){travel(n.to);return;}if(n.action==='link'){savePosition();location.href=n.href;return;}if(n.action==='shop'){shop(n);return;}if(n.action==='sky'){chooseSky();return;}if(n.action==='activity'){activity(n);return;}
   if(n.action==='costume'){window.SharedWardrobe.addams();S.task(flagFor(n));refreshOutfits().then(()=>beginScene({...n,scene:'portrait'}));toast('Our Addams looks are equipped across the game.');sync();return;}
-  if(n.action==='collect'){const got=S.collect(n.item,flagFor(n));sync();toast(got?D.items[n.item][0]+' is in our bag.':'We already kept this one.');return;}
-  if(n.action==='duck'){const got=S.collect('duck','duck-'+n.number);sync();toast(got?'A little Jeep duck! '+[1,2,3].filter(i=>state.flags['duck-'+i]).length+' / 3 found.':'This duck is already in our bag.');return;}
-  if(n.action==='pumpkin'){const picked=Object.keys(state.flags).filter(k=>k.startsWith('pumpkin-')&&state.flags[k]).length;if(nodeDone(n)){toast('We already chose this one. There are more pumpkins in the patch.');return;}if(picked>=2){toast('Our pair is picked. Take them home to carve, or pose by the wagon.');return;}S.collect('pumpkin','pumpkin-'+n.number);sync();beginScene({...n,scene:'pick',noReward:true});toast('Pumpkin '+(picked+1)+' of 2 is in our bag.');return;}
+  if(n.action==='collect'){const got=S.collect(n.item,flagFor(n));if(got)collectFeedback(n,n.item);sync();toast(got?D.items[n.item][0]+' is in our bag.':'We already kept this one.');return;}
+  if(n.action==='duck'){const got=S.collect('duck','duck-'+n.number);if(got)collectFeedback(n,'duck');sync();toast(got?'A little Jeep duck! '+[1,2,3].filter(i=>state.flags['duck-'+i]).length+' / 3 found.':'This duck is already in our bag.');return;}
+  if(n.action==='pumpkin'){const picked=Object.keys(state.flags).filter(k=>k.startsWith('pumpkin-')&&state.flags[k]).length;if(nodeDone(n)){toast('We already chose this one. There are more pumpkins in the patch.');return;}if(picked>=2){toast('Our pair is picked. Take them home to carve, or pose by the wagon.');return;}S.collect('pumpkin','pumpkin-'+n.number);collectFeedback(n,'pumpkin');sync();beginScene({...n,scene:'pick',noReward:true});toast('Pumpkin '+(picked+1)+' of 2 is in our bag.');return;}
   if(n.action==='task'){const got=S.task(flagFor(n));sync();beginScene({...n,scene:'small-task',noReward:true});if(got)toast('A little part of our day, made ready. +8 coins');return;}
   if(n.action==='swim'){swimming=true;scene=null;applyOccasionOutfits();const start=place.art.swimStart||[[540,695],[610,695]],a=G.nearest(place,...start[0],true),b=G.nearest(place,...start[1],true);players.him.path=G.pathfind(place,players.him,a,true);players.her.path=G.pathfind(place,players.her,b,true);toast('Bikini and swim trunks on! Use your movement controls—or click across the pool—to swim together.');return;}
   if(n.action==='dry'){if(swimming){swimming=false;applyOccasionOutfits();placeAt(...(place.art.dry||[460,785]));toast('Back in our walking outfits. Our loungers are waiting.');}else toast('Meet at the ladder to start our swim.');return;}
@@ -146,14 +151,14 @@
   ring:[['give',4,'Ashton passes the little Puja gift to Tanima.'],['gift',5,'The ring catches the light. For my Lokkhi.'],['hug',4,'A gift and a moment close together.']],
   bench:[['sit',5,'We sit down under the lamplights.'],['lean',7,'The city carries on. We stay a little longer.']],
   sky:[['sit',10,'Our Birmingham sky, and the two of us looking up.']],water:[['hold',6,'The park lights ripple across the water.']],
-  baseball:[['sit',12,'Watch the batter. Press E when HIT! appears to cheer together.']],fireworks:[['sit',5,'The game is over. The sky has one more surprise.'],['cheer',9,'Fireworks above Birmingham, with you right here.']],
+  baseball:[['sit',12,'Watch the batter. Press E when HIT! appears to cheer together.']],fireworks:[['sit',5,'The game is over. The sky has one more surprise.'],['seated-cheer',9,'Fireworks above Birmingham, with you right here.']],
   'pool-rest':[['sit',6,'We made it across. Time to rest together.']],cheer:[['cheer',5,'That one counts. One more first together.']],
   'jeep-show':[['hold',7,'Rows of Jeeps, a whole event to explore, and the two of us.']],overlook:[['hold',7,'A mountain pause before our night amongst the stars.']],
   concert:[['sit',6,'The hall goes dark. Usha Uthup takes the stage.'],['dance',8,'Usha Uthup sings “Skyfall.” The stage glows blue as we sway together.'],['clap',5,'One more round of applause.']],applause:[['clap',6,'An Atlanta concert we got to share.']],
   prayer:[['pray',8,'A quiet moment beside four glowing diyas.']],culture:[['sit',8,'Colorful fabric and dancers turning across the stage.']],drama:[['sit',7,'A little stage, a story, and two people watching.']],music:[['clap',8,'Kirtan, bhajan, and the gathering around the musicians.']],feast:[['give',3,'Sharing the plate we picked together.'],['sit',5,'A vegetarian feast and time together in her community.']],
-  'pumpkin-photo':[['hold',4,'Two pumpkins by the wagon.'],['portrait',4,'One picture before we take them home to carve.']],pick:[['crouch',3,'This one belongs to our pair.']],
+  'pumpkin-photo':[['hold',4,'Two pumpkins by the wagon.'],['portrait',4,'One picture before we take them home to carve.']],pick:[['crouch',1.8,'This one belongs to our pair.'],['pick',1.2,'Bring it back to our wagon.']],
   'haunt-door':[['hold',5,'At the entrance together. Time to go in.']], 'haunt-chain':[['hold',6,'A rattle in the dark. We move a little closer.']], 'haunt-mirror':[['hold',6,'Our reflections follow us past the next doorway.']], 'haunt-exit':[['hold',3,'Through the fog. The exit is just ahead.'],['hug',5,'A breath of relief, then back outside together.']],
-  dance:[['dance',8,'Gomez and Morticia. Ashton and Tanima.'],['hug',4,'Good night from the Addams.']],portrait:[['portrait',5,'A little pose to keep from this day.']],snack:[['give',5,'A little something for the two of us to share.']], 'small-task':[['give',3,'One more little detail of our day.']],astra:[['walk',3,'Following the light into the next part of the forest.'],['hold',6,'A night amongst the stars, together.']]
+  dance:[['dance',8,'Gomez and Morticia. Ashton and Tanima.'],['hug',4,'Good night from the Addams.']],portrait:[['portrait',5,'A little pose to keep from this day.']],snack:[['give',5,'A little something for the two of us to share.']], 'small-task':[['give',3,'One more little detail of our day.']],astra:[['look',3,'Following the light into the next part of the forest.'],['hold',6,'A night amongst the stars, together.']]
  };
  function anchorFor(n){
   if(place.art&&place.art.anchors&&place.art.anchors[n.scene]){const a=place.art.anchors[n.scene];return {x:a[0],y:a[1]};}
@@ -165,7 +170,9 @@
   return G.nearest(place,n.x,n.y,swimming)||{x:n.x,y:n.y};
  }
  function beginScene(n){
-  const type=n.action==='astra'?'astra':n.scene||'portrait',script=scripts[type]||scripts.portrait;
+  const type=n.action==='astra'?'astra':n.scene||'portrait';
+  const taskPose={banner:'reach-up',vase:'place',dinner:'place',light1:'look',light2:'look'};
+  const script=type==='small-task'&&taskPose[n.id]?[[taskPose[n.id],3,n.name+'.']]:scripts[type]||scripts.portrait;
   scene={kind:'script',node:{...n,scene:type},age:0,phase:'approach',paused:false,script,anchor:anchorFor(n)};
   if(type==='drive')scene.drive={progress:0,lane:0,offset:0,gate:0,cruise:false};
   if(type==='feast')scene.plate=[...state.feastPlate];
@@ -196,7 +203,8 @@
  function audienceAction(pose){
   const s=scene;
   if(!s||s.paused||s.phase!=='playing')return;
-  s.audience={pose,until:s.age+(pose==='dance'?4:1.1)};
+  s.audience={pose,start:s.age,until:s.age+(pose==='dance'?4:1.1)};
+  animateSceneCast(s);
   if(s.node.scene==='baseball'){
    const beat=s.age%4,inning=Math.floor(s.age/4);
    if(beat>=2&&beat<2.9&&s.lastCheer!==inning){
@@ -231,7 +239,8 @@
    d.progress=Math.min(d.progress+dt*.17,gate?.[0]??1);
    if(gate&&d.progress>=gate[0]&&Math.abs(d.offset-gate[1])<.25)d.gate++;
   }
-  if(d.progress>previous)s.age+=dt;
+  d.rolling=d.progress>previous;
+  if(d.rolling)s.age+=dt;
   s.anchor=roadPoint(d.progress,d.offset);
   s.current={pose:'ride'};
   if(d.progress>=1){
@@ -257,7 +266,46 @@
  }
  function beginGolf(n){document.body.classList.add('adventure-cinematic');scene={kind:'golf',node:n,anchor:{x:768,y:775},age:0,aim:0,power:65,shots:0,score:0,flight:null};walkTo(765,770);$('sceneCaption').hidden=false;$('sceneTitle').textContent='OUR TOPGOLF ROUND';sceneControls();}
  function shoot(){if(!scene||scene.kind!=='golf'||scene.flight)return;const f=scene;f.flight={age:0,x0:(place.art.golfOrigin||[768,680])[0],y0:(place.art.golfOrigin||[768,680])[1],x:768+f.aim*4,y:650-f.power*4};tone(4);}
- function movement(a,dt,scripted=false){let dx=scripted?0:(keys[a.who==='him'?'d':'arrowright']?1:0)-(keys[a.who==='him'?'a':'arrowleft']?1:0),dy=scripted?0:(keys[a.who==='him'?'s':'arrowdown']?1:0)-(keys[a.who==='him'?'w':'arrowup']?1:0);if(dx||dy)a.path=[];else if(a.path.length){const q=a.path[0],dist=Math.hypot(q.x-a.x,q.y-a.y);if(dist<3){a.x=q.x;a.y=q.y;a.path.shift();a.walking=false;return;}dx=q.x-a.x;dy=q.y-a.y;}const dist=Math.hypot(dx,dy);a.walking=dist>0;if(!a.walking){a.frame=0;return;}dx/=dist;dy/=dist;a.dir=Math.abs(dx)>Math.abs(dy)?dx<0?1:3:dy<0?2:0;const speed=(carrying?55:swimming&&place.water&&G.contains(place.water,a.x,a.y)?78:135)*dt;if(canStand(a.x+dx*speed,a.y))a.x+=dx*speed;if(canStand(a.x,a.y+dy*speed))a.y+=dy*speed;a.frame=Math.floor(elapsed*8)%4;}
+ function movement(a,dt,scripted=false){
+  let dx=scripted?0:(keys[a.who==='him'?'d':'arrowright']?1:0)-(keys[a.who==='him'?'a':'arrowleft']?1:0);
+  let dy=scripted?0:(keys[a.who==='him'?'s':'arrowdown']?1:0)-(keys[a.who==='him'?'w':'arrowup']?1:0);
+  if(dx||dy)a.path=[];
+  const next=a.path[0];
+  if(next){dx=next.x-a.x;dy=next.y-a.y;}
+  const distance=Math.hypot(dx,dy);
+  if(distance<.001){if(next)a.path.shift();a.walking=false;a.frame=0;a.stride=0;return;}
+  a.dir=Math.abs(dx)>Math.abs(dy)?dx<0?1:3:dy<0?2:0;
+  const speed=(carrying?55:swimming&&place.water&&G.contains(place.water,a.x,a.y)?78:135)*dt;
+  const step=next?Math.min(distance,speed):speed,x=a.x,y=a.y;
+  const xx=x+dx/distance*step,yy=y+dy/distance*step;
+  if(canStand(xx,y))a.x=xx;
+  if(canStand(a.x,yy))a.y=yy;
+  if(next&&Math.hypot(next.x-a.x,next.y-a.y)<.01)a.path.shift();
+  const travelled=Math.hypot(a.x-x,a.y-y);
+  a.walking=travelled>.001;
+  a.stride=a.walking?((a.stride||0)+travelled)%64:0;
+  a.frame=Math.floor(a.stride/16);
+ }
+ function rolePose(s,who){
+  const pose=s.current?.pose||'idle',type=s.node.scene;
+  if(type==='concert'||type==='baseball'){
+   const audience=s.audience?.until>s.age?s.audience.pose:null;
+   if(audience==='clap')return 'seated-clap';
+   if(audience==='dance'||pose==='dance')return 'dance';
+   if(pose==='clap')return 'seated-clap';
+   return 'sit';
+  }
+  if(pose==='give'||pose==='gift')return who==='him'?'give':'receive';
+  if(pose==='portrait')return 'hold';
+  return pose;
+ }
+ function animateSceneCast(s){
+  s.cast ||= {};
+  for(const who of Object.keys(players)){
+   const pose=rolePose(s,who),previous=s.cast[who];
+   if(previous?.pose!==pose)s.cast[who]={pose,start:s.age,from:previous?.pose||'idle',fromTime:previous?s.age-previous.start:0};
+  }
+ }
  function updateScene(dt){
   const s=scene;if(!s||s.paused)return;Object.values(players).forEach(a=>movement(a,dt,true));
   if(s.kind==='golf'){
@@ -268,7 +316,7 @@
   if(s.phase==='leaving'){s.departure+=dt;if(s.departure>=.8)endScene(true);return;}
   if(s.drive){updateDrive(s,dt);return;}
   s.age+=dt;let at=0,found=null;for(const part of s.script){if(s.age<at+part[1]){found={pose:part[0],text:part[2],progress:(s.age-at)/part[1]};break;}at+=part[1];}
-  if(!found){s.phase='leaving';s.departure=0;return;}s.current=found;s.separation+=(['hug','kiss'].includes(found.pose)?11-s.separation:35-s.separation)*Math.min(1,dt*5);let caption=found.text;
+  if(!found){s.phase='leaving';s.departure=0;return;}s.current=found;animateSceneCast(s);s.separation+=(['hug','kiss'].includes(found.pose)?11-s.separation:35-s.separation)*Math.min(1,dt*5);let caption=found.text;
   if(s.node.scene==='baseball'){
    const beat=s.age%4;
    const cue=beat>=2&&beat<2.9?'HIT! Cheer now · E':beat<2?'Here comes the pitch…':'Watch for the next pitch.';
@@ -286,21 +334,40 @@
  function drawActor(a){
   const h=place.actorHeight;if(scene&&['playing','leaving'].includes(scene.phase)&&scene.current){
    const s=scene,i=a.who==='him'?-1:1;
-   let pose=s.current.pose;
-   if(pose==='ride')return;
-   if(s.node.scene==='concert'||s.node.scene==='baseball'){
-    pose=s.audience?.until>s.age?s.audience.pose:'sit';
-   }
+   if(s.current.pose==='ride')return;
+   const track=s.cast?.[a.who],pose=track?.pose||rolePose(s,a.who),phase=track?s.age-track.start:s.age;
+   const leaving=s.phase==='leaving';
    const blend=s.phase==='leaving'?1-ease(s.departure/.8):ease(s.age/.8),slot=place.art.slots&&place.art.slots[s.node.scene]&&place.art.slots[s.node.scene][i<0?0:1];
    let targetX=slot?slot[0]:s.anchor.x+i*s.separation,targetY=slot?slot[1]:s.anchor.y;
    if(s.node.scene==='reunion'&&pose==='sit'&&place.art.reunionSeated){const seat=place.art.reunionSeated[i<0?0:1],sit=ease(s.current.progress*6/.9);targetX+=(seat[0]-targetX)*sit;targetY+=(seat[1]-targetY)*sit;}
-   const mapped=pose==='kiss'?'hug':pose==='portrait'?'hold':pose==='gift'?'give':pose;poses.drawPose(a.who,a.x+(targetX-a.x)*blend,a.y+(targetY-a.y)*blend,h,mapped,s.age,a.who==='her');return;
+   const transition=leaving?{from:pose,time:phase,amount:s.departure/.65,direction:a.dir}:
+    {from:track?.from||'idle',time:track?.fromTime||0,amount:phase/.44};
+   poses.drawPose(a.who,a.x+(targetX-a.x)*blend,a.y+(targetY-a.y)*blend,h,leaving?'idle':pose,phase,a.who==='her',transition);return;
   }
-  if(scene&&scene.kind==='golf'&&scene.flight){poses.drawPose(a.who,a.x,a.y,h,a.who==='him'?'swing':'clap',elapsed,a.who==='her');return;}
-  if(swimming&&place.water&&G.contains(place.water,a.x,a.y)){poses.drawPose(a.who,a.x,a.y,h,'swim',elapsed,a.who==='her');return;}
+  if(scene&&scene.kind==='golf'&&scene.flight){poses.drawPose(a.who,a.x,a.y,h,a.who==='him'?'swing':'clap',scene.flight.age,a.who==='her');return;}
+  if(swimming&&place.water&&G.contains(place.water,a.x,a.y)){poses.drawPose(a.who,a.x,a.y,h,'swim',elapsed,a.dir===1,{moving:a.walking});return;}
+  if(!a.walking&&a.reachUntil>elapsed){
+   const age=.48-(a.reachUntil-elapsed),out=age>.26;
+   poses.drawPose(a.who,a.x,a.y,h,out?'idle':'pick',age,a.who==='her',
+    {from:out?'pick':'idle',amount:out?(age-.26)/.22:age/.18,direction:a.dir});return;
+  }
   const im=images[a.who];if(!im||!im.complete)return;
   ctx.fillStyle='#173a3635';ctx.beginPath();ctx.ellipse(a.x,a.y+2,13,4,0,0,Math.PI*2);ctx.fill();
   window.WalkingSprites.draw(ctx,im,a.dir,a.frame,a.x,a.y,h);
+ }
+ function collectFeedback(node,item){
+  const nearest=Object.values(players).reduce((a,b)=>Math.hypot(a.x-node.x,a.y-node.y)<=Math.hypot(b.x-node.x,b.y-node.y)?a:b);
+  nearest.reachUntil=elapsed+.48;
+  feedback.push({x:node.x,y:node.y,icon:icons[D.items[item]?.[2]]||icons[item]||'✦',time:elapsed});
+ }
+ function drawFeedback(){
+  while(feedback.length&&elapsed-feedback[0].time>1.15)feedback.shift();
+  for(const event of feedback){
+   const age=elapsed-event.time,progress=clamp(age/1.15),y=event.y-15-ease(progress)*48;
+   ctx.save();ctx.globalAlpha=(1-progress)*Math.min(1,age*16);ctx.fillStyle='#fff1c5';ctx.strokeStyle='#392522';
+   ctx.textAlign='center';ctx.lineWidth=3;ctx.font='bold 22px Georgia';ctx.strokeText(event.icon,event.x,y);ctx.fillText(event.icon,event.x,y);
+   ctx.restore();
+  }
  }
  function carryRipples(x,y,gold){
   ctx.save();ctx.strokeStyle=gold?'#f6da8e':'#d8fbff';ctx.lineWidth=2;
@@ -311,12 +378,33 @@
   }
   ctx.restore();
  }
- function drawCarry(){
-  const {x,y,dir}=players.him,h=108,w=h*carrySprite.naturalWidth/carrySprite.naturalHeight,bob=Math.sin(elapsed*5)*2;
-  ctx.save();ctx.translate(x,y);if(dir===1)ctx.scale(-1,1);
+ function carryArt(x,y,dir,bob,opacity){
+  const h=108,w=h*carrySprite.naturalWidth/carrySprite.naturalHeight;
+  ctx.save();ctx.globalAlpha*=opacity;ctx.translate(x,y);if(dir===1)ctx.scale(-1,1);
   ctx.beginPath();ctx.rect(-w/2,-h,w,h+3);ctx.clip();
   ctx.drawImage(carrySprite,-w/2,-h*.69+bob,w,h);
-  ctx.restore();carryRipples(x,y+4,false);
+  ctx.restore();
+ }
+ function drawCarry(){
+  const him=players.him,entry=carryEntry;
+  const blend=entry?ease((elapsed-entry.time)/.40):1;
+  const x=entry?entry.x+(him.x-entry.x)*blend:him.x,y=entry?entry.y+(him.y-entry.y)*blend:him.y;
+  if(entry&&blend<1){
+   ctx.save();ctx.globalAlpha=1-blend;
+   for(const [who,p] of Object.entries(entry.origins))poses.drawPose(who,p.x,p.y,place.actorHeight,'swim',elapsed,p.dir===1);
+   ctx.restore();
+  }
+  carryArt(x,y,him.dir,Math.sin(elapsed*(him.walking?6:3))*(him.walking?2.7:1.2),blend);
+  carryRipples(x,y+4,false);
+ }
+ function drawAudienceCue(){
+  const action=scene?.audience;
+  if(!action||scene.age>=action.until)return;
+  const age=scene.age-action.start;
+  ctx.save();ctx.globalAlpha=.8*(1-clamp(age/.7));
+  ctx.font='bold 17px Georgia';ctx.textAlign='center';ctx.fillStyle='#ffe5aa';
+  ctx.fillText(action.pose==='dance'?'♪':'✧',scene.anchor.x,scene.anchor.y-82-age*18);
+  ctx.restore();
  }
  function draw(){
   if(!ready)return;ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#070b09';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.setTransform(scale*dpr,0,0,scale*dpr,(width/2-camera.x*scale)*dpr,(height/2-camera.y*scale)*dpr);ctx.imageSmoothingEnabled=false;ctx.drawImage(A.base(place),0,0);A.effects(ctx,place,elapsed,state,scene);
@@ -328,10 +416,26 @@
     const point=roadPoint(...gate),{E,T}=A.painter(ctx);
     E(point.x,point.y+12,25,11,'#f4c775aa');T(String(scene.drive.gate+1),point.x,point.y+18,15,'#322213');
    }
-   A.prop(ctx,{kind:'jeep',x:x-85,y:y-70,w:170,h:90},scene.age,state);
+   const rolling=scene.drive.rolling;
+   if(rolling){
+    ctx.save();
+    for(let i=0;i<4;i++){
+     const life=(scene.age*2+i*.25)%1;
+     ctx.globalAlpha=(1-life)*.28;ctx.fillStyle='#e8cda8';ctx.beginPath();
+     ctx.ellipse(x-54-life*42,y+13+life*7,5+life*9,2+life*4,0,0,Math.PI*2);ctx.fill();
+    }
+    ctx.restore();
+   }
+   A.prop(ctx,{kind:'jeep',x:x-85,y:y-70+(rolling?Math.sin(scene.age*17)*1.7:0),w:170,h:90},scene.age,state);
   }
   if(scene&&scene.node.scene==='haunt-mirror'&&scene.phase!=='approach'){const [x,y,w,h]=place.art.mirrorArea;ctx.save();ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();ctx.globalAlpha=.32;poses.drawPose('him',x+w*.3,y+h,60,'hold',scene.age,true);poses.drawPose('her',x+w*.7,y+h,60,'hold',scene.age,false);ctx.restore();}
   A.effects(ctx,place,elapsed,state,scene,'over');
+  if(carryExit){
+   const alpha=1-ease((elapsed-carryExit.time)/.30);
+   if(alpha>0)carryArt(carryExit.x,carryExit.y,carryExit.dir,0,alpha);
+   else carryExit=null;
+  }
+  drawFeedback();drawAudienceCue();
   if(near&&!scene){const {R}=A.painter(ctx),q=near.y-8+Math.sin(elapsed*3)*2;R(near.x-3,q,6,2,'#edcd82');R(near.x-1,q+2,2,2,'#edcd82');}
   if(debug.visible())debug.draw({
    id:place.id,collision:place.id+'|'+swimming+'|'+carrying,canStand,targets:place.nodes,spawn:place.spawn,

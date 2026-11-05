@@ -68,7 +68,24 @@
   }
   function drawZone(z){const near=z===nearest,done=z.memory&&kept[z.memory],unit=1/scale;ctx.save();ctx.globalAlpha=near?1:.90;const y=z.y-18;ctx.fillStyle=near?'#eee0bd':'#142c25dd';ctx.strokeStyle=near?'#ffedb3':'#d4bb7c88';ctx.lineWidth=unit;ctx.font=(13*unit)+'px Georgia';const label=(done?'✓ ':'')+z.name,w=ctx.measureText(label).width+24*unit;ctx.beginPath();ctx.roundRect(z.x-w/2,y-29*unit,w,27*unit,5*unit);ctx.fill();ctx.stroke();ctx.textAlign='center';ctx.fillStyle=near?'#263b2d':'#f4e5c4';ctx.fillText(label,z.x,y-11*unit);ctx.fillStyle=near?'#f4d18d':'#e0c287';ctx.beginPath();ctx.arc(z.x,z.y,3*unit,0,7);ctx.fill();if(near){ctx.strokeStyle='#ecd4a488';ctx.beginPath();ctx.ellipse(z.x,z.y,18+Math.sin(elapsed*2)*2,6,0,0,7);ctx.stroke();}ctx.restore();}
   function draw(){if(!ready)return;ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#102124';ctx.fillRect(0,0,canvas.width,canvas.height);const sx=width/2-camera.x*scale,sy=height/2-camera.y*scale;ctx.setTransform(scale*dpr,0,0,scale*dpr,sx*dpr,sy*dpr);ctx.imageSmoothingEnabled=false;ctx.drawImage(backdrops[area==='home'?'neighborhood':area],0,0,WORLD_W,WORLD_H);configs[area].zones.forEach(drawZone);Object.values(players).sort((a,b)=>a.y-b.y).forEach(drawActor);if(arrival&&elapsed<4){ctx.save();ctx.globalAlpha=Math.max(0,1-elapsed/4);ctx.strokeStyle='#8aeeff';ctx.lineWidth=4;ctx.shadowColor='#4be5ff';ctx.shadowBlur=25;ctx.beginPath();ctx.ellipse(768,841,45+elapsed*6,18+elapsed*3,0,0,7);ctx.stroke();ctx.restore();}if(debug.visible())debug.draw({id:area,collision:area,canStand,targets:configs[area].zones,spawn:configs[area].spawn,players:Object.values(players)});if(active)active.draw();}
-  function movement(a,dt){let dx=(keys[a.who==='him'?'d':'arrowright']?1:0)-(keys[a.who==='him'?'a':'arrowleft']?1:0),dy=(keys[a.who==='him'?'s':'arrowdown']?1:0)-(keys[a.who==='him'?'w':'arrowup']?1:0);if(dx||dy)a.path=[];else if(a.path.length){const point=a.path[0],dist=Math.hypot(point.x-a.x,point.y-a.y);if(dist<3){a.path.shift();return;}dx=(point.x-a.x)/dist;dy=(point.y-a.y)/dist;}a.walking=!!(dx||dy);if(!a.walking){a.frame=0;return;}const len=Math.hypot(dx,dy);dx/=len;dy/=len;a.dir=Math.abs(dx)>Math.abs(dy)?(dx<0?1:3):(dy<0?2:0);const speed=100*dt;if(canStand(a.x+dx*speed,a.y))a.x+=dx*speed;if(canStand(a.x,a.y+dy*speed))a.y+=dy*speed;a.frame=Math.floor(elapsed*8)%4;}
+  function movement(a,dt){
+    let dx=(keys[a.who==='him'?'d':'arrowright']?1:0)-(keys[a.who==='him'?'a':'arrowleft']?1:0);
+    let dy=(keys[a.who==='him'?'s':'arrowdown']?1:0)-(keys[a.who==='him'?'w':'arrowup']?1:0);
+    if(dx||dy)a.path=[];
+    const point=a.path[0];
+    if(point){dx=point.x-a.x;dy=point.y-a.y;}
+    const distance=Math.hypot(dx,dy);
+    if(distance<.001){if(point)a.path.shift();a.walking=false;a.frame=0;a.stride=0;return;}
+    const step=point?Math.min(distance,100*dt):100*dt,x=a.x,y=a.y;
+    const xx=x+dx/distance*step,yy=y+dy/distance*step;
+    a.dir=Math.abs(dx)>Math.abs(dy)?(dx<0?1:3):(dy<0?2:0);
+    if(canStand(xx,y))a.x=xx;
+    if(canStand(a.x,yy))a.y=yy;
+    if(point&&Math.hypot(point.x-a.x,point.y-a.y)<.01)a.path.shift();
+    const travelled=Math.hypot(a.x-x,a.y-y);
+    a.walking=travelled>.001;a.stride=a.walking?((a.stride||0)+travelled)%48:0;
+    a.frame=Math.floor(a.stride/12);
+  }
   function pathfind(a,tx,ty){
     const cols=48,rows=32,toCell=(x,y)=>[clamp(Math.floor(x/STEP),0,cols-1),clamp(Math.floor(y/STEP),0,rows-1)];
     const [sx,sy]=toCell(a.x,a.y);let [gx,gy]=toCell(tx,ty),found=false;
