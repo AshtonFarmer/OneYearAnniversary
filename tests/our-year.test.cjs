@@ -373,3 +373,39 @@ test('pool and photo homecoming use their occasion clothes and restore the saved
  const n=f.s.memoryAdventure.getMap().nodes.find(n=>n.id==='reunion');f.a.placeAt(n.x,n.y);f.act('reunion');assert.match(f.state().outfits.her,/her_outfit13/);f.tick(12);f.a.draw();
  assert.equal(f.s.memoryAdventure.getMap().art.photoHomecoming,true);assert.equal(JSON.stringify(f.s.SharedWardrobe.read()),original);f.a.endScene(false);assert.equal(JSON.stringify(f.state().outfits),walking);
 });
+
+test('saree sections save independently and color the existing walking sprites',async()=>{
+ const session=load(context(),'js/shared-wardrobe.js'),wardrobe=session.SharedWardrobe;
+ const colors={body:'#ff0000',pleats:'#00ff00',pallu:'#0000ff',border:'#ffff00'};
+ const saree=Object.fromEntries(Object.entries(colors).map(([key,color])=>[key,{color,finish:'cotton'}]));
+ saree.pallu.marks=[{stamp:'lotus',color:'#ffffff',size:.24,points:[[.5,.5]]}];
+ const original=wardrobe.save({id:'puja-original',who:'her',kind:'saree',saree});
+ wardrobe.equip(original.id);
+ const reloaded=load(context(),'js/shared-wardrobe.js');
+ reloaded.localStorage.setItem(wardrobe.KEY,session.localStorage.getItem(wardrobe.KEY));
+ load(reloaded,'js/shared-wardrobe.js');
+ const restored=reloaded.SharedWardrobe.read();
+ assert.equal(restored.equipped.her,original.id);
+ assert.deepEqual(JSON.parse(JSON.stringify(restored.designs[0])),JSON.parse(JSON.stringify(original)));
+ assert.equal(restored.designs[0].saree.pallu.marks[0].stamp,'lotus');
+ assert.equal(restored.designs[0].saree.pleats.marks.length,0);
+ const swatch=wardrobe.sareeTexture(original.saree.pallu).getContext('2d');
+ const clean=wardrobe.sareeTexture({...original.saree.pallu,marks:[]}).getContext('2d');
+ assert.notDeepEqual(swatch.getImageData(96,128,64,64).data,clean.getImageData(96,128,64,64).data);
+ const rendered=await reloaded.SharedWardrobe.render(restored.designs[0],false);
+ const source=new Image();source.src='assets/sprites/her_atlas.png';
+ const a=source.getContext('2d').getImageData(0,0,1024,1024).data;
+ const b=rendered.getContext('2d').getImageData(0,0,1024,1024).data;
+ const found=new Set();
+ for(let i=0;i<b.length;i+=4){
+  assert.equal(a[i+3],b[i+3]);
+  if(Math.floor(i/4096)%256<105)assert.deepEqual(a.subarray(i,i+4),b.subarray(i,i+4));
+  if(a[i]===b[i]&&a[i+1]===b[i+1]&&a[i+2]===b[i+2])continue;
+  const [r,g,blue]=b.subarray(i,i+3);
+  if(r>g+80&&r>blue+80)found.add('body');
+  if(g>r+80&&g>blue+80)found.add('pleats');
+  if(blue>r+80&&blue>g+80)found.add('pallu');
+  if(r>blue+80&&g>blue+80)found.add('border');
+ }
+ assert.deepEqual([...found].sort(),Object.keys(colors).sort());
+});
