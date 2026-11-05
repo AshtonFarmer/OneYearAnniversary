@@ -46,7 +46,7 @@
       shot('That one counts', 'A glowing target, a little celebration, and another turn together.', 8, 'cheer')
     ],
     jeep: [
-      shot('The road to the mountains', 'Our Jeep Invasion trip begins with the drive.', 10, 'drive'),
+      shot('The road to the mountains', 'Our Jeep Invasion trip begins in Charizard, our orange Wrangler.', 10, 'drive'),
       shot('Jeeps everywhere', 'Walking past the rows at the Jeep gathering.', 10, 'gathering'),
       shot('The event grounds', 'The booths, the vehicles, and the two of us exploring.', 10, 'grounds'),
       shot('A mountain pause', 'Stopping at the overlook before our night amongst the stars.', 9, 'overlook'),
@@ -66,7 +66,7 @@
     ],
     concert: [
       shot('A night in Atlanta', 'Taking our places for Usha Uthup, live on stage.', 7, 'arrive'),
-      shot('The stage comes alive', 'A singer at the microphone, a band behind her, and lights overhead.', 11, 'perform'),
+      shot('Skyfall', 'The lights turn blue as Usha Uthup sings “Skyfall.”', 11, 'perform'),
       shot('Lost in the moment', 'Clapping and swaying together in the audience.', 10, 'dance'),
       shot('One more round of applause', 'An Atlanta concert we got to share.', 8, 'applause')
     ],
