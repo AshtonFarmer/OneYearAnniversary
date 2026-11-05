@@ -20,7 +20,7 @@
     if(!isHer && !isHim) return originalPath;
 
     const who = isHer ? 'her' : 'him';
-    const outfit = Number(localStorage.getItem(`${who}Outfit`) || 1);
+    const outfit = window.WalkingSprites.selectOutfit(who);
 
     if(outfit <= 1) return originalPath;
     return `assets/sprites/${who}_outfit${outfit}.png`;
@@ -61,6 +61,7 @@
       const cellW = image.naturalWidth / 4;
       const cellH = image.naturalHeight / 4;
 
+      if(window.WalkingSprites.draw(this,image,row,frame,destX+destW/2,destY+destH,destH,true))return;
       const cropX = cellW * 0.18;
       const cropY = cellH * 0.02;
       const cropW = cellW * 0.64;

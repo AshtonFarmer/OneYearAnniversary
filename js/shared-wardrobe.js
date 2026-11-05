@@ -38,7 +38,7 @@
   }
   async function render(input,necklace){
     const d=input?normalize(input):null,who=d?d.who:'her',base=d?d.base:1;
-    const image=await sheet(who,base),c=document.createElement('canvas');c.width=image.naturalWidth;c.height=image.naturalHeight;
+    const image=await sheet(who,base),c=document.createElement('canvas');c.width=image.naturalWidth;c.height=image.naturalHeight;c.wardrobeSource=image.src;
     const p=c.getContext('2d',{willReadFrequently:true});p.drawImage(image,0,0);
     if(d&&!d.preset){
       const pixels=p.getImageData(0,0,c.width,c.height),a=pixels.data;
@@ -86,7 +86,7 @@
       const record={canvas:null};rendered.set(key,record);
       // For the accessory alone, use the exact currently selected sheet.
       const promise=d?render(d,necklace):new Promise((resolve,reject)=>{
-        const i=new Image();i.wardrobeRaw=true;i.onload=()=>{const c=document.createElement('canvas');c.width=i.naturalWidth;c.height=i.naturalHeight;const p=c.getContext('2d');p.drawImage(i,0,0);drawNecklace(p,c.width/4,c.height/4);resolve(c);};i.onerror=reject;i.src=image.src+(image.src.includes('?')?'&':'?')+'wardrobe-base=1';
+        const i=new Image();i.wardrobeRaw=true;i.onload=()=>{const c=document.createElement('canvas');c.width=i.naturalWidth;c.height=i.naturalHeight;c.wardrobeSource=i.src;const p=c.getContext('2d');p.drawImage(i,0,0);drawNecklace(p,c.width/4,c.height/4);resolve(c);};i.onerror=reject;i.src=image.src+(image.src.includes('?')?'&':'?')+'wardrobe-base=1';
       });promise.then(canvas=>{record.canvas=canvas;}).catch(()=>{});
     }
     return rendered.get(key).canvas;

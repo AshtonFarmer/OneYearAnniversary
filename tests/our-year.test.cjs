@@ -35,7 +35,7 @@ function context(search=''){
   const elements=new Map(),events={};
   const document={body:new Element('body'),hidden:false,activeElement:new Element(),getElementById:id=>{if(!elements.has(id))elements.set(id,id==='world'||id==='adventureCanvas'?canvas():new Element());return elements.get(id);},createElement:tag=>tag==='canvas'?canvas(1,1):new Element(tag),querySelectorAll:()=>[],addEventListener(){}};
   const location={href:'https://example.test/memory-world.html'+search,search};
-  const s={window:null,document,localStorage:storage(),sessionStorage:storage(),location,Image,URL,URLSearchParams,CustomEvent:class{constructor(type,init){this.type=type;this.detail=init&&init.detail;}},dispatchEvent:e=>(events[e.type]||[]).forEach(f=>f(e)),addEventListener:(type,fn)=>(events[type]||=[]).push(fn),requestAnimationFrame:()=>1,cancelAnimationFrame(){},innerWidth:1366,innerHeight:900,devicePixelRatio:1,performance,history:{replaceState(){}},console,setTimeout,clearTimeout};s.window=s;vm.createContext(s);return s;
+  const s={window:null,document,localStorage:storage(),sessionStorage:storage(),location,Image,URL,URLSearchParams,CustomEvent:class{constructor(type,init){this.type=type;this.detail=init&&init.detail;}},dispatchEvent:e=>(events[e.type]||[]).forEach(f=>f(e)),addEventListener:(type,fn)=>(events[type]||=[]).push(fn),requestAnimationFrame:()=>1,cancelAnimationFrame(){},innerWidth:1366,innerHeight:900,devicePixelRatio:1,performance,history:{replaceState(){}},console,setTimeout,clearTimeout};s.window=s;vm.createContext(s);vm.runInContext(src('js/walking-sprites.js'),s);return s;
 }
 function load(s,...files){files.forEach(file=>vm.runInContext(src(file),s,{filename:file}));return s;}
 function fixture(id,session){const s=session||load(context(),'js/our-year-data.js','js/shared-wardrobe.js','js/our-year-activities.js'),c=canvas(),controls=new Element(),images={him:new Image(),her:new Image()},backgrounds={};images.him.src='assets/sprites/him_atlas.png';images.her.src='assets/sprites/her_atlas.png';for(const name of ['neighborhood','mountains','festival']){const im=new Image();im.src='assets/our-year/'+name+'.webp';backgrounds[name]=im;}let count=0,message='';
@@ -314,6 +314,38 @@ if(process.env.MAP_TRAILER)test('export an adventure tour from the live map engi
 
 test('the Things to do guide routes both characters to a real stand and purchases persist in the shared bag',async()=>{
  const f=await adventureFixture('pool'),doc=f.s.document;doc.getElementById('openHere').click();assert.equal(doc.getElementById('adventurePanel').open,true);const grid=doc.getElementById('panelContent').children.find(c=>c.className==='adventure-grid'),stand=grid.children.find(c=>c.children.some(e=>e.textContent==='Pool-day supplies'));assert.ok(stand);stand.children.find(c=>c.tagName==='BUTTON').click();assert.equal(doc.getElementById('adventurePanel').open,false);f.tick(10);assert.equal(f.state().near,'float');doc.getElementById('interact').click();const shop=doc.getElementById('panelContent').children.find(c=>c.className==='adventure-grid'),float=shop.children.find(c=>c.children.some(e=>e.textContent==='Pool-day float'));float.children.find(c=>c.tagName==='BUTTON').click();assert.equal(f.s.AdventureState.read().bag['pool-float'],1);assert.equal(f.s.AdventureState.read().coins,105);await f.travel('apartment');assert.equal(f.s.AdventureState.read().bag['pool-float'],1);
+});
+
+test('all standard walking sheets share a stable foot anchor and retain cross-cell pixels',()=>{
+ const s=context(),W=s.WalkingSprites;
+ const sheets=fs.readdirSync(path.join(ROOT,'assets/sprites')).filter(name=>/^(him|her)_(atlas|outfit\d+)\.png$/.test(name));
+ assert.equal(sheets.length,25);
+ for(const name of sheets){
+  const im={src:'assets/sprites/'+name,naturalWidth:1024,naturalHeight:1024};
+  for(let row=0;row<4;row++){
+   const sizes=new Set();
+   for(let col=0;col<4;col++){
+    const f=W.frame(im,row,col);
+    assert.ok(f,name+' row '+row+' frame '+col);
+    const [x,y,w,h]=f.box;
+    assert.ok(x>=0&&y>=0&&w>0&&h>0&&x+w<=1024&&y+h<=1024);
+    sizes.add(f.height);
+    let draw;
+    const ctx={save(){},restore(){},translate(){},scale(){},drawImage(...args){draw=args;}};
+    assert.equal(W.draw(ctx,im,row,col,100,200,74),true);
+    assert.equal(draw[6]+draw[8],0,'all four frames touch the same foot anchor');
+   }
+   assert.equal(sizes.size,1,'all four frames use one scale');
+  }
+ }
+ const atlas={src:'assets/sprites/her_atlas.png',width:1024},foot=W.frame(atlas,'down').box;
+ assert.ok(foot[1]+foot[3]>256,'recover the complete feet below the old cell boundary');
+ const replacement={wardrobeSource:'assets/sprites/him_outfit12.png?wardrobe-base=1',width:1024};
+ s.SharedWardrobe={getSprite:()=>replacement};
+ assert.equal(W.frame(atlas,'left').image,replacement);
+ assert.equal(W.frame(atlas,'left').flip,true);
+ s.localStorage.setItem('herOutfit','13');s.localStorage.setItem('himOutfit','12');
+ assert.equal(W.selectOutfit('her'),13);assert.equal(W.selectOutfit('him'),12);
 });
 
 test('occasion outfits keep all sixteen full transparent walking cells and can be worn across maps',async()=>{

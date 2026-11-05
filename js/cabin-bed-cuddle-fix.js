@@ -47,7 +47,6 @@ updateBedAction = function(){
 drawSprite = function(p){
   const sw = 96;
   const sh = 128;
-  const row = p.rows[p.dir];
 
   const dw = Math.round(sw * p.scale);
   const dh = Math.round(sh * p.scale);
@@ -104,11 +103,11 @@ drawSprite = function(p){
     drawH = Math.round(drawH * .92);
     drawX = Math.round(p.x - camera.x - drawW / 2);
 
-    ctx.drawImage(p.img, p.frame * sw, row * sh, sw, sh, drawX, drawY, drawW, drawH);
+    window.WalkingSprites.draw(ctx,p.img,p.dir,p.frame,drawX+drawW/2,drawY+drawH,drawH);
     return;
   }
 
-  ctx.drawImage(p.img, p.frame * sw, row * sh, sw, sh, drawX, drawY, drawW, drawH);
+  window.WalkingSprites.draw(ctx,p.img,p.dir,p.frame,drawX+drawW/2,drawY+drawH,drawH);
 };
 
 function drawBedCuddleBlanket(){
@@ -158,12 +157,3 @@ draw = function(){
   drawCoupleHeart();
   drawHeartParticles();
 };
-
-// Load the global auto-anchor sprite renderer for the cabin too.
-// It runs after this file and after him-right-size-fix.js finishes.
-setTimeout(function(){
-  if(document.querySelector('script[src="js/sprite-auto-anchor.js"]')) return;
-  const s = document.createElement('script');
-  s.src = 'js/sprite-auto-anchor.js';
-  document.body.appendChild(s);
-}, 0);

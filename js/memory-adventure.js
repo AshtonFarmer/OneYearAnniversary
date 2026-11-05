@@ -1,7 +1,7 @@
 (function(){
  'use strict';
  const D=window.AdventurePlaces,S=window.AdventureState,G=window.AdventureGeometry,A=window.AdventureArt,Y=window.OUR_YEAR,$=id=>document.getElementById(id);
- const canvas=$('adventureCanvas'),ctx=canvas.getContext('2d'),images={},wardrobeImages={},occasionImages={},bounds=new Map(),query=new URLSearchParams(location.search);
+ const canvas=$('adventureCanvas'),ctx=canvas.getContext('2d'),images={},wardrobeImages={},occasionImages={},query=new URLSearchParams(location.search);
  let place=D.places[query.get('place')]||D.places.park,ready=false,width=1,height=1,dpr=1,scale=1.4,elapsed=0,last=0,near=null,scene=null,craft=null,overview=false,swimming=false,toastTime=0,returnFocus=null,poses=null,sound=false,audio=null;
  let keys={},camera={x:768,y:650},state=S.read();
  let carrying=false,carrySprite=null;
@@ -23,9 +23,9 @@
  }
  function savePosition(){try{sessionStorage.setItem('adventure-position-'+place.id,JSON.stringify(players));}catch(e){}}
  function loadImage(src){return new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=()=>reject(Error('Could not load one of our character outfits.'));im.src=src;});}
- function applyOccasionOutfits(){Object.assign(images,wardrobeImages);if(swimming&&occasionImages.swimming)Object.assign(images,occasionImages.swimming);if(place.id==='apartment'&&scene&&scene.node.scene==='reunion'&&occasionImages.homecoming)images.her=occasionImages.homecoming.her;bounds.clear();poses=window.OurYearCinema.renderer(canvas,{images});}
+ function applyOccasionOutfits(){Object.assign(images,wardrobeImages);if(swimming&&occasionImages.swimming)Object.assign(images,occasionImages.swimming);if(place.id==='apartment'&&scene&&scene.node.scene==='reunion'&&occasionImages.homecoming)images.her=occasionImages.homecoming.her;poses=window.OurYearCinema.renderer(canvas,{images});}
  async function loadOccasionOutfits(id){const occasion=id==='pool'?'swimming':id==='apartment'?'homecoming':null;if(!occasion||occasionImages[occasion])return;const cast=occasion==='swimming'?['him','her']:['her'],sheets=await Promise.all(cast.map(who=>window.SharedWardrobe.occasionSheet(who,occasion)));occasionImages[occasion]=Object.fromEntries(cast.map((who,i)=>[who,sheets[i]]));}
- async function refreshOutfits(){for(const who of ['him','her']){let n=Number(localStorage.getItem(who+'Outfit'))||1;if(!Number.isInteger(n)||n<1||n>(who==='her'?13:12))n=1;wardrobeImages[who]=await loadImage('assets/sprites/'+who+(n===1?'_atlas':'_outfit'+n)+'.png');}applyOccasionOutfits();}
+ async function refreshOutfits(){for(const who of ['him','her']){const n=window.WalkingSprites.selectOutfit(who);wardrobeImages[who]=await loadImage('assets/sprites/'+who+(n===1?'_atlas':'_outfit'+n)+'.png');}applyOccasionOutfits();}
  function resize(){width=innerWidth;height=innerHeight;dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);positionGoal();}
  function canStand(x,y){return (!carrying||G.contains(place.water,x,y,-18))&&G.canStand(place,x,y,swimming);}
  function walkTo(x,y){Object.values(players).forEach((a,i)=>a.path=G.pathfind(place,a,{x:x+(i?29:-29),y},swimming));}
@@ -282,7 +282,6 @@
   near=null;if(!scene&&!carrying){let distance=Infinity;place.nodes.forEach(n=>{if(['collect','duck','pumpkin'].includes(n.action)&&nodeDone(n)||n.action==='pumpkin'&&(state.bag.pumpkin||0)>=2||n.action==='dry'&&!swimming||n.action==='swim'&&swimming||n.action==='carry'&&!atCarrySpot(n))return;const d=Math.min(...Object.values(players).map(a=>Math.hypot(a.x-n.x,a.y-n.y)));if(d<n.r&&d<distance){near=n;distance=d;}});}
   $('interact').hidden=!near&&!carrying;if(carrying||near)$('interactLabel').textContent=carrying?'Set Tanima down':near.name;updateCamera(dt);
  }
- function spriteBounds(im,dir,col){const key=im.src+'|'+dir+'|'+col;if(bounds.has(key))return bounds.get(key);const c=document.createElement('canvas');c.width=256;c.height=256;const p=c.getContext('2d',{willReadFrequently:true});p.drawImage(im,col*256,dir*256,256,256,0,0,256,256);const a=p.getImageData(0,0,256,256).data;let x0=256,y0=256,x1=0,y1=0;for(let y=0;y<256;y++)for(let x=0;x<256;x++)if(a[(y*256+x)*4+3]>35){x0=Math.min(x,x0);y0=Math.min(y,y0);x1=Math.max(x,x1);y1=Math.max(y,y1);}const b={x:x0,y:y0,w:x1-x0+1,h:y1-y0+1};bounds.set(key,b);return b;}
  function drawActor(a){
   const h=place.actorHeight;if(scene&&['playing','leaving'].includes(scene.phase)&&scene.current){
    const s=scene,i=a.who==='him'?-1:1;
@@ -298,7 +297,9 @@
   }
   if(scene&&scene.kind==='golf'&&scene.flight){poses.drawPose(a.who,a.x,a.y,h,a.who==='him'?'swing':'clap',elapsed,a.who==='her');return;}
   if(swimming&&place.water&&G.contains(place.water,a.x,a.y)){poses.drawPose(a.who,a.x,a.y,h,'swim',elapsed,a.who==='her');return;}
-  const im=images[a.who];if(!im||!im.complete)return;const mirror=a.who==='him'&&a.dir===1&&!/him_outfit12\.png/.test(im.src),dir=mirror?3:a.dir,b=spriteBounds(im,dir,a.frame),w=b.w*h/b.h;ctx.save();ctx.translate(a.x,a.y);if(mirror)ctx.scale(-1,1);ctx.fillStyle='#173a3635';ctx.beginPath();ctx.ellipse(0,2,13,4,0,0,Math.PI*2);ctx.fill();ctx.imageSmoothingEnabled=false;ctx.drawImage(im,a.frame*256+b.x,dir*256+b.y,b.w,b.h,-w/2,-h,w,h);ctx.restore();
+  const im=images[a.who];if(!im||!im.complete)return;
+  ctx.fillStyle='#173a3635';ctx.beginPath();ctx.ellipse(a.x,a.y+2,13,4,0,0,Math.PI*2);ctx.fill();
+  window.WalkingSprites.draw(ctx,im,a.dir,a.frame,a.x,a.y,h);
  }
  function carryRipples(x,y,gold){
   ctx.save();ctx.strokeStyle=gold?'#f6da8e':'#d8fbff';ctx.lineWidth=2;
