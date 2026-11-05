@@ -409,3 +409,26 @@ test('saree sections save independently and color the existing walking sprites',
  }
  assert.deepEqual([...found].sort(),Object.keys(colors).sort());
 });
+
+test('layered saree motifs and the selected drape survive a saved outfit round trip',async()=>{
+ const s=load(context(),'js/shared-wardrobe.js'),w=s.SharedWardrobe;
+ const saved=w.save({who:'her',kind:'saree',drape:'gujarati',saree:{
+  body:{color:'#236359',motif:'elephant',secondMotif:'jasmine',secondInk:'#f3b98b'},
+  pallu:{color:'#b83051',motif:'diya',marks:[{stamp:'jeep',color:'#ffae44',size:.18,points:[[.5,.5]]}]},
+  border:{color:'#f5c06a',motif:'coin'}
+ }});
+ const draft=w.normalize(JSON.parse(JSON.stringify(saved)));
+ assert.equal(draft.drape,'gujarati');
+ assert.equal(draft.saree.body.secondMotif,'jasmine');
+ assert.equal(draft.saree.pallu.marks[0].stamp,'jeep');
+ const swatch=zone=>w.sareeTexture(zone).getContext('2d').getImageData(0,0,256,320).data;
+ assert.notDeepEqual(swatch(draft.saree.body),swatch({...draft.saree.body,secondMotif:'none'}));
+ const pixels=async drape=>(await w.render({...draft,drape},false)).getContext('2d').getImageData(0,0,1024,1024).data;
+ const [classic,bengali,gujarati]=await Promise.all(['classic','bengali','gujarati'].map(pixels));
+ assert.notDeepEqual(classic,bengali);
+ assert.notDeepEqual(bengali,gujarati);
+ for(let i=3;i<classic.length;i+=4){
+  assert.equal(gujarati[i],classic[i]);
+  assert.equal(bengali[i],classic[i]);
+ }
+});
