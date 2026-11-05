@@ -24,5 +24,14 @@
   function buildCloset(){const closet=$('closet');closet.replaceChildren();const saved=W.read();if(!saved.designs.length){const p=document.createElement('p');p.className='hint';p.textContent='Your first original will live here.';closet.appendChild(p);}saved.designs.forEach(d=>{const el=document.createElement('div');el.className='closet-look';const title=document.createElement('strong');title.textContent=d.name+(saved.equipped[d.who]===d.id?' · wearing':'');el.appendChild(title);const r=document.createElement('div');r.className='row';[[d.preset?'Preview':'Edit',()=>{if(d.preset)previewPreset(d.preset);else{draft=W.normalize(d);sync();}}],['Wear',()=>{try{W.equip(d.id);buildCloset();say(d.name+' is now on.');}catch(e){say(e.message);}}],['Remove',()=>{try{W.remove(d.id);buildCloset();}catch(e){say(e.message);}}]].forEach(([name,fn])=>{const b=document.createElement('button');b.textContent=name;b.onclick=fn;r.appendChild(b);});el.appendChild(r);closet.appendChild(el);});}
   $('exportLook').onclick=()=>{const blob=new Blob([JSON.stringify(W.normalize(draft),null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=(draft.name||'my-outfit').replace(/[^a-z0-9_-]+/gi,'-')+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
   $('importLook').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{if(f.size>350000)throw new Error('Choose a design file smaller than 350 KB.');const d=JSON.parse(await f.text());if(!d||!['her','him'].includes(d.who)||!Array.isArray(d.strokes))throw new Error('This is not an outfit design file.');draft=W.normalize(d);sync();say('Imported. Save it to keep it in this closet.');}catch(error){say('Could not import: '+error.message);}e.target.value='';};
-  function loop(now){pc.clearRect(0,0,256,256);if(auto)row=Math.floor((now-turnStart)/1900)%4;const labels=['FRONT','LEFT','BACK','RIGHT'];$('previewDirection').textContent=labels[row]+' · WALKING PREVIEW';if(sprite){pc.imageSmoothingEnabled=false;const col=Math.floor(now/170)%4;pc.drawImage(sprite,col*256,row*256,256,256,0,0,256,256);}requestAnimationFrame(loop);}sync();buildOccasions();buildCloset();requestAnimationFrame(loop);
+  const directions=['FRONT','LEFT','BACK','RIGHT'];
+  function loop(now){
+    pc.clearRect(0,0,256,256);
+    if(auto)row=Math.floor((now-turnStart)/1900)%4;
+    const label=directions[row]+' · WALKING PREVIEW';
+    if($('previewDirection').textContent!==label)$('previewDirection').textContent=label;
+    if(sprite)window.WalkingSprites.draw(pc,sprite,row,Math.floor(now/170)%4,128,242,228);
+    requestAnimationFrame(loop);
+  }
+  sync();buildOccasions();buildCloset();requestAnimationFrame(loop);
 })();
