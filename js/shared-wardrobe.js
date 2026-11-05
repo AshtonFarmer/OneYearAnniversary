@@ -20,6 +20,11 @@
     lotuspond:'Lotus pond',railroad:'Railroad Park skyline',jeep:'Little Jeep'
   };
   const drapes={classic:'Classic shoulder drape',bengali:'Bengali-inspired wrap',gujarati:'Gujarati-inspired front pallu'};
+  const blouseStyles={
+    neck:{round:'Round',square:'Square',vee:'V-neck',high:'High neck'},
+    sleeve:{short:'Short',cap:'Cap',elbow:'Elbow length'},
+    back:{closed:'Closed',scoop:'Scoop',keyhole:'Keyhole'}
+  };
   const finishes={cotton:'Matte cotton',silk:'Silk sheen',brocade:'Brocade',tissue:'Shimmer tissue',linen:'Linen',velvet:'Velvet finish'};
   const accents={none:'None',gold:'Gold zari',silver:'Silver zari',rose:'Rose-gold thread',pearls:'Pearls',ruby:'Ruby accents',emerald:'Emerald accents'};
   const layouts={repeat:'All-over repeat',scattered:'Staggered repeat',bands:'Woven bands',panel:'Statement centerpiece'};
@@ -33,7 +38,9 @@
       points:(Array.isArray(s?.points)?s.points:[]).slice(0,240)
         .filter(p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite))
         .map(p=>p.map(n=>Math.round(clamp(n,0,1)*10000)/10000)),
-      ...(s?.stamp&&s.stamp!=='none'&&Object.hasOwn(motifs,s.stamp)?{stamp:s.stamp}:{})
+      ...(s?.stamp&&s.stamp!=='none'&&Object.hasOwn(motifs,s.stamp)?{
+        stamp:s.stamp,angle:clamp(Number(s.angle)||0,-180,180),mirror:s.mirror===true
+      }:{})
     }));
   }
   function normalizeSaree(zones,color,trim){
@@ -55,13 +62,18 @@
   function normalize(d){
     const who=d.who==='him'?'him':'her',preset=presets.find(p=>p.id===d.preset&&p.who===who),kind=preset?'preset':who==='him'?'suit':(d.kind==='dress'?'dress':'saree');
     const color=hex(d.color,'#728d77'),trim=hex(d.trim,'#e5ba65');
+    const blouse=d.blouse&&typeof d.blouse==='object'?{
+      match:d.blouse.match!==false,
+      color:hex(d.blouse.color,color),trim:hex(d.blouse.trim,trim),
+      ...Object.fromEntries(Object.entries(blouseStyles).map(([key,options])=>[key,pick(d.blouse[key],options,Object.keys(options)[0])]))
+    }:null;
     return {
       id:String(d.id||'look-'+Date.now()),name:String(d.name||'My new look').slice(0,50),who,kind,
       base:preset?preset.base:who==='him'?6:kind==='dress'?5:1,
       ...(preset?{preset:preset.id}:{}),color,trim,
       pattern:['none','flowers','stars','stripes','checks'].includes(d.pattern)?d.pattern:'none',
       strokes:normalizeMarks(d.strokes,350).map(({color,size,points})=>({color,size:Math.min(.15,size),points})),
-      ...(kind==='saree'&&d.saree&&typeof d.saree==='object'?{saree:normalizeSaree(d.saree,color,trim),drape:pick(d.drape,drapes,'classic')}:{})
+      ...(kind==='saree'&&d.saree&&typeof d.saree==='object'?{saree:normalizeSaree(d.saree,color,trim),drape:pick(d.drape,drapes,'classic'),...(blouse?{blouse}:{})}:{})
     };
   }
   function save(design){const d=normalize(design);const i=saved.designs.findIndex(x=>x.id===d.id);if(i>=0)saved.designs[i]=d;else {if(saved.designs.length>=30)throw new Error('Your closet holds 30 designs. Remove one before saving another.');saved.designs.push(d);}persist();return d;}
@@ -211,7 +223,11 @@
     for(const mark of marks){
       if(!mark.points.length)continue;
       const [x,y]=mark.points[0];
-      if(mark.stamp){motif(p,mark.stamp,x*256,y*320,mark.size*256,mark.color,ground);continue;}
+      if(mark.stamp){
+        p.save();p.translate(x*256,y*320);p.rotate((mark.angle||0)*Math.PI/180);
+        if(mark.mirror)p.scale(-1,1);
+        motif(p,mark.stamp,0,0,mark.size*256,mark.color,ground);p.restore();continue;
+      }
       p.strokeStyle=mark.color;p.fillStyle=mark.color;p.lineWidth=mark.size*256;
       p.lineCap='round';p.lineJoin='round';p.beginPath();
       if(mark.points.length===1){p.arc(x*256,y*320,p.lineWidth/2,0,7);p.fill();continue;}
@@ -310,6 +326,7 @@
     if(d&&!d.preset){
       const pixels=p.getImageData(0,0,c.width,c.height),a=pixels.data;
       const enhanced=d.saree&&Object.fromEntries(sareeZones.map(key=>[key,sareeTexture(d.saree[key]).getContext('2d').getImageData(0,0,256,320).data]));
+      const blouse=d.blouse&&!d.blouse.match?{color:rgb(d.blouse.color),trim:rgb(d.blouse.trim)}:null;
       const t=enhanced?null:texture(d).getContext('2d').getImageData(0,0,256,320).data,trim=rgb(d.trim);
       const cw=c.width/4,ch=c.height/4;
       for(let row=0;row<4;row++)for(let col=0;col<4;col++){
@@ -331,8 +348,13 @@
           if(!cloth&&!border)continue;
           if(enhanced){
             const [part,sx,sy]=sareePoint(row,fx,fy,border,d.drape);
-            const sample=(clamp(Math.floor(sy*320),0,319)*256+clamp(Math.floor(sx*256),0,255))*4;
             const shade=.46+lum/285;
+            if(blouse&&row!==2&&fy<.59&&fx>.24&&fx<.80&&part==='body'){
+              const thread=fy<.48?blouse.trim:blouse.color;
+              for(let k=0;k<3;k++)a[i+k]=Math.min(255,thread[k]*shade);
+              continue;
+            }
+            const sample=(clamp(Math.floor(sy*320),0,319)*256+clamp(Math.floor(sx*256),0,255))*4;
             for(let k=0;k<3;k++)a[i+k]=Math.min(255,enhanced[part][sample+k]*shade);
             continue;
           }
@@ -375,5 +397,5 @@
   function wearPreset(id){const d=save(presetDesign(id));equip(d.id);return d;}
   function occasionSheet(who,occasion){const p=presets.find(p=>p.who===who&&p.occasion===occasion);return p?sheet(who,p.base):Promise.reject(new Error('That occasion outfit is missing.'));}
   addEventListener('storage',e=>{if(e.key===KEY){saved=read();rendered.clear();dispatchEvent(new CustomEvent('wardrobechange'));}});
-  window.SharedWardrobe={KEY,read:()=>JSON.parse(JSON.stringify(saved)),save,equip,unequip,remove,normalize,texture,sareeTexture,drawMotif:motif,sareeOptions:{motifs,finishes,accents,layouts,drapes},render,getSprite,addams,presets:()=>presets.map(p=>({...p})),presetDesign,wearPreset,occasionSheet,setNecklace:on=>{saved.necklace=!!on;persist();}};
+  window.SharedWardrobe={KEY,read:()=>JSON.parse(JSON.stringify(saved)),save,equip,unequip,remove,normalize,texture,sareeTexture,drawMotif:motif,sareeOptions:{motifs,finishes,accents,layouts,drapes,blouseStyles},render,getSprite,addams,presets:()=>presets.map(p=>({...p})),presetDesign,wearPreset,occasionSheet,setNecklace:on=>{saved.necklace=!!on;persist();}};
 })();
