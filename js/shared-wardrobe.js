@@ -13,8 +13,13 @@
     none:'Plain',buti:'Woven buti',lotus:'Lotus',paisley:'Mango paisley',vine:'Flowering vine',
     peacock:'Peacock',ikat:'Ikat diamonds',bandhani:'Tie-dye dots',temple:'Temple points',
     kantha:'Running stitches',checks:'Checks',stripes:'Stripes',flowers:'Blossoms',stars:'Stars',
-    arch:'Palace arches',moon:'Moon and stars',heart:'Hearts'
+    arch:'Palace arches',moon:'Moon and stars',heart:'Hearts',
+    jasmine:'Jasmine',marigold:'Marigold',fern:'Fern frond',parrot:'Parrot',elephant:'Elephant',
+    swan:'Swan',fish:'Fish',coin:'Coin medallion',trellis:'Diamond trellis',sunburst:'Sunburst',
+    chevron:'Chevron',wave:'Scalloped waves',diya:'Puja lamp',eclipse:'Eclipse',fireworks:'Fireworks',
+    lotuspond:'Lotus pond',railroad:'Railroad Park skyline',jeep:'Little Jeep'
   };
+  const drapes={classic:'Classic shoulder drape',bengali:'Bengali-inspired wrap',gujarati:'Gujarati-inspired front pallu'};
   const finishes={cotton:'Matte cotton',silk:'Silk sheen',brocade:'Brocade',tissue:'Shimmer tissue',linen:'Linen',velvet:'Velvet finish'};
   const accents={none:'None',gold:'Gold zari',silver:'Silver zari',rose:'Rose-gold thread',pearls:'Pearls',ruby:'Ruby accents',emerald:'Emerald accents'};
   const layouts={repeat:'All-over repeat',scattered:'Staggered repeat',bands:'Woven bands',panel:'Statement centerpiece'};
@@ -36,7 +41,8 @@
       const zone=zones[key]||{};
       return [key,{
         color:hex(zone.color,key==='border'?trim:color),ink:hex(zone.ink,key==='border'?color:trim),
-        motif:pick(zone.motif,motifs,'none'),finish:pick(zone.finish,finishes,'silk'),
+        motif:pick(zone.motif,motifs,'none'),secondMotif:pick(zone.secondMotif,motifs,'none'),
+        secondInk:hex(zone.secondInk,'#e9a7a7'),finish:pick(zone.finish,finishes,'silk'),
         accent:pick(zone.accent,accents,'none'),layout:pick(zone.layout,layouts,'repeat'),
         spacing:clamp(Number(zone.spacing)||48,24,82),marks:normalizeMarks(zone.marks,80)
       }];
@@ -55,7 +61,7 @@
       ...(preset?{preset:preset.id}:{}),color,trim,
       pattern:['none','flowers','stars','stripes','checks'].includes(d.pattern)?d.pattern:'none',
       strokes:normalizeMarks(d.strokes,350).map(({color,size,points})=>({color,size:Math.min(.15,size),points})),
-      ...(kind==='saree'&&d.saree&&typeof d.saree==='object'?{saree:normalizeSaree(d.saree,color,trim)}:{})
+      ...(kind==='saree'&&d.saree&&typeof d.saree==='object'?{saree:normalizeSaree(d.saree,color,trim),drape:pick(d.drape,drapes,'classic')}:{})
     };
   }
   function save(design){const d=normalize(design);const i=saved.designs.findIndex(x=>x.id===d.id);if(i>=0)saved.designs[i]=d;else {if(saved.designs.length>=30)throw new Error('Your closet holds 30 designs. Remove one before saving another.');saved.designs.push(d);}persist();return d;}
@@ -126,6 +132,75 @@
         dot(-.10,.04,.33);p.fillStyle=ground;dot(.05,-.06,.29);p.fillStyle=ink;dot(.34,-.21,.07);dot(.31,.14,.04);break;
       case 'stars':
         path([[0,-.48],[.09,-.10],[.43,0],[.09,.10],[0,.48],[-.09,.10],[-.43,0],[-.09,-.10]],true);break;
+      case 'jasmine':
+        for(let k=0;k<6;k++){p.save();p.rotate(k*Math.PI/3);oval(0,-.25,.12,.26,.26);p.restore();}
+        p.fillStyle=ground;dot(0,0,.09);break;
+      case 'marigold':
+        for(let k=0;k<10;k++)dot(Math.sin(k*Math.PI/5)*.30,Math.cos(k*Math.PI/5)*.30,.14);
+        dot(0,0,.31);p.fillStyle=ground;dot(0,0,.13);p.fillStyle=ink;dot(0,0,.06);break;
+      case 'fern':
+        path([[0,-.49],[0,.50]]);
+        for(let k=0;k<4;k++){
+          const y=-.29+k*.19,offset=.11+k*.046;
+          oval(-offset,y,.07,offset,-.85);oval(offset,y,.07,offset,.85);
+        }
+        break;
+      case 'parrot':
+        oval(-.06,.04,.23,.29,-.52);dot(.17,-.26,.17);
+        path([[.27,-.34],[.46,-.26],[.27,-.17]],true);
+        path([[-.10,.10],[-.46,.48],[-.18,.40],[.03,.22]],true);
+        p.fillStyle=ground;dot(.20,-.29,.045);oval(-.10,.04,.073,.16,-.62);break;
+      case 'elephant':
+        oval(-.10,-.06,.37,.27);dot(.25,-.10,.22);
+        p.fillRect(-.37,.08,.13,.27);p.fillRect(-.03,.10,.13,.25);
+        path([[.40,-.10],[.44,.20],[.34,.30],[.26,.23]]);
+        path([[-.42,-.06],[-.51,.14]]);p.fillStyle=ground;dot(.32,-.17,.04);
+        oval(.13,-.07,.076,.13,-.35);break;
+      case 'swan':
+        oval(-.12,.16,.35,.18);path([[.18,.19],[.28,-.07],[.20,-.28],[.08,-.32],[.01,-.23]]);
+        dot(.08,-.28,.11);path([[.01,-.31],[-.19,-.25],[.03,-.23]],true);
+        p.fillStyle=ground;oval(-.20,.12,.21,.058,.25);break;
+      case 'fish':
+        oval(.07,0,.32,.22);path([[-.19,0],[-.49,-.26],[-.49,.26]],true);
+        p.fillStyle=ground;dot(.25,-.06,.055);p.strokeStyle=ground;path([[.06,-.14],[.12,0],[.06,.14]]);break;
+      case 'coin':
+        dot(0,0,.44);p.fillStyle=ground;dot(0,0,.32);p.fillStyle=ink;dot(0,0,.19);
+        for(let k=0;k<8;k++)dot(Math.sin(k*Math.PI/4)*.53,Math.cos(k*Math.PI/4)*.53,.04);break;
+      case 'trellis':
+        path([[0,-.52],[.49,0],[0,.52],[-.49,0],[0,-.52]]);
+        path([[-.25,0],[0,-.25],[.25,0],[0,.25],[-.25,0]]);dot(0,0,.07);break;
+      case 'sunburst':
+        for(let k=0;k<12;k++){p.save();p.rotate(k*Math.PI/6);path([[-.05,-.28],[0,-.53],[.05,-.28]],true);p.restore();}
+        dot(0,0,.23);p.fillStyle=ground;dot(0,0,.09);break;
+      case 'chevron':
+        for(const y of [-.22,.03,.28])path([[-.49,y-.17],[0,y+.09],[.49,y-.17]]);break;
+      case 'wave':
+        for(const y of [-.25,.03,.31]){
+          p.beginPath();p.moveTo(-.51,y);p.quadraticCurveTo(-.26,y-.35,0,y);
+          p.quadraticCurveTo(.26,y-.35,.51,y);p.stroke();
+        }
+        break;
+      case 'diya':
+        p.beginPath();p.moveTo(-.46,.02);p.quadraticCurveTo(-.25,.51,0,.45);
+        p.quadraticCurveTo(.25,.51,.46,.02);p.quadraticCurveTo(0,.20,-.46,.02);p.fill();
+        p.beginPath();p.moveTo(.03,-.51);p.quadraticCurveTo(.37,-.15,.03,-.01);
+        p.quadraticCurveTo(-.23,-.16,.03,-.51);p.fill();break;
+      case 'eclipse':
+        dot(0,0,.43);p.fillStyle=ground;dot(.045,-.018,.35);p.fillStyle=ink;dot(.33,-.29,.075);break;
+      case 'fireworks':
+        for(let k=0;k<10;k++){p.save();p.rotate(k*Math.PI/5);path([[0,-.15],[0,-.39]]);dot(0,-.53,.034);p.restore();}
+        dot(0,0,.06);break;
+      case 'lotuspond':
+        oval(0,-.15,.13,.28);oval(-.21,-.05,.11,.22,-.72);oval(.21,-.05,.11,.22,.72);
+        for(const y of [.22,.37])path([[-.47,y],[-.24,y+.05],[0,y],[.24,y+.05],[.47,y]]);break;
+      case 'railroad':
+        path([[-.51,.27],[-.51,-.12],[-.34,-.12],[-.34,.02],[-.23,.02],[-.23,-.41],
+          [-.07,-.41],[-.07,-.19],[.08,-.19],[.08,-.32],[.27,-.32],[.27,.03],[.47,.03],[.47,.27]],true);
+        path([[-.49,.40],[.49,.40]]);break;
+      case 'jeep':
+        path([[-.50,.23],[-.50,-.02],[-.24,-.02],[-.13,-.30],[.33,-.30],[.43,-.08],[.50,-.08],[.50,.23]],true);
+        dot(-.30,.24,.15);dot(.31,.24,.15);p.fillStyle=ground;
+        p.fillRect(-.10,-.23,.17,.15);p.fillRect(.13,-.23,.16,.15);dot(-.30,.24,.058);dot(.31,.24,.058);break;
       case 'heart':
         p.beginPath();p.moveTo(0,.43);p.bezierCurveTo(-.87,-.12,-.39,-.59,0,-.23);
         p.bezierCurveTo(.39,-.59,.87,-.12,0,.43);p.fill();break;
@@ -167,7 +242,19 @@
         }
       }
     }
-    if(accent!=='none'){
+    if(zone.secondMotif&&zone.secondMotif!=='none'){
+      const secondInk=zone.secondInk;
+      if(layout==='panel'){
+        for(const y of [105,215])for(const x of [44,212])motif(p,zone.secondMotif,x,y,37,secondInk,color);
+      }else{
+        const stride=layout==='bands'?spacing*1.65:spacing;
+        for(let y=stride/2+spacing/2,line=0;y<320;y+=stride,line++)for(let x=spacing;x<256+spacing;x+=spacing){
+          const offset=layout==='scattered'&&line%2?spacing/2:0;
+          motif(p,zone.secondMotif,x-offset,y,spacing*.49,secondInk,color);
+        }
+      }
+    }
+    if(accent&&accent!=='none'){
       const metal={gold:'#ffdb79',silver:'#edf7ff',rose:'#ffb6a3',pearls:'#fff3d7',ruby:'#f06b97',emerald:'#7bf1ba'}[accent];
       if(['gold','silver','rose'].includes(accent)){
         p.fillStyle=metal;p.globalAlpha=.8;
@@ -184,9 +271,26 @@
     paintMarks(p,marks,color);
     return c;
   }
-  // Original gold edges locate the woven border. The diagonal pallu and
-  // central front folds use their own texture space within the existing drape.
-  function sareePoint(row,x,y,border){
+  // Keep the original animation and color only garment pixels. The wraps
+  // change which portions of the fabric cross the chest, hip, and back.
+  function sareePoint(row,x,y,border,drape){
+    if(drape==='bengali'||drape==='gujarati'){
+      const bengali=drape==='bengali';
+      const width=bengali?.17:.29;
+      const frontDepth=bengali?.33:.40;
+      const center=row===0?(bengali?.27+(y-.45)*1.03:.34+(y-.45)*.47):
+        row===1?.58-(y-.46)*.45:row===2?.53+(y-.69)*(bengali?-.60:.60):.43+(y-.46)*.4;
+      const start=row===2?.69:.45;
+      const depth=row===2?.22:row===0?frontDepth:.33;
+      const edge=Math.abs(x-center);
+      if(y>=start&&y<start+depth&&edge<width){
+        const u=(x-center+width)/(width*2),v=(y-start)/depth;
+        return (edge>width-(bengali?.055:.027)||v>.91)?['border',u,v]:['pallu',u,v];
+      }
+      if(y>.94||border&&y>.90)return ['border',x,(y-.90)/.10];
+      if(y>.72&&row===0&&Math.abs(x-(bengali?.37:.5))<(bengali?.11:.17))return ['pleats',x,(y-.72)/.28];
+      return ['body',x,(y-.42)/.58];
+    }
     if(border)return ['border',x,clamp((y-.42)/.58,0,1)];
     const center=row===0?.84-(y-.46)*1.15:row===1?.44-(y-.48)*.7:row===2?.54+(y-.70)*.78:.55+(y-.48)*.7;
     const onPallu=row===2?y>.70&&y<.89:y<.79;
@@ -226,7 +330,7 @@
           else cloth=lum>23&&lum<115&&Math.max(r,g,b)-Math.min(r,g,b)<40;
           if(!cloth&&!border)continue;
           if(enhanced){
-            const [part,sx,sy]=sareePoint(row,fx,fy,border);
+            const [part,sx,sy]=sareePoint(row,fx,fy,border,d.drape);
             const sample=(clamp(Math.floor(sy*320),0,319)*256+clamp(Math.floor(sx*256),0,255))*4;
             const shade=.46+lum/285;
             for(let k=0;k<3;k++)a[i+k]=Math.min(255,enhanced[part][sample+k]*shade);
@@ -271,5 +375,5 @@
   function wearPreset(id){const d=save(presetDesign(id));equip(d.id);return d;}
   function occasionSheet(who,occasion){const p=presets.find(p=>p.who===who&&p.occasion===occasion);return p?sheet(who,p.base):Promise.reject(new Error('That occasion outfit is missing.'));}
   addEventListener('storage',e=>{if(e.key===KEY){saved=read();rendered.clear();dispatchEvent(new CustomEvent('wardrobechange'));}});
-  window.SharedWardrobe={KEY,read:()=>JSON.parse(JSON.stringify(saved)),save,equip,unequip,remove,normalize,texture,sareeTexture,sareeOptions:{motifs,finishes,accents,layouts},render,getSprite,addams,presets:()=>presets.map(p=>({...p})),presetDesign,wearPreset,occasionSheet,setNecklace:on=>{saved.necklace=!!on;persist();}};
+  window.SharedWardrobe={KEY,read:()=>JSON.parse(JSON.stringify(saved)),save,equip,unequip,remove,normalize,texture,sareeTexture,drawMotif:motif,sareeOptions:{motifs,finishes,accents,layouts,drapes},render,getSprite,addams,presets:()=>presets.map(p=>({...p})),presetDesign,wearPreset,occasionSheet,setNecklace:on=>{saved.necklace=!!on;persist();}};
 })();

@@ -20,9 +20,9 @@
   ];
   const zoneNames={body:'Body',pleats:'Pleats',pallu:'Pallu',border:'Border'};
   const zoneHelp={body:'The main wrap of the saree.',pleats:'The gathered folds at the front.',pallu:'The decorated end draped over the shoulder.',border:'The edging around the saree.'};
-  const zoneFields={zoneColor:'color',zoneInk:'ink',zoneFinish:'finish',zoneAccent:'accent',zoneMotif:'motif',zoneLayout:'layout',zoneSpacing:'spacing'};
+  const zoneFields={zoneColor:'color',zoneInk:'ink',zoneFinish:'finish',zoneAccent:'accent',zoneSecondInk:'secondInk',zoneLayout:'layout',zoneSpacing:'spacing'};
   const zoneButtons=document.querySelectorAll('[data-zone]');
-  let selectedZone='body',closeUp=false,paintPointer=null,activeMark=null;
+  let selectedZone='body',closeUp=false,paintPointer=null,activeMark=null,stampTool='',walking=true;
   const swatch={x:49,y:49,w:262,h:328};
   const outline=path=>new Path2D(path);
   const sketch={
@@ -33,6 +33,61 @@
     border:outline('M89 396 Q182 425 271 398 L273 415 Q183 445 87 413 Z M223 276 Q251 288 278 268 L281 282 Q248 308 222 289 Z')
   };
   const sketchAreas={body:[88,151,183,270],pleats:[145,173,79,252],pallu:[144,45,137,257],border:[87,268,194,167]};
+  const drapeNotes={
+    classic:'The original shoulder wrap.',
+    bengali:'A cross-body fold with a wider contrasting edge.',
+    gujarati:'A wider pallu carried forward to show its design.'
+  };
+  const drapeSketches={
+    classic:sketch,
+    bengali:{...sketch,
+      pallu:outline('M116 48 Q102 45 93 64 Q109 117 120 174 L210 209 L231 165 Q188 140 116 48 Z'),
+      border:outline('M89 387 Q180 421 271 389 L273 415 Q183 445 87 413 Z M116 164 Q168 182 214 198 L210 214 Q168 201 120 180 Z')},
+    gujarati:{...sketch,
+      pallu:outline('M112 49 Q132 41 146 57 Q177 104 199 152 L238 244 Q183 274 104 249 L108 162 Z'),
+      border:outline('M89 396 Q182 425 271 398 L273 415 Q183 445 87 413 Z M105 238 Q175 261 234 232 L239 248 Q175 277 103 253 Z')}
+  };
+  const drapeAreas={classic:sketchAreas,bengali:{...sketchAreas,pallu:[92,44,141,168],border:[87,160,187,272]},
+    gujarati:{...sketchAreas,pallu:[103,41,137,234],border:[87,231,187,201]}};
+  const motifGroups={
+    'Flowers and foliage':['lotus','flowers','jasmine','marigold','fern','vine','lotuspond','paisley'],
+    'Birds and animals':['peacock','parrot','elephant','swan','fish'],
+    'Woven geometry':['buti','ikat','bandhani','kantha','checks','stripes','trellis','coin','temple','chevron','wave','arch'],
+    'Celestial and keepsakes':['sunburst','stars','moon','heart','eclipse','diya','fireworks','railroad','jeep']
+  };
+  function openMotifs(field){
+    const stamp=field==='stamp',accent=field==='secondMotif',zone=draft.saree[selectedZone];
+    const names=W.sareeOptions.motifs,selected=stamp?stampTool:zone[field];
+    $('motifHeading').textContent=stamp?'Choose a stamp':accent?'Choose an accent motif':'Choose a primary motif';
+    const grid=$('motifChoices');grid.replaceChildren();
+    function addTile(parent,key,label){
+      const button=document.createElement('button'),icon=document.createElement('canvas'),caption=document.createElement('span');
+      button.type='button';button.className='motif-tile';button.setAttribute('aria-pressed',key===selected);
+      icon.width=74;icon.height=54;icon.setAttribute('aria-hidden','true');
+      const ctx=icon.getContext('2d'),ground='#263b35';
+      ctx.fillStyle=ground;ctx.fillRect(0,0,74,54);
+      if(key&&key!=='none')W.drawMotif(ctx,key,37,27,38,'#f4d79e',ground);
+      else {ctx.strokeStyle='#a2aa8c';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(29,27);ctx.lineTo(45,27);ctx.stroke();}
+      caption.textContent=label;button.append(icon,caption);
+      button.onclick=()=>{
+        if(stamp){
+          stampTool=key;$('paintTool').textContent=label;
+          if(key)setZone(selectedZone,true);
+        }else{zone[field]=key;updateZone();queueRender();}
+        $('motifGallery').close();
+      };
+      parent.append(button);
+    }
+    const clear=document.createElement('div');clear.className='motif-grid';grid.append(clear);
+    addTile(clear,stamp?'':'none',stamp?'Freehand brush':accent?'No accent':'Plain');
+    for(const [group,keys] of Object.entries(motifGroups)){
+      const section=document.createElement('section'),heading=document.createElement('h3'),tiles=document.createElement('div');
+      heading.textContent=group;tiles.className='motif-grid';
+      for(const key of keys)addTile(tiles,key,names[key]);
+      section.append(heading,tiles);grid.append(section);
+    }
+    $('motifGallery').showModal();
+  }
   function fillOptions(id,options){
     for(const [value,label] of Object.entries(options)){
       const option=document.createElement('option');
@@ -47,15 +102,22 @@
       pallu:{color:palluColor,ink,motif:palluMotif,finish,accent,layout:palluLayout,spacing:48},
       border:{color:ink,ink:color,motif:borderMotif,finish,accent,layout:'bands',spacing:35}
     };
-    for(const [key,zone] of Object.entries(edits))draft.saree[key]={...zone,marks:draft.saree[key].marks};
+    for(const [key,zone] of Object.entries(edits))draft.saree[key]={
+      ...zone,secondMotif:draft.saree[key].secondMotif,secondInk:draft.saree[key].secondInk,marks:draft.saree[key].marks
+    };
     sync();
     if(announce)say(name+' applied. Your brushwork and stamps are still here.');
   }
   function updateZone(){
     const zone=draft.saree[selectedZone];
-    for(const [id,field] of Object.entries(zoneFields))$(id).value=zone[field];
+    for(const [id,field] of Object.entries(zoneFields))$(id).value=zone[field]??'#e9a7a7';
+    $('zoneMotif').textContent=W.sareeOptions.motifs[zone.motif];
+    $('zoneSecond').textContent=zone.secondMotif&&zone.secondMotif!=='none'?W.sareeOptions.motifs[zone.secondMotif]:'No accent';
+    $('secondInkField').hidden=!zone.secondMotif||zone.secondMotif==='none';
+    $('drapeStyle').value=draft.drape;
+    $('drapeNote').textContent=drapeNotes[draft.drape];
     $('zoneLabel').textContent=zoneNames[selectedZone].toUpperCase();
-    $('spacingField').hidden=zone.motif==='none'||zone.layout==='panel';
+    $('spacingField').hidden=(zone.motif==='none'&&(!zone.secondMotif||zone.secondMotif==='none'))||zone.layout==='panel';
     $('swatchView').setAttribute('aria-pressed',closeUp);
     zoneButtons.forEach(b=>b.setAttribute('aria-pressed',b.dataset.zone===selectedZone));
     $('artboardCaption').textContent=closeUp?zoneHelp[selectedZone]+' Paint or stamp the swatch.':zoneHelp[selectedZone]+' Click a section or open its paint close-up.';
@@ -74,21 +136,23 @@
       fc.fillText(zoneNames[selectedZone]+' · fabric close-up',180,402);
       return;
     }
-    for(const [key,part] of Object.entries(sketch)){
+    const paths=drapeSketches[draft.drape],areas=drapeAreas[draft.drape];
+    for(const [key,part] of Object.entries(paths)){
       fc.save();fc.clip(part);
       if(key==='blouse'){
         fc.fillStyle=draft.saree.body.color;fc.fillRect(0,0,360,440);
-      }else fc.drawImage(W.sareeTexture(draft.saree[key]),...sketchAreas[key]);
+      }else fc.drawImage(W.sareeTexture(draft.saree[key]),...areas[key]);
       fc.restore();
       fc.strokeStyle=key===selectedZone?'#fbecbf':'#342d3b99';
       fc.lineWidth=key===selectedZone?2.7:1.1;fc.stroke(part);
     }
-    fc.save();fc.clip(sketch.pleats);
+    fc.save();fc.clip(paths.pleats);
     fc.strokeStyle='#1a152452';fc.lineWidth=2;
     for(const hem of [151,168,183,198,213]){
       fc.beginPath();fc.moveTo(180+(hem-180)*.37,179);fc.lineTo(hem,414);fc.stroke();
     }
     fc.restore();
+    if(draft.drape!=='classic')return;
     fc.strokeStyle='#e8d4aeaa';fc.lineWidth=1;
     fc.beginPath();fc.moveTo(225,58);fc.quadraticCurveTo(190,120,155,171);fc.stroke();
     fc.beginPath();fc.moveTo(240,63);fc.quadraticCurveTo(237,155,258,277);fc.stroke();
@@ -108,7 +172,7 @@
     $('fabricColor').value=draft.color;$('trimColor').value=draft.trim;$('lookName').value=draft.name;
     $('kindLabel').textContent=advanced?'SAREE DESIGN WORKBENCH':draft.kind.toUpperCase()+' · YOUR DESIGN';
     fabric.style.cursor=advanced&&!closeUp?'pointer':'crosshair';
-    $('sareeTools').hidden=!advanced;$('sareeModes').hidden=!advanced;$('stampField').hidden=!advanced;
+    $('sareeTools').hidden=!advanced;$('drapeTools').hidden=!advanced;$('sareeModes').hidden=!advanced;$('stampField').hidden=!advanced;
     $('legacyTools').hidden=advanced;$('upgradeSaree').hidden=advanced||draft.kind!=='saree';
     $('paintHint').textContent=advanced?'Choose a section and open Paint close-up. Brush and stamps stay on that section.':'Paint directly on the fabric.';
     $('artboardCaption').textContent='Colors, little flowers, a scribble. It’s yours.';
@@ -129,7 +193,7 @@
     if(paintPointer!==null||e.button!==0)return;
     const [x,y]=point(e);
     if(draft.saree&&!closeUp){
-      const part=['border','pallu','pleats','body'].find(key=>fc.isPointInPath(sketch[key],x,y));
+      const part=['border','pallu','pleats','body'].find(key=>fc.isPointInPath(drapeSketches[draft.drape][key],x,y));
       if(part)setZone(part);
       return;
     }
@@ -137,7 +201,7 @@
     if(!inside(pt)||!draft.saree&&!fc.isPointInPath(silhouette(),x,y))return;
     if(list.length>=limit){say('This section is full. Undo or clear marks to add more.');return;}
     e.preventDefault();
-    const stamp=draft.saree&&$('paintTool').value;
+    const stamp=draft.saree&&stampTool;
     const size=Number($('brushSize').value);
     activeMark={color:$('paintColor').value,size:stamp?size/100:size/360,points:[pt],...(stamp?{stamp}:{})};
     list.push(activeMark);
@@ -172,11 +236,16 @@
   });
   zoneButtons.forEach(b=>b.onclick=()=>setZone(b.dataset.zone));
   $('swatchView').onclick=()=>setZone(selectedZone,!closeUp);
-  $('paintTool').onchange=()=>{if(draft.saree)setZone(selectedZone,true);};
+  $('zoneMotif').onclick=()=>openMotifs('motif');
+  $('zoneSecond').onclick=()=>openMotifs('secondMotif');
+  $('paintTool').onclick=()=>openMotifs('stamp');
+  $('drapeStyle').onchange=e=>{draft.drape=e.target.value;setZone(selectedZone,false);queueRender();};
+  $('walkPreview').onclick=()=>{
+    walking=!walking;$('walkPreview').setAttribute('aria-pressed',walking);
+    $('walkPreview').textContent=walking?'Walking':'Standing';
+  };
   fillOptions('zoneFinish',W.sareeOptions.finishes);fillOptions('zoneAccent',W.sareeOptions.accents);
-  fillOptions('zoneMotif',W.sareeOptions.motifs);fillOptions('zoneLayout',W.sareeOptions.layouts);
-  const {none,...stamps}=W.sareeOptions.motifs;
-  fillOptions('paintTool',{'':'Freehand brush',...stamps});
+  fillOptions('zoneLayout',W.sareeOptions.layouts);fillOptions('drapeStyle',W.sareeOptions.drapes);
   fillOptions('sareeRecipe',recipes.map(([name])=>name+' inspired'));
   function showRecipe(){$('sareeRecipeNote').textContent=recipes[Number($('sareeRecipe').value)][1];}
   $('sareeRecipe').onchange=showRecipe;
@@ -202,9 +271,9 @@
   function loop(now){
     pc.clearRect(0,0,256,256);
     if(auto)row=Math.floor((now-turnStart)/1900)%4;
-    const label=directions[row]+' · WALKING PREVIEW';
+    const label=directions[row]+(walking?' · WALKING PREVIEW':' · STANDING PREVIEW');
     if($('previewDirection').textContent!==label)$('previewDirection').textContent=label;
-    if(sprite)window.WalkingSprites.draw(pc,sprite,row,Math.floor(now/170)%4,128,242,228);
+    if(sprite)window.WalkingSprites.draw(pc,sprite,row,walking?Math.floor(now/170)%4:0,128,242,228);
     requestAnimationFrame(loop);
   }
   applyRecipe(0,false);buildOccasions();buildCloset();requestAnimationFrame(loop);

@@ -16,3 +16,18 @@
   .atelier{grid-template-columns:275px minmax(320px,1fr) 270px;gap:30px}
   .artboard{position:sticky;top:12px}
 }
+
+.motif-fields{grid-column:1/-1;margin-bottom:13px}
+.motif-fields span{display:block;font-size:13px;color:#d9d5c5;margin-bottom:7px}
+.motif-fields button{width:100%;padding:8px 7px;min-height:40px;text-align:left}
+#drapeTools label{margin-bottom:5px}
+#drapeNote{min-height:30px;margin:0 0 12px}
+#walkPreview{padding:6px 10px;font-size:13px}
+#motifGallery{width:min(660px,calc(100% - 28px));max-height:85vh;padding:20px 24px;border:1px solid #9c8865;border-radius:12px;background:#222c2d;color:#f4ebd8;box-shadow:0 20px 90px #0009}
+#motifGallery::backdrop{background:#101816bc}
+.motif-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.motif-header h2{margin:4px 0 16px}
+#motifChoices h3{margin:18px 0 8px;color:#e7d0a0}
+.motif-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px}
+.motif-tile{padding:5px 4px;font-size:12px;display:flex;align-items:center;flex-direction:column;gap:5px;min-height:84px}
+.motif-tile canvas{display:block;width:min(100%,74px);height:auto;border-radius:4px}
