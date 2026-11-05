@@ -31,10 +31,10 @@
    nodes:[exit(),node('ticket','Keep our first-game tickets',780,835,'collect',{item:'baseball-ticket',once:true}),node('snacks','Get something from concessions',280,680,'shop',{shop:'concessions'}),node('merch','Browse the souvenir stand',280,435,'shop',{shop:'baseball'}),node('game','Take our seats for the game',840,690,'scene',{scene:'baseball',flag:'baseball-game'}),node('fireworks','Stay for the fireworks',1100,835,'scene',{scene:'fireworks',needsFlags:['baseball-game'],memory:'baseball',item:'fireworks-photo'})]
   },
   pool:{title:'Alight Pool Courtyard',chapter:'BIRMINGHAM · HER FIRST SWIM',theme:'pool',spawn:[300,835],memory:'swimming',
-   subtitle:'Meet at the ladder, swim together, then relax by the loungers.',
+   subtitle:'Swim to the golden ripples together to try the pool carry.',
    floors:[['stone',150,190,1250,710],['pool',485,300,690,420]],water:[485,300,690,420],
    props:[...Array.from({length:4},(_,i)=>prop('lounger',280+i*260,225,90,55)),prop('umbrella',1300,500,40,40),prop('stall',170,445,155,85,{label:'POOL DAY'}),prop('table',1255,680,90,70)],
-   nodes:[exit(),node('swim','Go down the pool ladder together',430,735,'swim'),node('rest','Rest by the loungers',350,310,'scene',{scene:'pool-rest',dry:true,memory:'swimming',item:'swim-ribbon',needsFlags:['pool-crossed']}),node('float','Pool-day supplies',245,610,'shop',{shop:'pool'}),node('exit-water','Climb out of the pool',540,760,'dry')]
+   nodes:[exit(),node('swim','Go down the pool ladder together',430,735,'swim'),node('carry','Carry Tanima',750,650,'carry',{r:74}),node('rest','Rest by the loungers',350,310,'scene',{scene:'pool-rest',dry:true,memory:'swimming',item:'swim-ribbon',needsFlags:['pool-crossed']}),node('float','Pool-day supplies',245,610,'shop',{shop:'pool'}),node('exit-water','Climb out of the pool',540,760,'dry')]
   },
   golf:{title:'Our Topgolf Bay',chapter:'BIRMINGHAM · ONE MORE SHOT',theme:'golf',spawn:[768,895],memory:'topgolf',
    subtitle:'Take turns in the bay, aim down the range, and keep your scorecard.',
