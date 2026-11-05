@@ -18,10 +18,95 @@
     ['Crimson Puja','Cream and red with a lotus pallu and temple-point border.','#f2dcbd','#bd3346','#8c2542','lotus','lotus','temple','silk','gold','panel'],
     ['Gallery Heirloom','An ornate centerpiece inspired by the record saree’s woven artwork.','#2c254f','#f6cf81','#58334e','vine','arch','peacock','brocade','ruby','panel']
   ];
+  const dressRecipes=[
+    {name:'Garden Party',note:'Tea-length floral with a rose-pink bow.',shape:'tea',neck:'round',sleeve:'cap',waist:'bow',color:'#adc3a0',ink:'#8b3c5d',trim:'#a74e73',finish:'cotton',motif:'flowers'},
+    {name:'Midnight Gala',note:'A velvet mermaid dress with gold stars.',shape:'mermaid',neck:'sweetheart',sleeve:'none',waist:'band',color:'#292044',ink:'#f3cc82',trim:'#daa75e',finish:'velvet',motif:'stars'},
+    {name:'Wildflower Wrap',note:'An easy wrap with linen texture and jasmine.',shape:'wrap',neck:'vee',sleeve:'short',waist:'sash',color:'#527c71',ink:'#f9e6b7',trim:'#eac689',finish:'linen',motif:'jasmine'},
+    {name:'Pearl Promenade',note:'Ivory silk and a full skirt with pearl accents.',shape:'ball',neck:'square',sleeve:'none',waist:'bow',color:'#dfcdb4',ink:'#b79784',trim:'#c38a95',finish:'silk',motif:'vine',accent:'pearls'},
+    {name:'Rosewater',note:'Soft pink silk, a sweetheart neckline, and lotus motifs.',shape:'aline',neck:'sweetheart',sleeve:'cap',waist:'band',color:'#dda7b5',ink:'#8e3659',trim:'#eac58c',finish:'silk',motif:'lotus'},
+    {name:'Emerald Evening',note:'A long-sleeved brocade sheath with a coin pattern.',shape:'sheath',neck:'high',sleeve:'long',waist:'none',color:'#22584c',ink:'#a3ce9c',trim:'#e3bd7e',finish:'brocade',motif:'coin'},
+    {name:'Railroad Sunset',note:'A copper wrap with a skyline repeat.',shape:'wrap',neck:'vee',sleeve:'cap',waist:'sash',color:'#9f4e48',ink:'#ffe1a6',trim:'#d7a36d',finish:'silk',motif:'railroad'},
+    {name:'Blue Hour',note:'A midnight ball gown with moons and silver thread.',shape:'ball',neck:'round',sleeve:'long',waist:'band',color:'#344775',ink:'#c2d3f2',trim:'#bcc9d9',finish:'tissue',motif:'moon',accent:'silver'}
+  ];
+  const dressSkirts={
+    aline:'Q224 243 266 405 Q180 435 94 405 Q136 243 132 176',
+    wrap:'Q218 257 254 400 Q188 427 100 402 Q122 246 132 176',
+    sheath:'Q237 236 225 397 Q180 418 135 397 Q123 236 132 176',
+    tea:'Q248 233 277 350 Q180 387 83 350 Q112 233 132 176',
+    ball:'Q263 236 310 397 Q180 448 50 397 Q97 236 132 176',
+    mermaid:'Q241 226 218 315 Q231 357 282 405 Q180 446 78 405 Q129 357 142 315 Q119 226 132 176'
+  };
+  const dressNecks={
+    round:'Q180 80 218 46',square:'L142 80 L218 80 L218 46',
+    vee:'L180 105 L218 46',sweetheart:'Q158 56 180 80 Q202 56 218 46',high:'Q180 56 218 46'
+  };
+  const dressSleeves={
+    none:['Q235 68 224 118','Q125 68 142 46'],
+    cap:['L248 58 L264 89 L233 108 L224 118','L127 108 L96 89 L112 58 L142 46'],
+    short:['L248 60 L272 124 L239 139 L224 118','L121 139 L88 124 L112 60 L142 46'],
+    long:['L248 60 L275 208 L246 216 L224 118','L114 216 L85 208 L112 60 L142 46']
+  };
+  const dressFields={dressNeck:'neck',dressSleeve:'sleeve',dressWaist:'waist',dressTrim:'trim'};
+  const workingDrafts=new Map();
+  function dressPath(style){
+    const [right,left]=dressSleeves[style.sleeve];
+    return new Path2D('M142 46 '+dressNecks[style.neck]+' '+right+' L228 176 '+dressSkirts[style.shape]+' L136 118 '+left+' Z');
+  }
+  function paintDress(ctx,style,cloth,ink){
+    const path=dressPath(style);
+    ctx.save();ctx.clip(path);
+    if(cloth)ctx.drawImage(cloth,0,0,360,440);
+    else {ctx.fillStyle='#aa6c82';ctx.fillRect(0,0,360,440);}
+    const sheen=ctx.createLinearGradient(85,0,275,0);
+    sheen.addColorStop(0,'#2c20304d');sheen.addColorStop(.47,'#fff3');sheen.addColorStop(1,'#2c20304d');
+    ctx.fillStyle=sheen;ctx.fillRect(0,0,360,440);
+    ctx.lineWidth=5;ctx.strokeStyle=ink;ctx.stroke(path);
+    if(style.shape==='wrap'||style.waist==='sash'){
+      ctx.lineWidth=style.waist==='sash'?10:3;ctx.beginPath();ctx.moveTo(219,64);
+      ctx.quadraticCurveTo(181,123,135,179);ctx.stroke();
+    }
+    if(style.waist!=='none'){
+      ctx.fillStyle=ink;ctx.fillRect(128,169,104,11);
+      if(style.waist==='bow'){
+        ctx.beginPath();ctx.moveTo(180,174);ctx.lineTo(159,161);ctx.lineTo(159,186);
+        ctx.lineTo(180,177);ctx.lineTo(201,186);ctx.lineTo(201,161);ctx.closePath();ctx.fill();
+      }
+    }
+    ctx.restore();ctx.strokeStyle='#30253180';ctx.lineWidth=1.2;ctx.stroke(path);
+  }
+  function buildDressChoices(){
+    for(const [key,label] of Object.entries(W.sareeOptions.dressStyles.shape)){
+      const button=document.createElement('button'),icon=document.createElement('canvas'),name=document.createElement('span');
+      button.type='button';button.dataset.shape=key;
+      icon.width=44;icon.height=49;icon.setAttribute('aria-hidden','true');
+      const ctx=icon.getContext('2d');ctx.translate(2,0);ctx.scale(.111,.111);
+      paintDress(ctx,{shape:key,neck:'round',sleeve:'none',waist:'band'},null,'#efd1a0');
+      name.textContent=label;button.append(icon,name);
+      button.onclick=()=>{draft.dress.shape=key;updateDressTools();queueRender();};
+      $('dressShapeChoices').append(button);
+    }
+  }
+  function updateDressTools(){
+    for(const [id,field] of Object.entries(dressFields))$(id).value=draft.dress[field];
+    for(const button of $('dressShapeChoices').children)button.setAttribute('aria-pressed',button.dataset.shape===draft.dress.shape);
+  }
+  function openDress(design){
+    if(design.kind!=='dress'||design.dress)return design;
+    const {color,trim,pattern,strokes}=design;
+    return W.normalize({...design,strokes:[],dress:{trim,fabric:{color,ink:trim,motif:pattern,marks:strokes}}});
+  }
+  function applyDressRecipe(){
+    const recipe=dressRecipes[Number($('dressRecipe').value)];
+    const {shape,neck,sleeve,waist,trim,color,ink,finish,motif,accent='none'}=recipe;
+    draft.dress={shape,neck,sleeve,waist,trim,fabric:{...draft.dress.fabric,color,ink,finish,motif,accent}};
+    updateDressTools();updateFabricTools();queueRender();say(recipe.name+' applied. Your hand-placed details are still here.');
+  }
+  function fabricZone(){return draft.dress?draft.dress.fabric:draft.saree[selectedZone];}
   const zoneNames={body:'Body',pleats:'Pleats',pallu:'Pallu',border:'Border'};
   const zoneHelp={body:'The main wrap of the saree.',pleats:'The gathered folds at the front.',pallu:'The decorated end draped over the shoulder.',border:'The edging around the saree.'};
   const zoneFields={zoneColor:'color',zoneInk:'ink',zoneFinish:'finish',zoneAccent:'accent',zoneSecondInk:'secondInk',zoneLayout:'layout',zoneSpacing:'spacing'};
   const zoneButtons=document.querySelectorAll('[data-zone]');
+  const garmentButtons=document.querySelectorAll('[data-garment]');
   let selectedZone='body',closeUp=false,paintPointer=null,activeMark=null,stampTool='',walking=true,blouseView=false,blouseBack=false,selectedStamp=null;
   const swatch={x:49,y:49,w:262,h:328};
   const outline=path=>new Path2D(path);
@@ -131,7 +216,7 @@
     'Celestial and keepsakes':['sunburst','stars','moon','heart','eclipse','diya','fireworks','railroad','jeep']
   };
   function openMotifs(field){
-    const stamp=field==='stamp',accent=field==='secondMotif',zone=draft.saree[selectedZone];
+    const stamp=field==='stamp',accent=field==='secondMotif',zone=fabricZone();
     const names=W.sareeOptions.motifs,selected=stamp?stampTool:zone[field];
     $('motifHeading').textContent=stamp?'Choose a stamp':accent?'Choose an accent motif':'Choose a primary motif';
     const grid=$('motifChoices');grid.replaceChildren();
@@ -147,8 +232,8 @@
       button.onclick=()=>{
         if(stamp){
           stampTool=key;$('paintTool').textContent=label;
-          if(key)setZone(selectedZone,true);
-        }else{zone[field]=key;updateZone();queueRender();}
+          if(key&&draft.saree)setZone(selectedZone,true);
+        }else{zone[field]=key;updateFabricTools();queueRender();}
         $('motifGallery').close();
       };
       parent.append(button);
@@ -161,6 +246,7 @@
       for(const key of keys)addTile(tiles,key,names[key]);
       section.append(heading,tiles);grid.append(section);
     }
+    $('motifSearch').value='';$('motifEmpty').hidden=true;
     $('motifGallery').showModal();
   }
   function fillOptions(id,options){
@@ -183,19 +269,22 @@
     sync();
     if(announce)say(name+' applied. Your brushwork and stamps are still here.');
   }
-  function updateZone(){
-    const zone=draft.saree[selectedZone];
-    updateBlouseTools();updatePalluTools();
+  function updateFabricTools(){
+    const zone=fabricZone();
     for(const [id,field] of Object.entries(zoneFields))$(id).value=zone[field]??'#e9a7a7';
-    $('zoneMotif').textContent=W.sareeOptions.motifs[zone.motif];
-    $('zoneSecond').textContent=zone.secondMotif&&zone.secondMotif!=='none'?W.sareeOptions.motifs[zone.secondMotif]:'No accent';
+    const primary=W.sareeOptions.motifs[zone.motif],accent=zone.secondMotif&&zone.secondMotif!=='none'?W.sareeOptions.motifs[zone.secondMotif]:'No accent';
+    $('zoneMotif').textContent=primary;$('zoneMotif').setAttribute('aria-label','Choose primary motif · '+primary);
+    $('zoneSecond').textContent=accent;$('zoneSecond').setAttribute('aria-label','Choose accent motif · '+accent);
     $('secondInkField').hidden=!zone.secondMotif||zone.secondMotif==='none';
+    $('spacingField').hidden=(zone.motif==='none'&&(!zone.secondMotif||zone.secondMotif==='none'))||zone.layout==='panel';
+    $('zoneLabel').textContent=draft.dress?'DRESS FABRIC':zoneNames[selectedZone].toUpperCase();
+  }
+  function updateZone(){
+    updateBlouseTools();updatePalluTools();updateFabricTools();
     for(const button of $('drapeChoices').children){
       button.setAttribute('aria-pressed',button.dataset.drape===draft.drape);
     }
     $('drapeNote').textContent=drapeNotes[draft.drape];
-    $('zoneLabel').textContent=zoneNames[selectedZone].toUpperCase();
-    $('spacingField').hidden=(zone.motif==='none'&&(!zone.secondMotif||zone.secondMotif==='none'))||zone.layout==='panel';
     $('swatchView').setAttribute('aria-pressed',closeUp);
     $('swatchView').textContent=selectedZone==='pallu'?'Pallu layout':'Paint close-up';
     zoneButtons.forEach(b=>b.setAttribute('aria-pressed',b.dataset.zone===selectedZone));
@@ -250,25 +339,34 @@
   function say(s){$('studioStatus').textContent=s;}
   function silhouette(){const p=new Path2D();if(draft.kind==='saree'){p.moveTo(140,42);p.lineTo(98,61);p.lineTo(77,131);p.lineTo(117,151);p.lineTo(112,199);p.lineTo(77,405);p.quadraticCurveTo(180,437,283,405);p.lineTo(236,199);p.lineTo(240,148);p.lineTo(280,132);p.lineTo(259,62);p.lineTo(215,42);p.quadraticCurveTo(180,73,140,42);}else if(draft.kind==='dress'){p.moveTo(137,42);p.lineTo(111,76);p.lineTo(104,129);p.lineTo(132,157);p.lineTo(132,187);p.lineTo(53,404);p.quadraticCurveTo(180,445,307,404);p.lineTo(228,187);p.lineTo(228,157);p.lineTo(256,129);p.lineTo(249,76);p.lineTo(222,42);p.quadraticCurveTo(180,78,137,42);}else{p.moveTo(144,45);p.lineTo(96,63);p.lineTo(67,239);p.lineTo(108,249);p.lineTo(127,153);p.lineTo(125,260);p.lineTo(123,408);p.lineTo(170,408);p.lineTo(180,281);p.lineTo(190,408);p.lineTo(237,408);p.lineTo(235,260);p.lineTo(233,153);p.lineTo(252,249);p.lineTo(293,239);p.lineTo(264,63);p.lineTo(216,45);p.closePath();}return p;}
   function drawFabric(){
-    fc.clearRect(0,0,360,440);if(draft.saree){drawSaree();return;}const path=silhouette();fc.save();fc.shadowColor='#29342a44';fc.shadowBlur=15;fc.shadowOffsetY=8;fc.fillStyle=draft.color;fc.fill(path);fc.restore();fc.save();fc.clip(path);fc.drawImage(W.texture(draft),0,0,360,440);const light=fc.createLinearGradient(30,0,320,0);light.addColorStop(0,'#0004');light.addColorStop(.4,'#ffffff15');light.addColorStop(.6,'#0000');light.addColorStop(1,'#0003');fc.fillStyle=light;fc.fillRect(0,0,360,440);fc.strokeStyle=draft.trim;fc.lineWidth=7;fc.stroke(path);if(draft.kind==='saree'){fc.lineWidth=14;fc.beginPath();fc.moveTo(250,48);fc.lineTo(115,230);fc.lineTo(94,412);fc.stroke();fc.lineWidth=2;fc.strokeStyle='#fff5';fc.beginPath();fc.moveTo(255,47);fc.lineTo(123,233);fc.lineTo(102,412);fc.stroke();}else if(draft.kind==='dress'){fc.fillStyle=draft.trim;fc.fillRect(125,175,110,10);fc.lineWidth=2;fc.strokeRect(161,173,37,13);}fc.restore();fc.strokeStyle='#243c3555';fc.lineWidth=1;fc.stroke(path);
+    fc.clearRect(0,0,360,440);
+    if(draft.dress){paintDress(fc,draft.dress,W.sareeTexture(draft.dress.fabric),draft.dress.trim);return;}
+    if(draft.saree){drawSaree();return;}const path=silhouette();fc.save();fc.shadowColor='#29342a44';fc.shadowBlur=15;fc.shadowOffsetY=8;fc.fillStyle=draft.color;fc.fill(path);fc.restore();fc.save();fc.clip(path);fc.drawImage(W.texture(draft),0,0,360,440);const light=fc.createLinearGradient(30,0,320,0);light.addColorStop(0,'#0004');light.addColorStop(.4,'#ffffff15');light.addColorStop(.6,'#0000');light.addColorStop(1,'#0003');fc.fillStyle=light;fc.fillRect(0,0,360,440);fc.strokeStyle=draft.trim;fc.lineWidth=7;fc.stroke(path);if(draft.kind==='saree'){fc.lineWidth=14;fc.beginPath();fc.moveTo(250,48);fc.lineTo(115,230);fc.lineTo(94,412);fc.stroke();fc.lineWidth=2;fc.strokeStyle='#fff5';fc.beginPath();fc.moveTo(255,47);fc.lineTo(123,233);fc.lineTo(102,412);fc.stroke();}else if(draft.kind==='dress'){fc.fillStyle=draft.trim;fc.fillRect(125,175,110,10);fc.lineWidth=2;fc.strokeRect(161,173,37,13);}fc.restore();fc.strokeStyle='#243c3555';fc.lineWidth=1;fc.stroke(path);
   }
   function queueRender(){drawFabric();clearTimeout(renderTimer);const ticket=++revision;renderTimer=setTimeout(()=>W.render(draft,$('necklace').checked).then(c=>{if(ticket===revision)sprite=c;}).catch(e=>say(e.message)),100);}
   function sync(){
-    const advanced=!!draft.saree;
+    const advanced=!!draft.saree,dress=!!draft.dress;
     $('wearer').value=draft.who;$('garment').value=draft.kind;
+    $('garmentShortcuts').hidden=draft.who==='him';
+    garmentButtons.forEach(b=>b.setAttribute('aria-pressed',b.dataset.garment===draft.kind));
     $('garment').querySelector('[value=suit]').hidden=draft.who!=='him';
     $('garment').querySelector('[value=saree]').hidden=draft.who==='him';
     $('garment').querySelector('[value=dress]').hidden=draft.who==='him';
     $('fabricColor').value=draft.color;$('trimColor').value=draft.trim;$('lookName').value=draft.name;
-    $('kindLabel').textContent=advanced?'SAREE DESIGN WORKBENCH':draft.kind.toUpperCase()+' · YOUR DESIGN';
+    $('kindLabel').textContent=advanced?'SAREE DESIGN WORKBENCH':dress?'DRESS DESIGN WORKBENCH':draft.kind.toUpperCase()+' · YOUR DESIGN';
     fabric.style.cursor=advanced&&!closeUp?'pointer':'crosshair';
-    $('sareeTools').hidden=!advanced;$('drapeTools').hidden=!advanced;$('sareeModes').hidden=!advanced;$('stampField').hidden=!advanced;
-    $('legacyTools').hidden=advanced;$('upgradeSaree').hidden=advanced||draft.kind!=='saree';
+    $('fabricTools').hidden=!advanced&&!dress;$('dressTools').hidden=!dress;$('dressShapes').hidden=!dress;
+    $('sareeTools').hidden=!advanced;$('drapeTools').hidden=!advanced;$('sareeModes').hidden=!advanced;$('stampField').hidden=!advanced&&!dress;
+    $('legacyTools').hidden=advanced||dress;$('upgradeSaree').hidden=advanced||draft.kind!=='saree';
     $('paintHint').textContent=advanced?'Choose a section and open Paint close-up. Brush and stamps stay on that section.':'Paint directly on the fabric.';
     $('artboardCaption').textContent='Colors, little flowers, a scribble. It’s yours.';
     document.querySelectorAll('[data-pattern]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.pattern===draft.pattern));
     if(!advanced){blouseView=false;$('blouseControls').hidden=true;$('palluTools').hidden=true;}
     if(advanced)updateZone();
+    if(dress){
+      updateDressTools();updateFabricTools();
+      $('artboardCaption').textContent='Choose a cut above. Paint or stamp on the dress to add your own details.';
+    }
     queueRender();
   }
   function point(e){
@@ -278,7 +376,7 @@
   function paintPoint(x,y){
     return draft.saree?[(x-swatch.x)/swatch.w,(y-swatch.y)/swatch.h]:[x/360,y/440];
   }
-  function marks(){return draft.saree?draft.saree[selectedZone].marks:draft.strokes;}
+  function marks(){return draft.saree||draft.dress?fabricZone().marks:draft.strokes;}
   function inside(point){return point.every(n=>n>=0&&n<=1);}
   fabric.addEventListener('pointerdown',e=>{
     if(blouseView||paintPointer!==null||e.button!==0)return;
@@ -289,7 +387,7 @@
       return;
     }
     const pt=paintPoint(x,y),list=marks(),limit=draft.saree?80:350;
-    if(!inside(pt)||!draft.saree&&!fc.isPointInPath(silhouette(),x,y))return;
+    if(!inside(pt)||!draft.saree&&!fc.isPointInPath(draft.dress?dressPath(draft.dress):silhouette(),x,y))return;
     if(draft.saree&&selectedZone==='pallu'){
       const hit=list.findLast(mark=>mark.stamp&&mark.points.length&&
         Math.hypot(mark.points[0][0]-pt[0],(mark.points[0][1]-pt[1])*swatch.h/swatch.w)<Math.max(.04,mark.size*.58));
@@ -300,7 +398,7 @@
     }
     if(list.length>=limit){say('This section is full. Undo or clear marks to add more.');return;}
     e.preventDefault();
-    const stamp=draft.saree&&stampTool;
+    const stamp=(draft.saree||draft.dress)&&stampTool;
     const size=Number($('brushSize').value);
     activeMark={color:$('paintColor').value,size:stamp?size/100:size/360,points:[pt],...(stamp?{stamp}:{})};
     list.push(activeMark);
@@ -325,18 +423,36 @@
   $('fabricColor').addEventListener('input',e=>{draft.color=e.target.value;queueRender();});
   $('trimColor').addEventListener('input',e=>{draft.trim=e.target.value;queueRender();});
   function switchGarment(who,kind){
-    draft=W.normalize({who,kind,name:draft.name,color:draft.color,trim:draft.trim,...(kind==='saree'?{saree:{}}:{})});
+    workingDrafts.set(draft.kind,draft);
+    draft=workingDrafts.get(kind)||W.normalize({who,kind,name:kind==='dress'?'My first dress':'My next look',color:draft.color,trim:draft.trim,
+      ...(kind==='saree'?{saree:{}}:kind==='dress'?{dress:{}}:{})});
     selectedZone='body';closeUp=false;blouseView=false;selectedStamp=null;sync();
   }
   $('wearer').addEventListener('change',e=>switchGarment(e.target.value,e.target.value==='him'?'suit':'saree'));
   $('garment').addEventListener('change',e=>switchGarment(draft.who,e.target.value));
+  garmentButtons.forEach(b=>b.onclick=()=>{
+    if(b.dataset.garment!==draft.kind)switchGarment(draft.who,b.dataset.garment);
+  });
+  $('motifSearch').oninput=e=>{
+    const query=e.target.value.trim().toLowerCase(),gallery=$('motifChoices');
+    let matches=0;
+    for(const group of gallery.children){
+      let visible=false;
+      for(const tile of group.querySelectorAll('.motif-tile')){
+        tile.hidden=!tile.textContent.toLowerCase().includes(query);
+        if(!tile.hidden){matches++;visible=true;}
+      }
+      group.hidden=!visible;
+    }
+    $('motifEmpty').hidden=matches>0;
+  };
   $('lookName').addEventListener('input',e=>draft.name=e.target.value);
   document.querySelectorAll('[data-pattern]').forEach(b=>b.onclick=()=>{draft.pattern=b.dataset.pattern;sync();});
   $('undoPaint').onclick=()=>{marks().pop();updatePalluTools();queueRender();};
   $('clearPaint').onclick=()=>{marks().length=0;updatePalluTools();queueRender();};
   for(const [id,field] of Object.entries(zoneFields))$(id).addEventListener('input',e=>{
-    draft.saree[selectedZone][field]=field==='spacing'?Number(e.target.value):e.target.value;
-    updateZone();queueRender();
+    fabricZone()[field]=field==='spacing'?Number(e.target.value):e.target.value;
+    updateFabricTools();queueRender();
   });
   zoneButtons.forEach(b=>b.onclick=()=>setZone(b.dataset.zone));
   $('swatchView').onclick=()=>setZone(selectedZone,!closeUp);
@@ -376,6 +492,15 @@
   $('zoneMotif').onclick=()=>openMotifs('motif');
   $('zoneSecond').onclick=()=>openMotifs('secondMotif');
   $('paintTool').onclick=()=>openMotifs('stamp');
+  for(const [id,field] of Object.entries(dressFields)){
+    if(field!=='trim')fillOptions(id,W.sareeOptions.dressStyles[field]);
+    $(id).oninput=e=>{draft.dress[field]=e.target.value;queueRender();};
+  }
+  buildDressChoices();
+  fillOptions('dressRecipe',dressRecipes.map(recipe=>recipe.name));
+  function showDressRecipe(){$('dressRecipeNote').textContent=dressRecipes[Number($('dressRecipe').value)].note;}
+  $('dressRecipe').onchange=showDressRecipe;showDressRecipe();
+  $('applyDressRecipe').onclick=applyDressRecipe;
   $('walkPreview').onclick=()=>{
     walking=!walking;$('walkPreview').setAttribute('aria-pressed',walking);
     $('walkPreview').textContent=walking?'Walking':'Standing';
@@ -397,13 +522,13 @@
   function save(wear){try{const stampIndex=draft.saree?palluMarks().indexOf(selectedStamp):-1;
     draft=W.save(draft);selectedStamp=stampIndex<0?null:palluMarks()[stampIndex];updatePalluTools();if(wear){W.equip(draft.id);W.setNecklace($('necklace').checked);}say(wear?'Your original is saved and ready to wear across the game.':'Saved to your little closet.');buildCloset();}catch(e){say('Could not save: '+e.message);}}
   $('saveLook').onclick=()=>save(false);$('wearLook').onclick=()=>save(true);$('necklace').checked=W.read().necklace;$('necklace').onchange=queueRender;
-  $('newLook').onclick=()=>{draft=W.normalize({name:'My next little original',who:draft.who,kind:draft.kind,color:draft.color,trim:draft.trim,strokes:[],...(draft.kind==='saree'?{saree:{}}:{})});selectedZone='body';closeUp=false;blouseView=false;selectedStamp=null;sync();say('A fresh canvas, just for you.');};
+  $('newLook').onclick=()=>{draft=W.normalize({name:'My next little original',who:draft.who,kind:draft.kind,color:draft.color,trim:draft.trim,strokes:[],...(draft.kind==='saree'?{saree:{}}:draft.kind==='dress'?{dress:{}}:{})});selectedZone='body';closeUp=false;blouseView=false;selectedStamp=null;sync();say('A fresh canvas, just for you.');};
   document.querySelectorAll('[data-dir]').forEach(b=>b.onclick=()=>{row=Number(b.dataset.dir);auto=false;$('turnPreview').setAttribute('aria-pressed','false');});$('turnPreview').onclick=()=>{auto=!auto;turnStart=performance.now();$('turnPreview').setAttribute('aria-pressed',auto);};
   function previewPreset(id){clearTimeout(renderTimer);const ticket=++revision;W.render(W.presetDesign(id),false).then(c=>{if(ticket===revision)sprite=c;}).catch(e=>say(e.message));say(W.presetDesign(id).name+' · a ready-made occasion look.');}
   function buildOccasions(){const closet=$('occasionLooks');closet.replaceChildren();W.presets().forEach(p=>{const el=document.createElement('div');el.className='closet-look';const title=document.createElement('strong');title.textContent=p.name;const note=document.createElement('p');note.className='hint';note.textContent=p.description;const row=document.createElement('div');row.className='row';[['Preview',()=>previewPreset(p.id)],['Wear everywhere',()=>{try{W.wearPreset(p.id);previewPreset(p.id);buildCloset();say(p.name+' is saved and ready to wear across the game.');}catch(e){say(e.message);}}]].forEach(([label,fn])=>{const b=document.createElement('button');b.textContent=label;b.onclick=fn;row.appendChild(b);});el.append(title,note,row);closet.appendChild(el);});}
-  function buildCloset(){const closet=$('closet');closet.replaceChildren();const saved=W.read();if(!saved.designs.length){const p=document.createElement('p');p.className='hint';p.textContent='Your first original will live here.';closet.appendChild(p);}saved.designs.forEach(d=>{const el=document.createElement('div');el.className='closet-look';const title=document.createElement('strong');title.textContent=d.name+(saved.equipped[d.who]===d.id?' · wearing':'');el.appendChild(title);const r=document.createElement('div');r.className='row';[[d.preset?'Preview':'Edit',()=>{if(d.preset)previewPreset(d.preset);else{draft=W.normalize(d);sync();}}],['Wear',()=>{try{W.equip(d.id);buildCloset();say(d.name+' is now on.');}catch(e){say(e.message);}}],['Remove',()=>{try{W.remove(d.id);buildCloset();}catch(e){say(e.message);}}]].forEach(([name,fn])=>{const b=document.createElement('button');b.textContent=name;b.onclick=fn;r.appendChild(b);});el.appendChild(r);closet.appendChild(el);});}
+  function buildCloset(){const closet=$('closet');closet.replaceChildren();const saved=W.read();if(!saved.designs.length){const p=document.createElement('p');p.className='hint';p.textContent='Your first original will live here.';closet.appendChild(p);}saved.designs.forEach(d=>{const el=document.createElement('div');el.className='closet-look';const title=document.createElement('strong');title.textContent=d.name+(saved.equipped[d.who]===d.id?' · wearing':'');el.appendChild(title);const r=document.createElement('div');r.className='row';[[d.preset?'Preview':'Edit',()=>{if(d.preset)previewPreset(d.preset);else{draft=openDress(W.normalize(d));sync();}}],['Wear',()=>{try{W.equip(d.id);buildCloset();say(d.name+' is now on.');}catch(e){say(e.message);}}],['Remove',()=>{try{W.remove(d.id);buildCloset();}catch(e){say(e.message);}}]].forEach(([name,fn])=>{const b=document.createElement('button');b.textContent=name;b.onclick=fn;r.appendChild(b);});el.appendChild(r);closet.appendChild(el);});}
   $('exportLook').onclick=()=>{const blob=new Blob([JSON.stringify(W.normalize(draft),null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=(draft.name||'my-outfit').replace(/[^a-z0-9_-]+/gi,'-')+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
-  $('importLook').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{if(f.size>4000000)throw new Error('Choose a design file smaller than 4 MB.');const d=JSON.parse(await f.text());if(!d||!['her','him'].includes(d.who)||!Array.isArray(d.strokes))throw new Error('This is not an outfit design file.');draft=W.normalize(d);sync();say('Imported. Save it to keep it in this closet.');}catch(error){say('Could not import: '+error.message);}e.target.value='';};
+  $('importLook').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{if(f.size>4000000)throw new Error('Choose a design file smaller than 4 MB.');const d=JSON.parse(await f.text());if(!d||!['her','him'].includes(d.who)||!Array.isArray(d.strokes))throw new Error('This is not an outfit design file.');draft=openDress(W.normalize(d));sync();say('Imported. Save it to keep it in this closet.');}catch(error){say('Could not import: '+error.message);}e.target.value='';};
   const directions=['FRONT','LEFT','BACK','RIGHT'];
   function loop(now){
     pc.clearRect(0,0,256,256);

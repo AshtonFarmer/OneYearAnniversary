@@ -20,6 +20,12 @@
     lotuspond:'Lotus pond',railroad:'Railroad Park skyline',jeep:'Little Jeep'
   };
   const drapes={classic:'Classic shoulder drape',bengali:'Bengali-inspired wrap',gujarati:'Gujarati-inspired front pallu'};
+  const dressStyles={
+    shape:{aline:'A-line',wrap:'Wrap',sheath:'Sheath',tea:'Tea-length',ball:'Ball gown',mermaid:'Mermaid'},
+    neck:{round:'Round',square:'Square',vee:'V-neck',sweetheart:'Sweetheart',high:'High neck'},
+    sleeve:{none:'Sleeveless',cap:'Cap sleeves',short:'Short sleeves',long:'Long sleeves'},
+    waist:{none:'Clean waist',band:'Waistband',bow:'Bow',sash:'Sash'}
+  };
   const blouseStyles={
     neck:{round:'Round',square:'Square',vee:'V-neck',high:'High neck'},
     sleeve:{short:'Short',cap:'Cap',elbow:'Elbow length'},
@@ -43,17 +49,19 @@
       }:{})
     }));
   }
+  function normalizeFabric(zone,color,ink,limit=80){
+    return {
+      color:hex(zone.color,color),ink:hex(zone.ink,ink),
+      motif:pick(zone.motif,motifs,'none'),secondMotif:pick(zone.secondMotif,motifs,'none'),
+      secondInk:hex(zone.secondInk,'#e9a7a7'),finish:pick(zone.finish,finishes,'silk'),
+      accent:pick(zone.accent,accents,'none'),layout:pick(zone.layout,layouts,'repeat'),
+      spacing:clamp(Number(zone.spacing)||48,24,82),marks:normalizeMarks(zone.marks,limit)
+    };
+  }
   function normalizeSaree(zones,color,trim){
-    return Object.fromEntries(sareeZones.map(key=>{
-      const zone=zones[key]||{};
-      return [key,{
-        color:hex(zone.color,key==='border'?trim:color),ink:hex(zone.ink,key==='border'?color:trim),
-        motif:pick(zone.motif,motifs,'none'),secondMotif:pick(zone.secondMotif,motifs,'none'),
-        secondInk:hex(zone.secondInk,'#e9a7a7'),finish:pick(zone.finish,finishes,'silk'),
-        accent:pick(zone.accent,accents,'none'),layout:pick(zone.layout,layouts,'repeat'),
-        spacing:clamp(Number(zone.spacing)||48,24,82),marks:normalizeMarks(zone.marks,80)
-      }];
-    }));
+    return Object.fromEntries(sareeZones.map(key=>[
+      key,normalizeFabric(zones[key]||{},key==='border'?trim:color,key==='border'?color:trim)
+    ]));
   }
   let saved=read();
   function read(){try{const v=JSON.parse(localStorage.getItem(KEY)||'null');return v&&v.version===1?v:{version:1,designs:[],equipped:{},necklace:false};}catch(e){return {version:1,designs:[],equipped:{},necklace:false};}}
@@ -67,10 +75,14 @@
       color:hex(d.blouse.color,color),trim:hex(d.blouse.trim,trim),
       ...Object.fromEntries(Object.entries(blouseStyles).map(([key,options])=>[key,pick(d.blouse[key],options,Object.keys(options)[0])]))
     }:null;
+    const dress=kind==='dress'&&d.dress&&typeof d.dress==='object'?{
+      ...Object.fromEntries(Object.entries(dressStyles).map(([key,options])=>[key,pick(d.dress[key],options,Object.keys(options)[0])])),
+      fabric:normalizeFabric(d.dress.fabric||{},color,trim,350),trim:hex(d.dress.trim,trim)
+    }:null;
     return {
       id:String(d.id||'look-'+Date.now()),name:String(d.name||'My new look').slice(0,50),who,kind,
       base:preset?preset.base:who==='him'?6:kind==='dress'?5:1,
-      ...(preset?{preset:preset.id}:{}),color,trim,
+      ...(preset?{preset:preset.id}:{}),...(dress?{dress}:{}),color,trim,
       pattern:['none','flowers','stars','stripes','checks'].includes(d.pattern)?d.pattern:'none',
       strokes:normalizeMarks(d.strokes,350).map(({color,size,points})=>({color,size:Math.min(.15,size),points})),
       ...(kind==='saree'&&d.saree&&typeof d.saree==='object'?{saree:normalizeSaree(d.saree,color,trim),drape:pick(d.drape,drapes,'classic'),...(blouse?{blouse}:{})}:{})
@@ -327,7 +339,9 @@
       const pixels=p.getImageData(0,0,c.width,c.height),a=pixels.data;
       const enhanced=d.saree&&Object.fromEntries(sareeZones.map(key=>[key,sareeTexture(d.saree[key]).getContext('2d').getImageData(0,0,256,320).data]));
       const blouse=d.blouse&&!d.blouse.match?{color:rgb(d.blouse.color),trim:rgb(d.blouse.trim)}:null;
-      const t=enhanced?null:texture(d).getContext('2d').getImageData(0,0,256,320).data,trim=rgb(d.trim);
+      const dress=d.dress;
+      const fabric=enhanced?null:dress?sareeTexture(dress.fabric):texture(d);
+      const t=fabric?.getContext('2d').getImageData(0,0,256,320).data,trim=rgb(dress?.trim||d.trim);
       const cw=c.width/4,ch=c.height/4;
       for(let row=0;row<4;row++)for(let col=0;col<4;col++){
         let x0=cw,y0=ch,x1=0,y1=0;
@@ -360,7 +374,8 @@
           }
           const u=Math.max(0,Math.min(255,Math.floor(fx*255))),v=Math.max(0,Math.min(319,Math.floor((fy-.50)/.50*319))),ti=(v*256+u)*4;
           const shade=d.kind==='saree'?.43+lum/240:(d.kind==='suit'?.60+lum/180:.35+lum/340);
-          for(let k=0;k<3;k++)a[i+k]=Math.min(255,(border?trim[k]:t[ti+k])*shade);
+          const dressEdge=dress&&(fy>.965||(dress.waist!=='none'&&fy>.67&&fy<.705));
+          for(let k=0;k<3;k++)a[i+k]=Math.min(255,(border||dressEdge?trim[k]:t[ti+k])*shade);
         }
       }
       p.putImageData(pixels,0,0);
@@ -397,5 +412,5 @@
   function wearPreset(id){const d=save(presetDesign(id));equip(d.id);return d;}
   function occasionSheet(who,occasion){const p=presets.find(p=>p.who===who&&p.occasion===occasion);return p?sheet(who,p.base):Promise.reject(new Error('That occasion outfit is missing.'));}
   addEventListener('storage',e=>{if(e.key===KEY){saved=read();rendered.clear();dispatchEvent(new CustomEvent('wardrobechange'));}});
-  window.SharedWardrobe={KEY,read:()=>JSON.parse(JSON.stringify(saved)),save,equip,unequip,remove,normalize,texture,sareeTexture,drawMotif:motif,sareeOptions:{motifs,finishes,accents,layouts,drapes,blouseStyles},render,getSprite,addams,presets:()=>presets.map(p=>({...p})),presetDesign,wearPreset,occasionSheet,setNecklace:on=>{saved.necklace=!!on;persist();}};
+  window.SharedWardrobe={KEY,read:()=>JSON.parse(JSON.stringify(saved)),save,equip,unequip,remove,normalize,texture,sareeTexture,drawMotif:motif,sareeOptions:{motifs,finishes,accents,layouts,drapes,blouseStyles,dressStyles},render,getSprite,addams,presets:()=>presets.map(p=>({...p})),presetDesign,wearPreset,occasionSheet,setNecklace:on=>{saved.necklace=!!on;persist();}};
 })();
