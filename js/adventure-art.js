@@ -72,6 +72,7 @@
    if(scene.kind==='golf'){const a=scene.flight?Math.min(1,scene.flight.age/.6):0,x=scene.anchor.x-24,y=scene.anchor.y-42;L([[x,y],[x+Math.sin(a*4-1)*32,y+Math.cos(a*4-1)*32]],'#b9b7a3',1.5);}
    if(scene.phase!=='approach'&&['reunion','ring','dance','portrait','haunt-exit','bench','snack'].includes(scene.node.scene))heart(p,scene.anchor.x,scene.anchor.y-(place.actorHeight||74)-23);
    if(scene.node.scene==='ring'&&scene.phase!=='approach')item(p,3,scene.anchor.x,scene.anchor.y-26,31,31);
+   if(scene.node.scene==='feast'&&scene.phase!=='approach')item(p,4,scene.anchor.x,scene.anchor.y+9,50,33);
    if(scene.node.scene==='snack'&&scene.phase!=='approach'){const id=scene.node.sharedItem,index={lemonade:7,cider:10,popcorn:8,sweets:9,meal:4}[id]||9;item(p,index,scene.anchor.x,scene.anchor.y-20,45,38);}
    if((scene.node.scene==='portrait'||scene.node.scene==='pumpkin-photo'||scene.node.station===9)&&clock>4&&clock<4.12)R(0,0,W,H,'#fff7d62b');
   }

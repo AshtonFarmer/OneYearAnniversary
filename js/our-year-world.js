@@ -7,7 +7,7 @@
       {id:'treehouse',name:'Our treehouse',x:768,y:365,r:80,link:'skyroot.html?map=treehouse',icon:'⌂'},
       {id:'homecoming',name:'Welcome home',x:250,y:375,r:86,memory:'homecoming',icon:'♥'},
       {id:'sky',name:'Our Birmingham skies',x:485,y:245,r:75,memory:'sky',icon:'☾'},
-      {id:'park',name:'Railroad Park',x:555,y:365,r:66,memory:'park',icon:'♧'},
+      {id:'park',name:'Railroad Park Foundation',x:555,y:365,r:66,memory:'park',icon:'♧'},
       {id:'mall',name:'Love Mall & Atelier',x:1280,y:365,r:83,link:'shopping.html',icon:'✂'},
       {id:'baseball',name:'Regions Field',x:434,y:640,r:88,memory:'baseball',icon:'⚾'},
       {id:'topgolf',name:'Topgolf nights',x:210,y:681,r:77,memory:'topgolf',icon:'⚑'},
