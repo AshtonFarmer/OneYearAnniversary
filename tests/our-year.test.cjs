@@ -35,7 +35,7 @@ function context(search=''){
   const elements=new Map(),events={};
   const document={body:new Element('body'),hidden:false,activeElement:new Element(),getElementById:id=>{if(!elements.has(id))elements.set(id,id==='world'||id==='adventureCanvas'?canvas():new Element());return elements.get(id);},createElement:tag=>tag==='canvas'?canvas(1,1):new Element(tag),querySelectorAll:()=>[],addEventListener(){}};
   const location={href:'https://example.test/memory-world.html'+search,search};
-  const s={window:null,document,localStorage:storage(),sessionStorage:storage(),location,Image,URL,URLSearchParams,CustomEvent:class{constructor(type,init){this.type=type;this.detail=init&&init.detail;}},dispatchEvent:e=>(events[e.type]||[]).forEach(f=>f(e)),addEventListener:(type,fn)=>(events[type]||=[]).push(fn),requestAnimationFrame:()=>1,cancelAnimationFrame(){},innerWidth:1366,innerHeight:900,devicePixelRatio:1,performance,history:{replaceState(){}},console,setTimeout,clearTimeout};s.window=s;vm.createContext(s);vm.runInContext(src('js/walking-sprites.js'),s);return s;
+  const s={window:null,document,localStorage:storage(),sessionStorage:storage(),location,Image,URL,URLSearchParams,CustomEvent:class{constructor(type,init){this.type=type;this.detail=init&&init.detail;}},dispatchEvent:e=>(events[e.type]||[]).forEach(f=>f(e)),addEventListener:(type,fn)=>(events[type]||=[]).push(fn),requestAnimationFrame:()=>1,cancelAnimationFrame(){},innerWidth:1366,innerHeight:900,devicePixelRatio:1,performance,history:{replaceState(){}},console,setTimeout,clearTimeout};s.window=s;vm.createContext(s);vm.runInContext(src('js/walking-sprites.js'),s);vm.runInContext(src('js/map-debug.js'),s);return s;
 }
 function load(s,...files){files.forEach(file=>vm.runInContext(src(file),s,{filename:file}));return s;}
 function fixture(id,session){const s=session||load(context(),'js/our-year-data.js','js/shared-wardrobe.js','js/our-year-activities.js'),c=canvas(),controls=new Element(),images={him:new Image(),her:new Image()},backgrounds={};images.him.src='assets/sprites/him_atlas.png';images.her.src='assets/sprites/her_atlas.png';for(const name of ['neighborhood','mountains','festival']){const im=new Image();im.src='assets/our-year/'+name+'.webp';backgrounds[name]=im;}let count=0,message='';
@@ -484,4 +484,37 @@ test('all saree drapes save and render distinctly without shifting the walking a
   assert.deepEqual(feet,anchors,drape+' retains the original foot baseline');
  }
  assert.equal(hashes.size,12);
+});
+
+test('map dev tools toggle circles, measure map coordinates, and keep the adventure bag available',async()=>{
+ const event=(key,repeat=false)=>({type:'keydown',key,repeat,target:{tagName:'CANVAS'},preventDefault(){}});
+ const f=await adventureFixture('pool');
+ const {s,a}=f;
+ assert.equal(f.state().debug.zones,false);
+ s.dispatchEvent(event('b'));s.dispatchEvent(event('b',true));
+ assert.equal(f.state().debug.box,true);
+ const c=s.document.getElementById('adventureCanvas');
+ const [start,end]=[[500,450],[700,550]],camera=f.state().camera;
+ const world=(x,y)=>({x:Math.round(camera.x+(x-683)/camera.scale),y:Math.min(1024,Math.round(camera.y+(y-450)/camera.scale))});
+ const lo=world(...start),hi=world(...end),pointer=([x,y])=>({button:0,pointerId:1,clientX:x,clientY:y,preventDefault(){}});
+ c.listeners.pointerdown[0](pointer(start));
+ c.listeners.pointermove[0](pointer(end));
+ c.listeners.pointerup.forEach(fn=>fn(pointer(end)));
+ assert.deepEqual(JSON.parse(JSON.stringify(f.state().debug.selection)),{x:lo.x,y:lo.y,w:hi.x-lo.x,h:hi.y-lo.y});
+ assert.ok(Object.values(a.players).every(player=>player.path.length===0),'box dragging does not walk');
+ a.draw();
+ await f.travel('golf');
+ assert.equal(f.state().debug.selection,null);
+ assert.equal(f.state().debug.box,true);
+ s.dispatchEvent(event('b'));s.dispatchEvent(event('i'));
+ assert.equal(s.document.getElementById('adventurePanel').open,true);
+ for(const area of ['home','mountains','festival']){
+  const hub=load(context('?area='+area),'js/our-year-data.js','js/our-year-world.js');
+  await new Promise(resolve=>setImmediate(resolve));
+  hub.dispatchEvent(event('g'));
+  assert.equal(hub.memoryWorld.getState().debug.zones,true);
+  assert.equal(hub.memoryWorld.getState().debug.box,false);
+  hub.dispatchEvent(event('b'));hub.dispatchEvent(event('g'));
+  assert.equal(hub.memoryWorld.getState().debug.zones,true,'box mode keeps the circles visible');
+ }
 });
