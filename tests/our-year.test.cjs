@@ -204,6 +204,29 @@ test('Warehouse31 requires each room, waits for the chain pull and stages all th
  assert.ok(f.s.OUR_YEAR.read().completed.haunt);
  await f.travel('halloween');assert.equal(f.state().hauntHand,false);
 });
+test('optional pool float requires both swimmers, and both Puja offerings and the rose choice save',async()=>{
+ const f=await adventureFixture('pool'),doc=f.s.document;
+ const node=id=>f.s.memoryAdventure.getMap().nodes.find(n=>n.id===id);
+ const click=(id,label)=>doc.getElementById(id).children.find(b=>b.textContent===label).click();
+ f.act('swim');f.tick(5);
+ const spot=node('float-together');
+ f.a.placeAt(spot.x,spot.y);f.a.players.her.y+=110;f.tick(.1);
+ assert.notEqual(f.state().near,spot.id);f.act(spot.id);assert.equal(f.state().scene,null);
+ f.a.placeAt(spot.x,spot.y);f.tick(.1);assert.equal(f.state().near,spot.id);
+ f.act(spot.id);f.tick(1);assert.equal(f.state().scene.action,'float');f.a.draw();
+ f.tick(10);assert.equal(f.state().scene,null);assert.equal(f.state().swimming,true);
+ await f.travel('puja');
+ for(let i=0;i<4;i++)f.s.AdventureState.task('puja-lamp-'+i);
+ f.a.placeAt(node('quiet').x,node('quiet').y);f.act('quiet');f.tick(1);
+ click('sceneControls','Ashton · place a flower');click('sceneControls','Tanima · place a flower');
+ assert.ok(f.state().adventure.flags['puja-offering-him']);assert.ok(f.state().adventure.flags['puja-offering-her']);f.a.draw();
+ await f.travel('halloween');
+ f.act('rose');click('panelContent','Hold it for our portrait');assert.equal(f.state().adventure.halloweenRose,'portrait');
+ f.act('rose');click('panelContent','Tuck it into Ashton’s lapel for the dance');assert.equal(f.state().adventure.halloweenRose,'lapel');
+ assert.equal(f.state().adventure.bag['halloween-rose'],1);
+ f.a.placeAt(node('dance').x,node('dance').y);f.act('dance');f.tick(1);
+ assert.equal(f.state().scene.action,'give');f.a.draw();
+});
 test('support atlases have 16 complete transparent cells with consistent feet and distinct animation frames',()=>{
  for(const name of ['detail','performance','sports']){const raw=decoded.get('assets/our-year/'+name+'-atlas.png');assert.equal(raw.info.width,1024);assert.equal(raw.info.height,1024);let transparent=0;const signatures=[];
   for(let cell=0;cell<16;cell++){let count=0,minX=256,maxX=0,minY=256,maxY=0,signature=0;for(let y=0;y<256;y++)for(let x=0;x<256;x++){const i=((Math.floor(cell/4)*256+y)*1024+cell%4*256+x)*4,a=raw.data[i+3];if(!a)transparent++;if(a>32){count++;minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);signature=(signature+raw.data[i]*(x+1)+raw.data[i+1]*(y+1))%2147483647;}}
@@ -212,7 +235,7 @@ test('support atlases have 16 complete transparent cells with consistent feet an
  }
 });
 test('both characters physically follow every new art-aligned route without getting caught on furniture',async()=>{
- const f=await adventureFixture();for(const place of Object.values(f.s.AdventurePlaces.places)){await f.travel(place.id);for(const n of place.nodes){if(['dry','carry'].includes(n.action))continue;f.a.placeAt(...place.spawn);for(const [i,a] of Object.values(f.a.players).entries())a.path=f.s.AdventureGeometry.pathfind(place,a,{x:n.x+(i?29:-29),y:n.y});f.tick(50);for(const a of Object.values(f.a.players)){assert.equal(a.path.length,0,place.id+'/'+n.id+'/'+a.who+' reaches the end: '+JSON.stringify({x:a.x,y:a.y,next:a.path[0],last:a.path[a.path.length-1]}));assert.ok(Math.hypot(a.x-n.x,a.y-n.y)<n.r,place.id+'/'+n.id+'/'+a.who+' can interact');}}}
+ const f=await adventureFixture();for(const place of Object.values(f.s.AdventurePlaces.places)){await f.travel(place.id);for(const n of place.nodes){if(['dry','carry','float-together'].includes(n.action))continue;f.a.placeAt(...place.spawn);for(const [i,a] of Object.values(f.a.players).entries())a.path=f.s.AdventureGeometry.pathfind(place,a,{x:n.x+(i?29:-29),y:n.y});f.tick(50);for(const a of Object.values(f.a.players)){assert.equal(a.path.length,0,place.id+'/'+n.id+'/'+a.who+' reaches the end: '+JSON.stringify({x:a.x,y:a.y,next:a.path[0],last:a.path[a.path.length-1]}));assert.ok(Math.hypot(a.x-n.x,a.y-n.y)<n.r,place.id+'/'+n.id+'/'+a.who+' can interact');}}}
 });
 test('the pool carry requires both swimmers at the marker and can be released and repeated',async()=>{
  const f=await adventureFixture('pool'),spot=f.s.memoryAdventure.getMap().nodes.find(n=>n.id==='carry');
