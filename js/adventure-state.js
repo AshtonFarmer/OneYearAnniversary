@@ -1,7 +1,7 @@
 (function(){
  'use strict';
  const KEY='ourYear.adventure.v1',catalog=window.AdventurePlaces.items;
- const fresh=()=>({version:1,coins:120,bag:{},flags:{},visited:{},sky:0,scores:[],feastPlate:[]});
+ const fresh=()=>({version:1,coins:120,bag:{},flags:{},visited:{},sky:0,scores:[],feastPlate:[],halloweenRose:null});
  function read(){try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s&&s.version===1)return {...fresh(),...s,coins:Math.max(0,Math.floor(Number(s.coins)||0)),bag:s.bag||{},flags:s.flags||{},visited:s.visited||{},scores:Array.isArray(s.scores)?s.scores:[],feastPlate:Array.isArray(s.feastPlate)?s.feastPlate:[]};}catch(e){}return fresh();}
  function mutate(fn){const s=read(),result=fn(s);localStorage.setItem(KEY,JSON.stringify(s));dispatchEvent(new CustomEvent('adventurechange'));return result;}
  function award(s,flag,reward=8){if(!s.flags[flag]){s.flags[flag]=true;s.coins+=reward;return true;}return false;}
@@ -13,6 +13,7 @@
  function markVisited(id){mutate(s=>{s.visited[id]=true;});}
  function setSky(mode){mutate(s=>{s.sky=Math.max(0,Math.min(4,Math.floor(mode)));});}
  function score(points){mutate(s=>{s.scores.push({score:points,at:Date.now()});s.scores=s.scores.slice(-20);award(s,'golf-round',15);if(!s.bag['golf-scorecard'])add(s,'golf-scorecard');});}
+ function setHalloweenRose(style){mutate(s=>{s.halloweenRose=style;});}
  function packFeast(plate){mutate(s=>{s.feastPlate=[...plate];});}
  function serveFeast(){return mutate(s=>{
   if(s.feastPlate.length!==3)return false;
@@ -20,5 +21,5 @@
   if(award(s,'community-feast'))add(s,'community-keepsake');
   return true;
  });}
- window.AdventureState={KEY,read,purchase,collect,task,consume,markVisited,setSky,score,packFeast,serveFeast};
+ window.AdventureState={KEY,read,purchase,collect,task,consume,markVisited,setSky,score,setHalloweenRose,packFeast,serveFeast};
 })();

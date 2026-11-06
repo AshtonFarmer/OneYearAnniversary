@@ -21,10 +21,24 @@
  function item(p,index,x,y,w=50,h=50){sprite(p,'detail',index,x,y,w,h);}
  function cast(p,name,row,x,y,height,t){sprite(p,name,row*4+Math.floor(t*2.1)%4,x,y,height);}
  function prop(p,o,t=0,state={flags:{},bag:{}}){if(o.hideWhen&&state.flags[o.hideWhen])return;if(o.kind==='pumpkin'&&state.flags['pumpkin-'+o.number])return;const x=o.x+o.w/2,y=o.y+o.h;
-  if(o.kind==='pumpkin')item(p,0,x,y,o.w,o.h);
+  if(o.kind==='pumpkin')patchPumpkin(p,x,y,o.number);
   if(o.kind==='flowers')item(p,1,x,y,o.w,o.h);
   if(o.kind==='gift')item(p,state.flags['apartment-ring']?3:2,x,y,o.w,o.h);
   if(o.kind==='jeep')item(p,12+Math.floor(t*8)%4,x,y,o.w,o.h);
+ }
+ const pumpkinShapes=[
+  [19,18,'#d6672e','#f39b47',-4],[16,23,'#d34e26','#f7873e',5],
+  [24,14,'#d57831','#f6ab56',-6],[19,19,'#a77854','#ecc995',3],
+  [23,15,'#ad4b28','#e97837',6],[15,21,'#d98338','#f7b453',-5]
+ ];
+ function patchPumpkin(p,x,y,number){
+  const {E,L}=painter(p),[rx,ry,shadow,light,lean]=pumpkinShapes[number%pumpkinShapes.length];
+  const center=y-ry;
+  E(x+1,y+1,rx+3,4,'#20131377');
+  E(x,center,rx,ry,shadow);
+  for(const side of [-1,1])E(x+side*rx*.38,center-1,rx*.43,ry*.91,light);
+  E(x,center,rx*.36,ry,shadow);E(x-1,center-1,rx*.27,ry*.92,light);
+  L([[x,center-ry+3],[x+lean*.5,center-ry-4],[x+lean,center-ry-6]],'#645332',3);
  }
  function pumpkin(p,x,y,r,design='',lit=false){item(p,0,x,y+r*.8,r*2,r*2);if(!design)return;const {R,P,E,L,glow}=painter(p),col=lit?'#ffe4a4':'#543419';if(lit)glow(x,y,r*1.6,'#ffd07530');if(design==='classic'){for(const side of [-1,1])P([[x+side*r*.3-r*.13,y-r*.12],[x+side*r*.3+r*.13,y-r*.12],[x+side*r*.3,y-r*.4]],col);P([[x-r*.08,y+r*.06],[x+r*.08,y+r*.06],[x,y-r*.1]],col);L([[x-r*.43,y+r*.25],[x-r*.2,y+r*.4],[x+r*.2,y+r*.4],[x+r*.43,y+r*.25]],col,2);}else{E(x,y,r*.43,r*.44,col);E(x-r*.16,y-r*.12,r*.1,r*.13,'#915624');E(x+r*.16,y-r*.12,r*.1,r*.13,'#915624');for(let i=0;i<4;i++)R(x-r*.2+i*r*.13,y+r*.28,1,r*.2,'#915624');}}
  function heart(p,x,y){const {R}=painter(p),pattern=['0110110','1111111','1111111','0111110','0011100','0001000'];pattern.forEach((s,j)=>[...s].forEach((v,i)=>{if(v==='1')R(x+i*2-7,y+j*2,2,2,'#dba59aaa');}));}
@@ -43,10 +57,19 @@
     // The photographed decorations, roses and dinner are already painted in
     // their real positions. Interactions never put generic props over them.
     if(art.photoHomecoming&&state.flags['home-banner'])for(let i=0;i<8;i++)star(480+i*89,160+Math.sin(i+t*.35)*15,1,'#f3d77c66');
-    const cs=window.OUR_YEAR.detail('carving').carvings;if(cs)cs.forEach((d,i)=>{const xy=art.carvings&&art.carvings[i]||[1160+i*53,660],x=xy[0],y=xy[1],r=25;pumpkin(p,x,y,r,d.template||'',true);if(!d.template)(d.strokes||[]).forEach(st=>L(st.map(pt=>[x+(pt[0]*340-170)*r/190,y+(pt[1]*340-170)*r/190]),'#ffe49b',1.5));});
+    const cs=window.OUR_YEAR.detail('carving').carvings;if(cs)cs.forEach((d,i)=>{const xy=art.carvings&&art.carvings[i]||[1160+i*53,660],x=xy[0],y=xy[1],r=25;glow(x,y,r*(1.6+Math.sin(t*3+i)*.12),'#ffb34532');pumpkin(p,x,y,r,d.template||'',true);if(!d.template)(d.strokes||[]).forEach(st=>L(st.map(pt=>[x+(pt[0]*340-170)*r/190,y+(pt[1]*340-170)*r/190]),'#ffe49b',1.5));});
+   }
+   if(place.id==='pumpkins'){
+    const selected=place.nodes.filter(n=>n.action==='pumpkin'&&state.flags['pumpkin-'+n.number]);
+    selected.forEach((n,i)=>patchPumpkin(p,1302+i*42,370,n.number));
    }
    if(place.id==='jeep')place.nodes.filter(n=>n.action==='duck').forEach(n=>{if(!state.flags['duck-'+n.number])item(p,5,n.x,n.y,24,25);});
    if(place.id==='puja')for(let i=0;i<4;i++){const [x,y]=art.diyas[i];if(state.flags['puja-lamp-'+i]){glow(x,y-10,55,'#f6bd6330');E(x,y-11+Math.sin(t*4+i),2,6,'#ffe0a0');}}
+   if(place.id==='puja'){
+    for(const [i,who] of ['him','her'].entries())if(state.flags['puja-offering-'+who]){
+     const x=730+i*61,y=398;item(p,1,x,y,31,24);
+    }
+   }
    if(place.id==='concert'){
     const stage=art.stage||[{row:0,x:785,y:330,h:104},{row:1,x:565,y:330,h:88},{row:2,x:1005,y:330,h:88}];
     if(scene?.node.scene==='concert'&&scene.phase==='playing'&&scene.current?.pose==='dance'){
@@ -62,6 +85,10 @@
    }
    if(place.id==='stadium'){
     const field=art.field||{pitch:[936,425],plate:[938,565],fielders:[[665,375],[1230,385],[935,330]]},beat=(clock%4)/4;cast(p,'sports',0,...field.pitch,36,beat*1.85);cast(p,'sports',1,field.plate[0]-15,field.plate[1],39,beat*1.85);field.fielders.forEach(([x,y],i)=>cast(p,'sports',2,x,y,29,clock*.2+i));
+    if(scene?.scoreboardHeartUntil>clock){
+     glow(909,137,32,'#fb5b7470');
+     p.save();p.translate(909,127);p.scale(1.65,1.65);heart(p,0,0);p.restore();
+    }
     if(scene&&scene.node.scene==='baseball'){const v=beat<.5?beat*2:(beat-.5)*2,a=beat<.5?field.pitch:field.plate,b=beat<.5?field.plate:[1230,290],x=a[0]+(b[0]-a[0])*v,y=a[1]+(b[1]-a[1])*v-Math.sin(v*Math.PI)*(beat<.5?8:50);R(x,y,3,3,'#fff0ca');}
    }
    if(place.id==='haunt')for(let i=0;i<30;i++){const x=(i*179+t*7)%1500,y=350+i*137%460;R(x,y,25+i%30,2,'#bbc6b608');}
