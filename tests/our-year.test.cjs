@@ -525,6 +525,24 @@ test('all saree drapes save and render distinctly without shifting the walking a
  assert.equal(hashes.size,12);
 });
 
+test('new maps start fully framed and stay centered as both players move together',async()=>{
+ const f=await adventureFixture('haunt'),button=f.s.document.getElementById('overviewButton');
+ const fitted=(c,w,h)=>{assert.equal(c.x,768);assert.equal(c.y,512);assert.ok(c.scale*1536<w&&c.scale*1024<h);};
+ fitted(f.state().camera,1366,900);
+ f.a.placeAt(400,755);f.tick(1);fitted(f.state().camera,1366,900);
+ button.click();f.tick(1);assert.ok(f.state().camera.scale>Math.min(1366/1536,900/1024));
+ button.click();fitted(f.state().camera,1366,900);
+ f.s.innerWidth=390;f.s.innerHeight=844;f.s.dispatchEvent({type:'resize'});
+ fitted(f.state().camera,390,844);
+ await f.travel('pool');fitted(f.state().camera,390,844);
+ const hub=context('?area=mountains');let frame;
+ hub.requestAnimationFrame=fn=>{frame=fn;return 1;};
+ load(hub,'js/our-year-data.js','js/our-year-world.js');
+ await new Promise(resolve=>setImmediate(resolve));frame(16);
+ const transform=hub.document.getElementById('world').getContext('2d').getTransform();
+ assert.ok(transform.e>0&&transform.f>0);
+ assert.ok(transform.e+1536*transform.a<1366&&transform.f+1024*transform.d<900);
+});
 test('map dev tools toggle circles, measure map coordinates, and keep the adventure bag available',async()=>{
  const event=(key,repeat=false)=>({type:'keydown',key,repeat,target:{tagName:'CANVAS'},preventDefault(){}});
  const f=await adventureFixture('pool');
