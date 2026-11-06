@@ -104,13 +104,12 @@
         {name:'Trunk Lift',x:768,y:820,r:100,text:'Press E to ride the lift back to Skyroot Grounds',action:'grounds'},
         {name:'Our Little World',x:768,y:355,r:64,text:'Press E to step into our memory neighborhood',action:'memoryWorld'},
         {name:'Creator Atelier',x:330,y:315,r:85,text:'Press E to make a saree, dress, or matching outfit',action:'creator'},
-        {name:'Homecoming & Family Room',x:1145,y:320,r:85,text:'Press E to relive the day she finally came home',action:'family'},
-        {name:'Our Photo & Memory Gallery',x:210,y:550,r:95,text:'Press E to revisit our year together',action:'planning'},
+        {name:'Future Family Room',x:1145,y:320,r:85,text:'Press E to visit the future family room',action:'family'},
+        {name:'Future Planning Room',x:210,y:550,r:95,text:'Press E to look at the plans and blueprints',action:'planning'},
         {name:'Flash Necklace Keepsake',x:345,y:500,r:45,text:'Press E to revisit the necklace and our first yes',action:'necklace'},
-        {name:'Our Celebrations',x:1320,y:550,r:88,text:'Press E for Atlanta, Puja, the concert, and her community',action:'celebrations'},
-        {name:'For My Lokkhi',x:1210,y:515,r:43,text:'Press E to open her Puja ring gift',action:'ring'},
-        {name:'Sky Observatory',x:350,y:810,r:84,text:'Press E for our Birmingham skies and nighttime walk',action:'observatory'},
-        {name:'Firsts & Autumn Workshop',x:1175,y:810,r:85,text:'Press E for pumpkins, Halloween, and our little firsts',action:'gear'},
+        {name:'Mojo’s Loft',x:1320,y:550,r:88,text:'Press E to visit Mojo’s loft',action:'mojo'},
+        {name:'Sky Observatory',x:350,y:810,r:84,text:'Press E to look through the canopy telescope',action:'observatory'},
+        {name:'Web-Slinger Gear Room',x:1175,y:810,r:85,text:'Press E to visit the web-slinger gear room',action:'gear'},
         {name:'Cloud Balcony',x:875,y:905,r:110,text:'Press E to relax together above the clouds',action:'balcony'}
       ]
     }
@@ -329,9 +328,9 @@
   }
 
   function handleAction(action){
-    if(action==='memoryWall'&&window.OurYearTreehouse){window.OurYearTreehouse.open();return;}
     if(action==='memoryWorld'){location.href='memory-world.html?from=treehouse';return;}
-    if(['creator','family','planning','celebrations','observatory','gear','necklace','ring'].indexOf(action)!==-1&&window.OurYearTreehouse){window.OurYearTreehouse.room(action);return;}
+    if(action==='creator'){location.href='outfit-studio.html';return;}
+    if(action==='necklace'){location.href='shopping.html?memory=first-yes';return;}
     if(action==='treehouse'){switchMap('treehouse');return;}if(action==='grounds'){switchMap('grounds');return;}
     if(action==='christianPrayer'){startPrayerCeremony('christian');return;}
     if(action==='krishnaPrayer'){startPrayerCeremony('krishna');return;}
@@ -340,7 +339,6 @@
       compass:['THE SEASONAL COMPASS','Its stones are ready to reflect spring, summer, fall, and winter when the seasonal map versions arrive.'],
       sap:['THE AMBER SAPWAYS','Golden sap moves through the ancient roots like warm light beneath the bark.'],
       chimes:['THE ROOT CHIMES','Wood, seed shells, and tiny bells make a soft song in the branches.'],
-      creator:['SHARED CREATOR STUDIO','A place for code, art, games, and every strange idea you build together.'],
       family:['FUTURE-FAMILY ROOM','A gentle room kept for the family dreams you are building toward together.'],
       planning:['FUTURE PLANNING ROOM','Maps, calendars, blueprints, and dream boards hold the adventures still ahead.'],
       mojo:['MOJO PET LOFT','A cozy blue-accented loft made for Mojo and every future four-legged family member.'],
@@ -354,7 +352,6 @@
   function interact(){if(paused||transitioning)return;var location=nearestLocation();if(location)handleAction(location.action);}
 
   function update(){
-    if(window.OurYearTreehouse)window.OurYearTreehouse.setContext(currentMap);
     updateCeremony();
     movePlayer(players.her,inputFor('her',{up:keys.arrowup,down:keys.arrowdown,left:keys.arrowleft,right:keys.arrowright}));
     movePlayer(players.him,inputFor('him',{up:keys.w,down:keys.s,left:keys.a,right:keys.d}));
@@ -661,17 +658,8 @@
   }
 
   addEventListener('resize',resize);
-  addEventListener('ouryearmodal',function(event){
-    paused=!!event.detail.open;keys={};interactPressed=false;lastInteract=false;
-    Object.keys(touchState).forEach(function(who){Object.keys(touchState[who]).forEach(function(direction){touchState[who][direction]=false;});});
-  });
   addEventListener('keydown',function(event){
     var key=event.key.toLowerCase();
-    if(window.OurYearTreehouse&&window.OurYearTreehouse.isOpen()){
-      if(key==='escape'){event.preventDefault();window.OurYearTreehouse.close();}
-      else if((key==='e'||key===' '&&event.target.tagName!=='BUTTON')&&!event.repeat&&['INPUT','SELECT','TEXTAREA'].indexOf(event.target.tagName)===-1){event.preventDefault();window.OurYearTreehouse.activate();}
-      return;
-    }
     if(key==='g'){
       if(!event.repeat){debugMode=!debugMode;console.log(debugMode?'SKYROOT DEBUG ON':'SKYROOT DEBUG OFF');}
       event.preventDefault();return;

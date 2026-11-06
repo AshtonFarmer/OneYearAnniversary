@@ -23,7 +23,7 @@
     function reset(){Object.assign(s,{t:0,age:0,stage:0,progress:0,score:0,shots:0,done:false,mode:0,watched:[],flags:[],moving:false,flight:null,picked:[],targetProgress:0});noticeUntil=0;buildControls();}
     function buildControls(){
       controls.replaceChildren();primary=null;
-      if(s.done){button('Relive this memory ↻',reset,true);if(type==='jeep')button('Now, Astra Lumina ✦',()=>options.open('astra'));if(type==='pumpkins')button('Carve our pumpkins ✎',()=>options.open('carving'));if(type==='addams')button('Visit the Atelier ↗',()=>location.href='outfit-studio.html');return;}
+      if(s.done){button('Relive this memory ↻',reset,true);if(type==='jeep')button('Now, Astra Lumina ✦',()=>options.open('astra'));if(type==='pumpkins')button('Carve our pumpkins ✎',()=>options.open('carving'));return;}
       if(type==='sky'){SKY.forEach((name,i)=>button((s.watched.includes(i)?'✓ ':'')+name,()=>{s.mode=i;s.age=0;s.moving=false;buildControls();},false,s.mode===i));button('Watch this sky together',()=>{s.moving=true;s.age=0;},true);}
       if(type==='homecoming'){const names=['Hang the welcome-home banner','Set out the flowers','Bring dinner to the table','Welcome her home ♥'];button(names[Math.min(s.stage,3)],()=>{if(s.stage<3){s.stage++;tone(s.stage);buildControls();}else{s.moving=true;s.age=0;}},true);}
       if(type==='park')button(s.stage<4?'Walk to the next lamplight →':'Sit together on the bench ♥',()=>{if(s.stage>=4){finish();return;}if(!s.moving){s.moving=true;s.age=0;}},true);
@@ -43,7 +43,7 @@
         button('Save our pumpkins ♥',()=>{if(s.carvings.some(d=>!d.template&&!d.strokes.length)){notice('Give both pumpkins a design first: draw, or choose a stencil.');return;}window.OUR_YEAR.detail('carving',{carvings:s.carvings});finish();},true);
       }
       if(type==='haunt'){button('Stay together · next doorway →',()=>{if(!s.moving){s.moving=true;s.age=0;}},true);button(s.quiet?'Gentle scares ✓':'Gentle scares',()=>{s.quiet=!s.quiet;buildControls();});}
-      if(type==='addams'){button('Wear our Addams looks ♥',()=>{try{window.SharedWardrobe.addams();finish({looks:['addams-morticia','addams-gomez']});}catch(e){notice('Could not save the costumes: '+e.message);}},true);button('Make my own version ↗',()=>location.href='outfit-studio.html');}
+      if(type==='addams'){button('Wear our Addams looks ♥',()=>{try{window.SharedWardrobe.addams();finish({looks:['addams-morticia','addams-gomez']});}catch(e){notice('Could not save the costumes: '+e.message);}},true);}
       if(type==='necklace')button('Return to our original photo booth ⚡',()=>location.href='shopping.html?memory=first-yes',true);
     }
     function text(txt,x,y,size,color,align){p.fillStyle=color||'#f6e5c5';p.font=(size||20)+'px Georgia';p.textAlign=align||'center';p.fillText(txt,x,y);}
