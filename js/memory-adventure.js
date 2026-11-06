@@ -6,6 +6,18 @@
  let keys={},camera={x:768,y:650},state=S.read();
  let carrying=false,carrySprite=null,carryEntry=null,carryExit=null;
  const feedback=[];
+ const hauntScares={
+  'haunt-chain':{at:3.3,x:413,y:348},
+  'haunt-mirror':{at:3.9,x:1230,y:253},
+  'haunt-exit':{at:2.4,x:1245,y:720}
+ };
+ let hauntHand=false,handOffer=null,gentleScares=false;
+ function offerHand(who){
+  if(handOffer&&handOffer!==who){hauntHand=true;handOffer=null;}
+  else if(!hauntHand)handOffer=who;
+  sceneControls();
+ }
+
  const players={him:{who:'him',x:730,y:880,dir:0,frame:0,path:[]},her:{who:'her',x:805,y:880,dir:0,frame:0,path:[]}};
  const debug=window.MapDebug.create(canvas,()=>({ready,...camera,width,height,scale,dpr,mapWidth:1536,mapHeight:1024,id:place.id}));
  const clamp=(n,a=0,b=1)=>Math.max(a,Math.min(b,n)),ease=u=>{u=clamp(u);return u*u*(3-2*u);};
@@ -35,7 +47,7 @@
  function travel(id,initial=false){
   if(!D.places[id]){savePosition();location.href='memory-world.html'+(id==='home'?'':'?area='+id);return;}
   window.SkyfallPlayer?.setAvailable(id==='concert');
-  if(!initial)savePosition();closePanel(false);endScene(false);carrying=false;swimming=false;carryEntry=null;carryExit=null;feedback.length=0;debug.clear();place=D.places[id];applyOccasionOutfits();A.pin(id);placeAt(...place.spawn);keys={};near=null;$('interact').hidden=true;
+  if(!initial)savePosition();closePanel(false);endScene(false);carrying=false;swimming=false;carryEntry=null;carryExit=null;feedback.length=0;hauntHand=false;handOffer=null;debug.clear();place=D.places[id];applyOccasionOutfits();A.pin(id);placeAt(...place.spawn);keys={};near=null;$('interact').hidden=true;
   try{const saved=JSON.parse(sessionStorage.getItem('adventure-position-'+id)||'null');if(saved)Object.keys(players).forEach(who=>{if(saved[who]&&canStand(saved[who].x,saved[who].y)){players[who].x=saved[who].x;players[who].y=saved[who].y;}});}catch(e){}
   camera=place.id==='apartment'?{x:768,y:512}:{x:(players.him.x+players.her.x)/2,y:(players.him.y+players.her.y)/2};if(place.id==='apartment')scale=Math.min(width/1536,height/1024)*.97;
   $('placeTitle').textContent=place.title;$('placeChapter').textContent=place.chapter;$('placeSubtitle').textContent=place.subtitle;document.title=place.title+' · Our Adventure';
@@ -130,6 +142,7 @@
   if(scene){
    if(scene.kind==='golf')shoot();
    else if(scene.phase==='playing'&&scene.node.scene==='drive')toggleDrive();
+   else if(scene.phase==='playing'&&scene.node.scene==='haunt-chain'&&!scene.chainPulled)pullChain();
    else if(scene.phase==='playing'&&['baseball','concert'].includes(scene.node.scene))audienceAction('clap');
    else{scene.paused=!scene.paused;sceneControls();}
    return;
@@ -157,7 +170,10 @@
   concert:[['sit',6,'The hall goes dark. Usha Uthup takes the stage.'],['dance',8,'Usha Uthup sings “Skyfall.” The stage glows blue as we sway together.'],['clap',5,'One more round of applause.']],applause:[['clap',6,'An Atlanta concert we got to share.']],
   prayer:[['pray',8,'A quiet moment beside four glowing diyas.']],culture:[['sit',8,'Colorful fabric and dancers turning across the stage.']],drama:[['sit',7,'A little stage, a story, and two people watching.']],music:[['clap',8,'Kirtan, bhajan, and the gathering around the musicians.']],feast:[['give',3,'Sharing the plate we picked together.'],['sit',5,'A vegetarian feast and time together in her community.']],
   'pumpkin-photo':[['hold',4,'Two pumpkins by the wagon.'],['portrait',4,'One picture before we take them home to carve.']],pick:[['crouch',1.8,'This one belongs to our pair.'],['pick',1.2,'Bring it back to our wagon.']],
-  'haunt-door':[['hold',5,'At the entrance together. Time to go in.']], 'haunt-chain':[['hold',6,'A rattle in the dark. We move a little closer.']], 'haunt-mirror':[['hold',6,'Our reflections follow us past the next doorway.']], 'haunt-exit':[['hold',3,'Through the fog. The exit is just ahead.'],['hug',5,'A breath of relief, then back outside together.']],
+  'haunt-door':[['hold',7,'The Warehouse31 door creaks open. Ready to go in together?']],
+  'haunt-chain':[['reach-up',2.2,'A loose chain hangs across the passage. Give it a tug.'],['look',1.1,'Something rattles back from the other side.'],['hold',3,'Something lunges out of the dark. Keep moving.']],
+  'haunt-mirror':[['look',2.5,'Look into the glass. Both reflections follow you.'],['hold',1.4,'One reflection has stopped moving.'],['hold',2.3,'It rushes the glass. The next door is open.']],
+  'haunt-exit':[['look',2.4,'The EXIT sign is barely visible through the fog.'],['hold',1.6,'A shadow darts across the doorway.'],['hug',4,'You made it outside. A startled laugh, then a hug.']],
   dance:[['dance',8,'Gomez and Morticia. Ashton and Tanima.'],['hug',4,'Good night from the Addams.']],portrait:[['portrait',5,'A little pose to keep from this day.']],snack:[['give',5,'A little something for the two of us to share.']], 'small-task':[['give',3,'One more little detail of our day.']],astra:[['look',3,'Following the light into the next part of the forest.'],['hold',6,'A night amongst the stars, together.']]
  };
  function anchorFor(n){
@@ -180,10 +196,28 @@
   document.body.classList.add('adventure-cinematic');
   const q=G.nearest(place,n.x,n.y,swimming)||{x:n.x,y:n.y};walkTo(q.x,q.y);const slots=place.art.slots&&place.art.slots[type];if(slots)Object.values(players).forEach((a,i)=>{a.path=G.pathfind(place,a,{x:slots[i][0],y:slots[i][1]+(type==='pool-rest'?65:35)},swimming);});$('sceneCaption').hidden=false;$('sceneTitle').textContent=n.name;$('sceneText').textContent='A little closer together…';sceneControls();if(type==='concert')S.task('concert-performed',null,0);near=null;$('interact').hidden=true;
  }
+ function pullChain(){
+  if(!scene||scene.paused||scene.chainPulled)return;
+  scene.chainPulled=true;
+  scene.age=0;
+  tone(-5);
+  sceneControls();
+ }
  function sceneControls(){
   const c=$('sceneControls');c.replaceChildren();if(!scene)return;
   if(scene.kind==='golf'){range(c,'Aim',-100,100,scene.aim,v=>scene.aim=v);range(c,'Power',20,100,scene.power,v=>scene.power=v);button('Take the shot · E',shoot,c);button('Finish round',()=>endScene(false),c);return;}
   const type=scene.node.scene;
+  if(type==='haunt-door'){
+   const mode=button(gentleScares?'Gentle scares · on':'Gentle scares · off',()=>{gentleScares=!gentleScares;sceneControls();},c);
+   mode.setAttribute('aria-pressed',String(gentleScares));
+   if(!hauntHand){
+    for(const [who,name] of [['him','Ashton'],['her','Tanima']]){
+     const label=!handOffer?'offer a hand':handOffer===who?'hand offered':'take their hand';
+     button(name+' · '+label,()=>offerHand(who),c).disabled=handOffer===who;
+    }
+   }
+  }
+  if(scene.phase==='playing'&&type==='haunt-chain'&&!scene.chainPulled)button('Pull the chain · E',pullChain,c);
   if(scene.phase==='playing'&&type==='drive'){
    button('Lane left · A',()=>steerDrive(-1),c);
    button('Drive / brake · E',toggleDrive,c);
@@ -297,6 +331,7 @@
   }
   if(pose==='give'||pose==='gift')return who==='him'?'give':'receive';
   if(pose==='portrait')return 'hold';
+  if(type==='haunt-chain'&&pose==='reach-up'&&who==='her')return 'look';
   return pose;
  }
  function animateSceneCast(s){
@@ -315,13 +350,20 @@
   if(s.phase==='approach'){if(Object.values(players).every(a=>!a.path.length)){s.phase='playing';s.age=0;s.separation=35;sceneControls();}return;}
   if(s.phase==='leaving'){s.departure+=dt;if(s.departure>=.8)endScene(true);return;}
   if(s.drive){updateDrive(s,dt);return;}
-  s.age+=dt;let at=0,found=null;for(const part of s.script){if(s.age<at+part[1]){found={pose:part[0],text:part[2],progress:(s.age-at)/part[1]};break;}at+=part[1];}
+  if(s.node.scene==='haunt-chain'&&!s.chainPulled){$('sceneText').textContent='A loose chain hangs across the passage. Press E to pull it.';return;}
+  const previousAge=s.age;
+  s.age+=dt;
+  const scare=hauntScares[s.node.scene];
+  if(scare&&previousAge<scare.at&&s.age>=scare.at&&!gentleScares)tone(-14);
+  let at=0,found=null;for(const part of s.script){if(s.age<at+part[1]){found={pose:part[0],text:part[2],progress:(s.age-at)/part[1]};break;}at+=part[1];}
   if(!found){s.phase='leaving';s.departure=0;return;}s.current=found;animateSceneCast(s);s.separation+=(['hug','kiss'].includes(found.pose)?11-s.separation:35-s.separation)*Math.min(1,dt*5);let caption=found.text;
   if(s.node.scene==='baseball'){
    const beat=s.age%4;
    const cue=beat>=2&&beat<2.9?'HIT! Cheer now · E':beat<2?'Here comes the pitch…':'Watch for the next pitch.';
    caption=cue+' · '+(s.cheers||0)+' timed cheers';
   }
+  if(hauntHand&&hauntScares[s.node.scene]&&found.pose==='hold')s.separation+=(23-s.separation)*Math.min(1,dt*8);
+  if(s.node.scene==='haunt-door'&&hauntHand)caption='Hands held. '+caption;
   if(s.plate)caption+=' '+s.plate.join(' · ');
   $('sceneText').textContent=caption;
  }
@@ -406,6 +448,47 @@
   ctx.fillText(action.pose==='dance'?'♪':'✧',scene.anchor.x,scene.anchor.y-82-age*18);
   ctx.restore();
  }
+ function drawHaunt(){
+  const s=scene,scare=s&&hauntScares[s.node.scene],playing=s?.phase==='playing';
+  const {R,P,E,L,T,glow}=A.painter(ctx);
+  if(hauntHand){
+   const {him,her}=players;
+   const separation=Math.hypot(him.x-her.x,him.y-her.y);
+   if(!playing&&separation<105){
+    const y=place.actorHeight*.38;
+    const offset=(her.x>=him.x?1:-1)*Math.min(15,separation*.35);
+    L([[him.x+offset,him.y-y],[(him.x+her.x)/2,(him.y+her.y)/2-y+5],[her.x-offset,her.y-y]],'#cc936f',4);
+   }
+  }
+  if(!playing||!scare)return;
+  const beat=s.age-scare.at,type=s.node.scene;
+  if(type==='haunt-exit'){
+   const dim=beat<0&&Math.sin(s.age*7)>.6;
+   glow(1245,647,65,dim?'#a01f211a':'#f5353b65');
+   T('EXIT',1245,653,20,dim?'#60252b':'#ff6863');
+  }
+  if(type==='haunt-chain'&&beat<0){
+   const swing=Math.sin(s.age*8)*8*clamp(s.age-1);
+   for(let i=0;i<3;i++){
+    const x=393+i*19;
+    L([[x,267],[x+swing*.5,310],[x+swing,354]],'#828487',3);
+   }
+  }
+  if(beat<0||beat>1.25)return;
+  const strength=gentleScares ? .52 : 1;
+  const rush=ease(beat/(gentleScares ? .65 : .16)),fade=1-ease((beat-.38)/.87);
+  const x=scare.x+(type==='haunt-exit'?rush*125-75:0),y=scare.y+18*rush,k=(.37+.6*rush)*strength;
+  ctx.save();
+  ctx.globalAlpha=fade*strength;
+  if(!gentleScares)R(0,0,1536,1024,'#1604073b');
+  ctx.translate(x,y);ctx.scale(k,k);
+  glow(0,-65,96,'#ad263e74');
+  P([[-68,0],[-56,-41],[-29,-57],[-29,-95],[-15,-112],[15,-112],[29,-95],[29,-57],[56,-41],[68,0]],'#100e17');
+  P([[-25,-87],[-4,-80],[-7,-70],[-20,-72]],'#e7c6aa');
+  P([[25,-87],[4,-80],[7,-70],[20,-72]],'#e7c6aa');
+  E(0,-54,9,12,'#390e1a');
+  ctx.restore();
+ }
  function draw(){
   if(!ready)return;ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#070b09';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.setTransform(scale*dpr,0,0,scale*dpr,(width/2-camera.x*scale)*dpr,(height/2-camera.y*scale)*dpr);ctx.imageSmoothingEnabled=false;ctx.drawImage(A.base(place),0,0);A.effects(ctx,place,elapsed,state,scene);
   const entities=place.props.map(o=>({y:o.y+o.h,draw:()=>A.mapProp(ctx,place,o,elapsed,state)}));if(swimming&&!carrying){const spot=place.nodes.find(n=>n.action==='carry');if(spot)carryRipples(spot.x,spot.y,true);}
@@ -428,8 +511,9 @@
    }
    A.prop(ctx,{kind:'jeep',x:x-85,y:y-70+(rolling?Math.sin(scene.age*17)*1.7:0),w:170,h:90},scene.age,state);
   }
-  if(scene&&scene.node.scene==='haunt-mirror'&&scene.phase!=='approach'){const [x,y,w,h]=place.art.mirrorArea;ctx.save();ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();ctx.globalAlpha=.32;poses.drawPose('him',x+w*.3,y+h,60,'hold',scene.age,true);poses.drawPose('her',x+w*.7,y+h,60,'hold',scene.age,false);ctx.restore();}
+  if(scene&&scene.node.scene==='haunt-mirror'&&scene.phase!=='approach'){const [x,y,w,h]=place.art.mirrorArea;ctx.save();ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();ctx.globalAlpha=.32;poses.drawPose('him',x+w*.3,y+h,60,'hold',scene.age,true);poses.drawPose('her',x+w*.7,y+h,60,'hold',Math.min(scene.age,2.5),false);ctx.restore();}
   A.effects(ctx,place,elapsed,state,scene,'over');
+  if(place.id==='haunt')drawHaunt();
   if(carryExit){
    const alpha=1-ease((elapsed-carryExit.time)/.30);
    if(alpha>0)carryArt(carryExit.x,carryExit.y,carryExit.dir,0,alpha);
@@ -455,5 +539,5 @@
  addEventListener('resize',resize);addEventListener('pagehide',savePosition);addEventListener('adventurechange',sync);addEventListener('wardrobechange',()=>refreshOutfits().catch(e=>toast(e.message)));addEventListener('focus',()=>{if(ready)refreshOutfits().catch(()=>{});});
  async function init(){try{await refreshOutfits();resize();await travel(place.id,true);ready=true;$('adventureLoading').hidden=true;}catch(e){$('adventureLoading').querySelector('p').textContent=e.message;$('retryAdventure').hidden=false;}}
  $('retryAdventure').onclick=init;resize();init();requestAnimationFrame(loop);
- window.memoryAdventure={getState:()=>({ready,debug:debug.state(),place:place.id,players:JSON.parse(JSON.stringify(players)),outfits:Object.fromEntries(Object.entries(images).map(([who,im])=>[who,im.src])),camera:{...camera,scale},near:near&&near.id,swimming,carrying,scene:scene&&{kind:scene.kind,phase:scene.phase,age:scene.age,action:scene.current&&scene.current.pose,checkpoints:scene.drive?.gate,timedCheers:scene.cheers||0},adventure:S.read()}),getMap:()=>place,canStand,pathfind:(from,to)=>G.pathfind(place,from,to,swimming)};
+ window.memoryAdventure={getState:()=>({ready,debug:debug.state(),place:place.id,players:JSON.parse(JSON.stringify(players)),outfits:Object.fromEntries(Object.entries(images).map(([who,im])=>[who,im.src])),camera:{...camera,scale},near:near&&near.id,swimming,carrying,hauntHand,gentleScares,scene:scene&&{kind:scene.kind,phase:scene.phase,age:scene.age,action:scene.current&&scene.current.pose,checkpoints:scene.drive?.gate,timedCheers:scene.cheers||0,scare:scene.phase==='playing'&&hauntScares[scene.node.scene]&&scene.age>=hauntScares[scene.node.scene].at&&scene.age<hauntScares[scene.node.scene].at+1.25?scene.node.scene:null},adventure:S.read()}),getMap:()=>place,canStand,pathfind:(from,to)=>G.pathfind(place,from,to,swimming)};
 })();

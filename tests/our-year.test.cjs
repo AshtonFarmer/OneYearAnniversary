@@ -188,6 +188,22 @@ async function adventureFixture(id='park'){
  vm.runInContext(src('js/memory-adventure.js').replace('window.memoryAdventure={','window.__adventureTest={act,travel,update,draw,players,placeAt,endScene,shoot};window.memoryAdventure={'),s);await new Promise(resolve=>setImmediate(resolve));
  const a=s.__adventureTest;return {s,a,tick:seconds=>{for(let i=0;i<Math.ceil(seconds*60);i++)a.update(1/60);},act:id=>a.act(s.memoryAdventure.getMap().nodes.find(n=>n.id===id)),travel:async id=>{await a.travel(id);},state:()=>s.memoryAdventure.getState()};
 }
+test('Warehouse31 requires each room, waits for the chain pull and stages all three scares',async()=>{
+ const f=await adventureFixture('haunt'),controls=f.s.document.getElementById('sceneControls');
+ const click=label=>controls.children.find(b=>b.textContent===label).click();
+ const enter=id=>{const node=f.s.memoryAdventure.getMap().nodes.find(n=>n.id===id);f.a.placeAt(node.x,node.y);f.act(id);f.tick(.5);};
+ enter('mirror');assert.equal(f.state().scene,null);
+ enter('entrance');
+ click('Gentle scares · off');assert.equal(f.state().gentleScares,true);
+ click('Ashton · offer a hand');click('Tanima · take their hand');assert.equal(f.state().hauntHand,true);
+ f.tick(8);
+ enter('chains');f.tick(4);assert.equal(f.state().scene.age,0);
+ click('Pull the chain · E');f.tick(3.55);assert.equal(f.state().scene.scare,'haunt-chain');f.a.draw();f.tick(4);
+ enter('mirror');f.tick(3.6);assert.equal(f.state().scene.scare,'haunt-mirror');f.a.draw();f.tick(4);
+ enter('fog');f.tick(2.15);assert.equal(f.state().scene.scare,'haunt-exit');f.a.draw();f.tick(7);
+ assert.ok(f.s.OUR_YEAR.read().completed.haunt);
+ await f.travel('halloween');assert.equal(f.state().hauntHand,false);
+});
 test('support atlases have 16 complete transparent cells with consistent feet and distinct animation frames',()=>{
  for(const name of ['detail','performance','sports']){const raw=decoded.get('assets/our-year/'+name+'-atlas.png');assert.equal(raw.info.width,1024);assert.equal(raw.info.height,1024);let transparent=0;const signatures=[];
   for(let cell=0;cell<16;cell++){let count=0,minX=256,maxX=0,minY=256,maxY=0,signature=0;for(let y=0;y<256;y++)for(let x=0;x<256;x++){const i=((Math.floor(cell/4)*256+y)*1024+cell%4*256+x)*4,a=raw.data[i+3];if(!a)transparent++;if(a>32){count++;minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);signature=(signature+raw.data[i]*(x+1)+raw.data[i+1]*(y+1))%2147483647;}}
