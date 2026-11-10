@@ -57,10 +57,10 @@
       tint:'rgba(0,40,120,.08)',
       glow:'#71efff'
     }),
-    tunnelDuration:1.55,
-    worldDuration:1.72,
-    finalDuration:3.35,
-    landingDuration:1.12,
+    tunnelDuration:.95,
+    worldDuration:1.05,
+    finalDuration:2.45,
+    landingDuration:.85,
     destination:Object.freeze({
       id:'our-little-world',
       name:'Our Little World',

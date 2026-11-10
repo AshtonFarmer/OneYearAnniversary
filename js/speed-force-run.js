@@ -32,7 +32,7 @@
   const CELL=256;
   const SPRITE_SIZE=164;
   const PURSUIT_SIZE=216;
-  const RUN_DURATION=37;
+  const RUN_DURATION=23;
   const BREACH_DURATION=2.2;
   const BREACH_FRAME_COUNT=16;
   const PURSUIT_LAUNCH_DELAY=.42;
@@ -41,10 +41,10 @@
   const EXIT_BREACH_WIDTH=360;
   const EXIT_BREACH_HEIGHT=410;
   const multiverseConfig=window.SPEED_FORCE_MULTIVERSE||{worlds:[],destination:{name:'Our Little World',url:'memory-world.html?from=speed-force'}};
-  const TUNNEL_DURATION=Number(multiverseConfig.tunnelDuration)||1.55;
-  const WORLD_DURATION=Number(multiverseConfig.worldDuration)||1.72;
-  const FINAL_WORLD_DURATION=Number(multiverseConfig.finalDuration)||3.35;
-  const MULTIVERSE_LANDING_DURATION=Number(multiverseConfig.landingDuration)||1.12;
+  const TUNNEL_DURATION=Number(multiverseConfig.tunnelDuration)||.95;
+  const WORLD_DURATION=Number(multiverseConfig.worldDuration)||1.05;
+  const FINAL_WORLD_DURATION=Number(multiverseConfig.finalDuration)||2.45;
+  const MULTIVERSE_LANDING_DURATION=Number(multiverseConfig.landingDuration)||.85;
   const FINAL_DESTINATION=multiverseConfig.destination||{name:'Our Little World',url:'memory-world.html?from=speed-force'};
   const CHASE_START_RUN=5; // Initial run + three replays must finish first.
   const MAX_PURSUERS=5;
